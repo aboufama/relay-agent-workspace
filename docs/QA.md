@@ -18,7 +18,7 @@ Independent Astra review captured all 11 destinations at 1440, 1024 and 390 pixe
 | New shared avatars inherited flex stretching | Fixed 24×24 sidebar avatars; message/profile sizes remain independent |
 | Generic Settings and Inbox cards | Grouped settings with local name/preferences and list/detail Inbox with keyboard selection, search and read controls |
 | Crowded Data/Workflows screens | Plain headers, scoped responsive layout, accessible collection state, keyboard form submission and empty-file preview handling |
-| Generic server icon | Shared original Dell artwork across navigation, local-agent badges and Compute; larger portrait and subtle cool-gray card tint/grain |
+| Generic server icon | Original Dell artwork on local-compute badges and Compute; larger portrait and subtle cool-gray card tint/grain; original sidebar icon retained |
 | Browser-default progress color | Consistent gray progress styling |
 | Many model/setup choices | One Dell card prescribing Holo with NemoClaw, OpenClaw and OpenShell; fixed idempotent setup action with real installation progress |
 | Thread retry lost parent context after reload | Retry reconstructs parent plus thread history |
