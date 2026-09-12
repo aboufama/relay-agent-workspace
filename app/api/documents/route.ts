@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-import { type BuzzEnv, emit, ensureSchema, fail, id, mapDocument, now, ok, sameOrigin } from '@/lib/buzz/db';
+import { type BuzzEnv, body, emit, ensureSchema, fail, id, mapDocument, now, ok, sameOrigin } from '@/lib/buzz/db';
 import { chunkText, embed } from '@/lib/buzz/context';
 import { LEVELS, type Level } from '@/lib/buzz/types';
 export const dynamic = 'force-dynamic';
@@ -86,4 +86,21 @@ export async function DELETE(request: Request) {
   if (row.r2_key) await e.BUCKET.delete(String(row.r2_key));
   await emit(e, 'document.deleted', { id: docId });
   return ok({ ok: true });
+}
+
+// Reclassify a stored source without losing its bytes or retrieval index.
+export async function PATCH(request: Request) {
+  const e = env as unknown as BuzzEnv;
+  if (!sameOrigin(request)) return fail('Forbidden', 403);
+  await ensureSchema(e);
+  const input = await body<{ id?: string; level?: Level }>(request);
+  if (!input?.id || !LEVELS.includes(input.level as Level)) return fail('Choose a document and classification.');
+  const row = await e.DB.prepare('SELECT * FROM documents WHERE id = ?').bind(input.id).first<Record<string, unknown>>();
+  if (!row) return fail('Document not found.', 404);
+  const document = mapDocument(row);
+  if (input.level === 'Restricted' && !document.agents.length) return fail('Restricted sources need named agent grants. Reimport this source with specific agents first.');
+  await e.DB.prepare('UPDATE documents SET level = ?, updated_at = ? WHERE id = ?').bind(input.level, now(), input.id).run();
+  const updated = mapDocument((await e.DB.prepare('SELECT * FROM documents WHERE id = ?').bind(input.id).first<Record<string, unknown>>())!);
+  await emit(e, 'document.updated', { document: updated });
+  return ok({ document: updated });
 }

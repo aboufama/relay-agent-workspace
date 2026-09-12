@@ -2,6 +2,7 @@
 // Local Shoal runner. OpenClaw owns agent/tool execution inside the NemoClaw/OpenShell sandbox.
 import { hostname } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { readNativeHistory, awaitNativeDelegation } from './shoal-native-results.mjs';
 const API = (process.env.BUZZ_API || 'http://127.0.0.1:5173').replace(/\/$/, '');
 const TOKEN = process.env.BUZZ_RUNNER_TOKEN || '';
 const OPENCLAW = (process.env.BUZZ_OPENCLAW_URL || '').replace(/\/$/, '');
@@ -32,7 +33,11 @@ async function execute({ run, packet }) {
   let inputTokens = 0, outputTokens = 0;
   try {
     for (let turn = 0; turn < 4; turn++) {
-      let terminal = false, finishReason = null, turnText = '';
+      let terminal = false, finishReason = null, turnText = '', turnInputTokens = 0, turnOutputTokens = 0;
+      const nativeSession = `agent:${packet.model.replace('openclaw/', '')}:${packet.sessionKey.toLowerCase()}`;
+      const nativeArgs = { baseUrl: OPENCLAW, token: OPENCLAW_TOKEN, sessionKey: nativeSession, signal: controller.signal };
+      const before = await readNativeHistory(nativeArgs);
+      const afterSeq = Math.max(0, ...before.messages.map((message) => message.__openclaw?.seq ?? 0));
       const messages = turn === 0 ? packet.messages : [{ role: 'user', content: 'Continue the same Shoal task after the recorded human decision. Inspect the native command completion or resulting artifact. Do not repeat an approved command. If rejected or expired, respect that decision and explain what remains undone. Finish the original task with verified results.' }];
       const response = await fetch(`${OPENCLAW}/v1/chat/completions`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENCLAW_TOKEN}`, 'x-openclaw-session-key': packet.sessionKey },
@@ -46,7 +51,7 @@ async function execute({ run, packet }) {
         if (payload === '[DONE]') { terminal = true; return; }
         let data; try { data = JSON.parse(payload); } catch { throw new Error('Malformed OpenClaw stream event.'); }
         if (data.error) throw new Error(data.error.message || String(data.error));
-        if (data.usage) { inputTokens += data.usage.prompt_tokens || 0; outputTokens += data.usage.completion_tokens || 0; }
+        if (data.usage) { turnInputTokens += data.usage.prompt_tokens || 0; turnOutputTokens += data.usage.completion_tokens || 0; }
         const choice = data.choices?.[0]; if (choice?.finish_reason) finishReason = choice.finish_reason;
         const delta = choice?.delta?.content;
         if (typeof delta === 'string') { turnText += delta; text += delta; pending += delta; }
@@ -60,7 +65,17 @@ async function execute({ run, packet }) {
       }
       buffer += decoder.decode(); if (buffer.trim()) await line(buffer.trim()); await flush();
       if (!terminal || finishReason !== 'stop') throw new Error(finishReason === 'length' ? 'The response reached its output limit. Partial output was saved; continue in Deep.' : `OpenClaw stream ended without successful completion (${finishReason || 'interrupted'}).`);
-      if (!turnText.trim()) throw new Error('OpenClaw returned no answer.');
+      // Native HTTP can end while children are working; join their saved results without extra model polling.
+      const delegation = await awaitNativeDelegation({ ...nativeArgs, afterSeq, timeoutMs: packet.mode === 'deep' ? 20 * 60000 : 8 * 60000 });
+      if (delegation) {
+        text = text.slice(0, text.length - turnText.length) + delegation.content;
+        turnText = delegation.content;
+        turnInputTokens = delegation.usage.prompt_tokens;
+        turnOutputTokens = delegation.usage.completion_tokens;
+        await send({ type: 'tool', name: 'sessions_spawn', output: { children: delegation.children, joinedAt: delegation.completedAt } });
+      }
+      if (!turnText.trim() || ['NO_REPLY', 'No response from OpenClaw.'].includes(turnText.trim())) throw new Error('OpenClaw returned no completed answer.');
+      inputTokens += turnInputTokens; outputTokens += turnOutputTokens;
       // The native approval bridge polls every second; allow its last request to reach the journal.
       await sleep(1200);
       let approvals = (await api(`/api/approvals?runId=${run.id}`)).approvals;

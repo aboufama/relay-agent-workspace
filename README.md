@@ -1,6 +1,8 @@
 # Shoal
 
-A local agent workspace for product design and customer support. The frontend uses React, TypeScript and Vinext. Cloudflare D1 and R2 bindings provide shared workspace records and document storage; the local demo uses Wrangler's local emulation.
+The GitHub UI is the default interface. [Bell demo guide](docs/BELL_DEMO.md) describes the fictional engineering workspace, profiles, data, and presentation flow.
+
+A local agent workspace, presented through a fictional Bell engineering demo with six specialists, four programs, twelve source documents and sixteen tasks. The frontend uses React, TypeScript and Vinext. Cloudflare D1 and R2 bindings provide shared workspace records and document storage; the local demo uses Wrangler's local emulation.
 
 ## Runtime
 

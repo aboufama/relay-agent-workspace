@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { type BuzzEnv, body, emit, ensureSchema, fail, id, mapRun, mapTask, now, ok, sameOrigin } from '@/lib/buzz/db';
 import { getAgent } from '@/lib/buzz/context';
+import { canUseContextRoom, canUseTaskContext, resolveContextRoom } from '@/lib/buzz/context-scope';
 import type { RunMode } from '@/lib/buzz/types';
 export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
@@ -27,9 +28,13 @@ export async function POST(request: Request) {
   const agent = agentId ? await getAgent(e, agentId) : null;
   const taskRow = taskId ? await e.DB.prepare('SELECT * FROM tasks WHERE id = ?').bind(taskId).first<Record<string, unknown>>() : null;
   if (!agent || (!taskRow && !prior)) return fail('Choose a task and an agent.', 404);
+  if (!canUseTaskContext(agent, taskId)) return fail(`${agent.name} is not granted this Bell task's stored context.`, 403);
+  const scopeRoom = prior?.room ? await resolveContextRoom(e, String(prior.room)).catch(() => null) : null;
+  if (prior?.room && !scopeRoom) return fail('Original conversation not found.', 404);
+  if (!canUseContextRoom(agent, scopeRoom)) return fail(`${agent.name} no longer has access to this conversation.`, 403);
   const active = taskId
     ? await e.DB.prepare("SELECT id FROM runs WHERE task_id = ? AND status IN ('queued','preparing','running','awaiting') LIMIT 1").bind(taskId).first()
-    : await e.DB.prepare("SELECT id FROM runs WHERE parent_run_id = ? AND status IN ('queued','preparing','running','awaiting') LIMIT 1").bind(prior!.id).first();
+    : await e.DB.prepare("SELECT id FROM runs WHERE trigger_message_id = ? AND agent_id = ? AND status IN ('queued','preparing','running','awaiting') LIMIT 1").bind(prior!.trigger_message_id, agent.id).first();
   if (active) return fail('This task already has a run in progress.', 409);
   const mode = p?.mode ?? (prior?.mode === 'deep' ? 'deep' : prior ? 'quick' : 'deep');
   const runId = id('run'); const ts = now(); const replyId = prior?.room ? id('msg') : null;

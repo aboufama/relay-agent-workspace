@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { type BuzzEnv, body, emit, ensureSchema, fail, mapRun, mapTask, now, ok, runnerAuthorized } from '@/lib/buzz/db';
 import { buildPacket, getAgent } from '@/lib/buzz/context';
+import { canUseTaskContext } from '@/lib/buzz/context-scope';
 import { failRun, leaseUntil } from '@/lib/buzz/runs';
 export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
   try {
     const agent = await getAgent(e, run.agentId);
     if (!agent || agent.data.paused) throw new Error('The requested agent is missing or paused.');
+    if (!canUseTaskContext(agent, run.taskId ?? null)) throw new Error(`${agent.name} is not granted this Bell task's stored context.`);
     let objective = ''; let contract: string | null = null;
     if (run.kind === 'chat') {
       const trigger = run.triggerMessageId ? await e.DB.prepare('SELECT body FROM messages WHERE id = ?').bind(run.triggerMessageId).first<{ body: string }>() : null;

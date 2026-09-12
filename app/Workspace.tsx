@@ -1,20 +1,23 @@
 'use client';
-import { AgentAvatar, setAgentActivity, type AgentActivity } from '@/components/AgentAvatar';
+import { AgentAvatar, setAgentActivity, setAgentAvailability, type AgentActivity } from '@/components/AgentAvatar';
 import { HuddlesView } from './components/HuddlesView';
 import { useWorkspaceMembers, type WorkspaceMember, type AgentMember } from '@/lib/workspace-members';
 import { buzz, useBuzz } from '@/lib/buzz/store';
 import type { MessageRecord, Packet, RunMode, RunRecord } from '@/lib/buzz/types';
-import { LiveComposer } from './LiveComposer';
+import { LiveComposer, type ComposerHandle } from './LiveComposer';
 import './live-chat.css';
+import { MemberAvatar } from '@/components/MemberAvatar';
+import { useAgentHomes } from '@/lib/agent-homes';
+import './chat-quality.css';
 import { ChatHeader } from '@/components/buzz/ChatHeader';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode, SyntheticEvent, CSSProperties } from 'react';
 import {
   Activity,
+  FolderKanban,
   Archive,
   AtSign,
-  Bot,
   Bold,
   Code,
   CheckCircle2,
@@ -27,7 +30,6 @@ import {
   Hash,
   Inbox,
   Info,
-  Layers3,
   MessageCircle,
   MoreHorizontal,
   Paperclip,
@@ -37,7 +39,6 @@ import {
   Settings,
   ShieldCheck,
   Smile,
-  Sparkles,
   Star,
   Users,
   ThumbsUp,
@@ -53,13 +54,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
-import {
   SidebarProvider,
   useSidebar,
   Sidebar,
@@ -73,11 +67,14 @@ import {
 } from '@/components/ui/sidebar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataView } from './components/DataView';
-import { AgentsView } from './components/AgentsView';
 import { ComputeView } from './components/ComputeView';
+import { DeepDiveView } from './components/DeepDiveView';
+import { InboxView } from './components/InboxView';
 import { ProjectsView } from './components/ProjectsView';
 import { WorkflowsView } from './components/WorkflowsView';
 import { ForumView } from './components/ForumView';
+import { SettingsView } from './components/SettingsView';
+import { useWorkspaceName } from '@/lib/workspace-name';
 
 type View =
   | 'chat'
@@ -88,8 +85,9 @@ type View =
   | 'projects'
   | 'workflows'
   | 'forum'
-  | 'huddles'
   | 'activity'
+  | 'deep-dive'
+  | 'huddles'
   | 'settings';
 type Message = MessageRecord & {
   initials: string;
@@ -98,6 +96,7 @@ type Message = MessageRecord & {
   agent?: 'local' | 'cloud';
   character?: AgentMember['character'];
 };
+function resolveMember(members: readonly WorkspaceMember[], id?: string, name?: string) { return members.find(member => id ? member.id === id : member.name === name); }
 const ACTIVE_RUN = new Set<RunRecord['status']>(['queued', 'preparing', 'running']);
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -144,11 +143,12 @@ function NavigationContent({ children }: { children: ReactNode }) {
 }
 export function Workspace() {
   const members = useWorkspaceMembers();
+  const workspaceName = useWorkspaceName();
   const { messages: allMessages, channels: storeChannels, runs, online } = useBuzz();
   const [, setMentionedIds] = useState<string[]>([]);
   const [memberProfile, setMemberProfile] = useState<WorkspaceMember | null>(null);
-  const [view, setView] = useState<View>('chat');
-  const [channel, setChannel] = useState('launch-room');
+  const [view, setView] = useState<View>('projects');
+  const [channel, setChannel] = useState('engineering-release');
   // Channels exist server-side once they hold a message; new empty ones live here until then.
   const [localChannels, setLocalChannels] = useState<string[]>([]);
   const channels = useMemo(
@@ -156,32 +156,27 @@ export function Workspace() {
     [storeChannels, localChannels],
   );
   const memberById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
-  const messages = useMemo(
-    () =>
-      allMessages
-        .filter((message) => message.room === channel)
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-        .map((message): Message => {
-          const member = memberById.get(message.memberId);
-          return {
-            ...message,
-            initials: member?.initials ?? message.name.slice(0, 2),
-            tone: member?.tone || 'mint',
-            time: formatTime(message.createdAt),
-            agent: member?.kind === 'agent' ? member.runtime : undefined,
-            character: member?.kind === 'agent' ? member.character : undefined,
-          };
-        }),
-    [allMessages, channel, memberById],
-  );
+  const displayMessages = useMemo(() => allMessages.map((message): Message => {
+    const member = memberById.get(message.memberId);
+    return { ...message, initials: member?.initials ?? message.name.slice(0, 2), tone: member?.tone || 'mint', time: formatTime(message.createdAt), agent: member?.kind === 'agent' ? member.runtime : undefined, character: member?.kind === 'agent' ? member.character : undefined };
+  }), [allMessages, memberById]);
+  const messages = displayMessages.filter(message => message.room === channel);
+  const messagesByRoom = useMemo(() => {
+    const rooms: Record<string, Message[]> = {};
+    for (const message of displayMessages) (rooms[message.room] ??= []).push(message);
+    return rooms;
+  }, [displayMessages]);
   useEffect(() => {
     for (const member of members)
-      if (member.kind === 'agent') setAgentActivity(member.name, agentActivity(member, runs));
+      if (member.kind === 'agent') setAgentActivity(member.id, agentActivity(member, runs));
   }, [members, runs]);
   const [draft, setDraft] = useState('');
   const [mode, setMode] = useState<RunMode>('quick');
   const [toast, setToast] = useState('');
-  const [thread, setThread] = useState<Message | null>(null);
+  const homes = useAgentHomes();
+  useEffect(() => { members.forEach(member => { if (member.kind === 'agent') setAgentAvailability(member.id, homes.some(home => home.id === member.homeId && home.status === 'connected'), member.paused === true, member.character); }); }, [homes, members]);
+  const [threadSnapshot, setThread] = useState<Message | null>(null);
+  const thread = threadSnapshot ? Object.values(messagesByRoom).flat().find(message => message.id === threadSnapshot.id) ?? threadSnapshot : null;
   const [starred, setStarred] = useState(false);
   const [tab, setTab] = useState('messages');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -189,9 +184,9 @@ export function Workspace() {
   const [newChannel, setNewChannel] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [channelName, setChannelName] = useState('');
-  const [canvas, setCanvas] = useState(
-    '# Launch room\n\nDecision log\n- Confirm handoff window\n- Review customer draft\n- Keep launch checklist current',
-  );
+  const [canvases, setCanvases] = useState<Record<string, string>>({ 'engineering-release': '# Bell engineering gate review\n\nFictional demo · September 12, 2026\n\n- Compass pilot · Sep 18 · Olivia\n- Horizon thermal / docking signoff · Sep 19 · Marcus\n- Cedar power review · Sep 22 · Orion\n- Summit DVT entry · Sep 24 · Olivia' });
+  const canvas = canvases[channel] ?? '';
+  const setCanvas = (value: string) => setCanvases(all => ({ ...all, [channel]: value }));
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [reviewRequest, setReviewRequest] = useState<{ id: string; version: number } | null>(null);
   const reviewApproval = (id: string) => {
@@ -214,12 +209,14 @@ export function Workspace() {
             reactions?: Record<string, number>;
             preferences?: boolean[];
             canvas?: string;
+            canvases?: Record<string, string>;
             draft?: string;
           };
           if (data.replies) setReplies(data.replies);
           if (data.reactions) setReactionCounts(data.reactions);
           if (data.preferences?.length === 3) setPreferences(data.preferences);
-          if (typeof data.canvas === 'string') setCanvas(data.canvas);
+          if (data.canvases) setCanvases(data.canvases);
+          else if (typeof data.canvas === 'string') setCanvases({ 'launch-room': data.canvas });
           if (typeof data.draft === 'string') setDraft(data.draft);
         }
       } catch {
@@ -230,8 +227,7 @@ export function Workspace() {
     return () => window.clearTimeout(timeout);
   }, []);
   useEffect(() => {
-    try { setMode(localStorage.getItem(`shoal-mode:${channel}`) === 'deep' ? 'deep' : 'quick'); }
-    catch { setMode('quick'); }
+    queueMicrotask(() => { try { setMode(localStorage.getItem(`shoal-mode:${channel}`) === 'deep' ? 'deep' : 'quick'); } catch { setMode('quick'); } });
   }, [channel]);
   useEffect(() => {
     if (!hydrated) return;
@@ -242,20 +238,34 @@ export function Workspace() {
           replies,
           reactions: reactionCounts,
           preferences,
-          canvas,
+          canvases,
           draft,
         }),
       );
     } catch {
       /* Session state remains usable if browser storage is full. */
     }
-  }, [hydrated, replies, reactionCounts, preferences, canvas, draft]);
+  }, [hydrated, replies, reactionCounts, preferences, canvases, draft]);
   const currentRef = useRef({ channel, view, channels, online });
   useEffect(() => {
     currentRef.current = { channel, view, channels, online };
   }, [channel, view, channels, online]);
   const [dm, setDm] = useState<string | null>(null);
   const [threadReply, setThreadReply] = useState('');
+  const threadComposerRef = useRef<ComposerHandle>(null);
+  const [panelWidth, setPanelWidth] = useState(390);
+  const panelRef = useRef<HTMLElement>(null);
+  const threadMessages = thread ? messagesByRoom[`thread:${thread.id}`] ?? [] : [];
+  const openThread = (message: Message) => { setMemberProfile(null); setThread(message); setThreadReply(''); };
+  const openProfile = (member: WorkspaceMember) => { setThread(null); setMemberProfile(member); };
+  useEffect(() => {
+    if (!threadSnapshot && !memberProfile) return;
+    const previous = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    const onEscape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !event.defaultPrevented) { setThread(null); setMemberProfile(null); previous?.focus(); } };
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
+  }, [threadSnapshot, memberProfile]);
   useEffect(() => {
     if (!toast) return;
     const id = window.setTimeout(() => setToast(''), 2600);
@@ -294,8 +304,8 @@ export function Workspace() {
       'projects',
       'workflows',
       'forum',
+      'deep-dive',
       'huddles',
-      'activity',
       'settings',
     ]);
     const result = (value: unknown) => ({
@@ -306,7 +316,7 @@ export function Workspace() {
         context.registerTool(
           {
             name: 'navigate_workspace',
-            description: 'Navigate the Shoal workspace.',
+            description: 'Navigate the Bell workspace.',
             inputSchema: {
               type: 'object',
               properties: { view: { type: 'string', enum: [...allowed] } },
@@ -334,7 +344,7 @@ export function Workspace() {
         context.registerTool(
           {
             name: 'read_workspace',
-            description: 'Read a non-sensitive summary of the Shoal workspace.',
+            description: 'Read a non-sensitive summary of the Bell workspace.',
             inputSchema: { type: 'object', properties: {} },
             execute: async (
               _input: unknown,
@@ -342,7 +352,7 @@ export function Workspace() {
             ) => {
               if (options?.signal?.aborted) throw new Error('Aborted');
               const { online, ...current } = currentRef.current;
-              return result({ workspace: 'Shoal', ...current, serversConnected: online });
+              return result({ workspace: 'Bell Engineering', ...current, serversConnected: online });
             },
           },
           { signal: controller.signal },
@@ -355,16 +365,12 @@ export function Workspace() {
   }, []);
   const notify = (message: string) => setToast(message);
   const navigate = (next: string) => {
-    setView(next as View);
+    setView((next === 'agents' ? 'compute' : next) as View);
   };
-  const results = search.trim()
-    ? messages.filter((message) =>
-        `${message.name} ${message.body}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-      )
-    : messages;
+  const results = displayMessages.filter(message => !message.room.startsWith('thread:') && `${message.name} ${message.body}`.toLowerCase().includes(search.toLowerCase())).slice(-100).reverse();
   function openRoom(name: string) {
+    setThread(null);
+    setMemberProfile(null);
     const member = members.find(person => person.id === name || person.name === name);
     setChannel(member ? `dm:${member.id}` : name);
     setDm(member?.id ?? null);
@@ -391,6 +397,12 @@ export function Workspace() {
     setDraft('');
     setMentionedIds([]);
     post(channel, text, text);
+  }
+  function sendThread() {
+    const text = threadReply.trim();
+    if (!text || !thread) return;
+    setThreadReply('');
+    buzz.sendMessage(`thread:${thread.id}`, text, crypto.randomUUID(), mode).catch((error: Error) => { setThreadReply(text); notify(error.message); });
   }
   function addChannel(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -435,17 +447,17 @@ export function Workspace() {
             <span className="brand-symbol">
               <Zap size={19} />
             </span>
-            Shoal<span className="brand-period">.</span>
-            <span className="brand-version">PREVIEW</span>
+            Bell<span className="brand-period">.</span>
+            <span className="brand-version">DEMO</span>
           </div>
           <button
             className="workspace-switch"
             onClick={() => setProfileOpen(true)}
           >
-            <span className="workspace-avatar">M</span>
+            <span className="workspace-avatar">B</span>
             <span>
-              <strong>Shoal</strong>
-              <small>Workspace</small>
+              <strong>{workspaceName}</strong>
+              <small>Fictional engineering division</small>
             </span>
             <ChevronDown size={15} />
           </button>
@@ -457,10 +469,11 @@ export function Workspace() {
             <kbd>⌘ K</kbd>
           </button>
           <SidebarMenu>
-            {nav(<Inbox size={17} />, 'Inbox', 'inbox', '2')}
-            {nav(<Bot size={17} />, 'Agents', 'agents')}
+            {nav(<Inbox size={17} />, 'Inbox', 'inbox')}
             {nav(<Database size={17} />, 'Data', 'data')}
             {nav(<Cpu size={17} />, 'Compute', 'compute')}
+            {nav(<FolderKanban size={17} />, 'Projects', 'projects')}
+            {nav(<ShieldCheck size={17} />, 'Workflows', 'workflows')}
           </SidebarMenu>
           <div className="rail-section-label">
             <span>CHANNELS</span>
@@ -492,11 +505,8 @@ export function Workspace() {
             <span>WORKSPACE</span>
           </div>
           <SidebarMenu>
-            {nav(<Layers3 size={16} />, 'Projects', 'projects')}
-            {nav(<Sparkles size={16} />, 'Workflows', 'workflows', '1')}
-            {nav(<MessageCircle size={16} />, 'Forum', 'forum')}
+            {nav(<Search size={16} />, 'Deep Dive', 'deep-dive')}
             {nav(<Users size={16} />, 'Huddles', 'huddles')}
-            {nav(<Activity size={16} />, 'Activity', 'activity')}
             {nav(<Settings size={16} />, 'Settings', 'settings')}
           </SidebarMenu>
           <div className="rail-section-label">
@@ -514,9 +524,10 @@ export function Workspace() {
               <SidebarMenuItem key={p.id}>
                 <SidebarMenuButton
                   className="rail-link"
+                  data-active={view === 'chat' && dm === p.id}
                   onClick={() => openRoom(p.id)}
                 >
-                  <span className="tiny-avatar">{p.kind==='agent'?<AgentAvatar character={p.character} label={p.name} size={24}/>:p.initials}</span>
+                  <MemberAvatar member={p} size={24} />
                   <span>{p.name.split(' ')[0]}</span>
                   <span className="rail-dot" />
                 </SidebarMenuButton>
@@ -530,13 +541,13 @@ export function Workspace() {
             <span>
               <strong>Dell GB10</strong>
               <small>
-                <span className="status-dot amber" /> Not connected
+                <span className="status-dot" /> {homes.find(home => home.id === 'lab')?.status === 'connected' ? 'Connected' : 'Setting up'}
               </small>
             </span>
           </button>
           <div className="rail-profile">
             <button onClick={() => setProfileOpen(true)}>
-              <span className="tiny-avatar you-avatar">YO</span>
+              <MemberAvatar member={members.find(m=>m.id==='you')} size={24}/>
               <span>
                 <strong>Your profile</strong>
                 <small>Local</small>
@@ -569,10 +580,10 @@ export function Workspace() {
             <strong>
               {view === 'chat'
                 ? `${dm ? '@' : '#'} ${channel}`
-                : view[0].toUpperCase() + view.slice(1)}
+                : view === 'deep-dive' ? 'Deep Dive' : view[0].toUpperCase() + view.slice(1)}
             </strong>
             <span>/</span>
-            <span>Shoal</span>
+            <span>Bell Corporation · Engineering</span>
           </div>
           <div className="topbar-actions">
             <button
@@ -588,7 +599,7 @@ export function Workspace() {
               onClick={() => setProfileOpen(true)}
               aria-label="Open profile"
             >
-              YO
+              <MemberAvatar member={members.find(m=>m.id==='you')} size={26}/>
             </button>
           </div>
         </header>
@@ -602,14 +613,14 @@ export function Workspace() {
             members={members}
             onMention={id=>setMentionedIds(ids=>ids.includes(id)?ids:[...ids,id])}
             retry={retryMessage}
-            openMember={member=>setMemberProfile(member)}
+            openMember={openProfile}
             dm={!!dm}
             invite={() => setPeopleOpen(true)}
             reactionCounts={reactionCounts}
             react={(id) =>
               setReactionCounts((all) => ({ ...all, [id]: (all[id] || 0) + 1 }))
             }
-            replies={replies}
+            replies={Object.fromEntries(messages.map(message => [message.id, [...(replies[message.id] ?? []), ...(messagesByRoom[`thread:${message.id}`] ?? []).map(reply => reply.body)]]))}
             tab={tab}
             setTab={setTab}
             messages={messages}
@@ -620,7 +631,7 @@ export function Workspace() {
             setMode={(value) => { setMode(value); try { localStorage.setItem(`shoal-mode:${channel}`, value); } catch { /* The choice still works for this session. */ } }}
             starred={starred}
             setStarred={setStarred}
-            setThread={setThread}
+            setThread={openThread}
             canvas={canvas}
             setCanvas={setCanvas}
             navigate={navigate}
@@ -628,6 +639,7 @@ export function Workspace() {
           />
         </div>
         <View
+          openRoom={openRoom}
           view={view}
           navigate={navigate}
           notify={notify}
@@ -636,65 +648,34 @@ export function Workspace() {
           reviewApproval={reviewApproval}
           reviewRequest={reviewRequest}
         />
+        {view === 'chat' && (thread || memberProfile) && <aside ref={panelRef} tabIndex={-1} className="conversation-detail-pane" aria-label={thread ? 'Thread' : 'Member profile'}>
+          {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- A focusable adjustable separator implements the ARIA window splitter pattern. */}
+          <div className="detail-pane-resizer" role="separator" aria-orientation="vertical" aria-label="Resize details" tabIndex={0} aria-valuemin={320} aria-valuemax={560} aria-valuenow={panelWidth} onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); setPanelWidth(width => Math.max(320, Math.min(560, width + (event.key === 'ArrowLeft' ? 20 : -20)))); } }} onPointerDown={event => {
+            event.preventDefault(); const handle = event.currentTarget; handle.setPointerCapture(event.pointerId); const start=event.clientX, width=panelWidth;
+            const move = (e: PointerEvent) => setPanelWidth(Math.max(320, Math.min(560, width+start-e.clientX)));
+            const end = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', end); handle.removeEventListener('pointercancel', end); };
+            handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', end); handle.addEventListener('pointercancel', end);
+          }} />
+          <header className="detail-pane-header"><h2>{thread ? 'Thread' : 'Profile'}</h2><button className="icon-btn" aria-label="Close details" onClick={() => {setThread(null);setMemberProfile(null)}}><X size={18}/></button></header>
+          {thread ? <>
+            <div className="detail-pane-scroll">
+              <div className="thread-message"><MemberAvatar member={resolveMember(members,thread.memberId,thread.name)} name={thread.name} initials={thread.initials} size={36}/><div><div className="message-meta"><strong>{resolveMember(members,thread.memberId,thread.name)?.name ?? thread.name}</strong><time>{thread.time}</time></div><div className="message-text">{typeof thread.body === 'string' ? messageText(thread.body) : thread.body}</div></div></div>
+              <div className="thread-reply-divider">{(replies[thread.id]?.length ?? 0)+threadMessages.length} replies</div>
+              {(replies[thread.id] ?? []).map((reply,index) => <div className="thread-message" key={`old-${index}`}><MemberAvatar member={members.find(m=>m.id==='you')} size={36}/><div><div className="message-meta"><strong>You</strong></div><div className="message-text">{reply}</div></div></div>)}
+              {threadMessages.map(reply => <div className="thread-message" key={reply.id}><MemberAvatar member={members.find(m=>m.id===reply.memberId)} name={reply.name} initials={reply.initials} size={36}/><div><div className="message-meta"><strong>{resolveMember(members,reply.memberId,reply.name)?.name ?? reply.name}</strong><time>{reply.time}</time></div><div className="message-text">{typeof reply.body === 'string' ? messageText(reply.body) : reply.body}</div>{reply.state==='pending'&&<output className="message-request-state">Responding…</output>}{reply.state==='error'&&<div className="message-request-state" role="alert">{reply.error}<button onClick={()=>retryMessage(reply)}>Retry</button></div>}</div></div>)}
+            </div>
+            <div className="thread-composer composer"><LiveComposer ref={threadComposerRef} value={threadReply} onChange={setThreadReply} onSend={sendThread} members={members} onMention={()=>{}} placeholder="Reply in thread…"/><div className="composer-bottom"><div><button className="icon-btn" aria-label="Mention in thread" onClick={()=>threadComposerRef.current?.insertText('@')}><AtSign size={16}/></button><button className="icon-btn" aria-label="Add emoji to reply" onClick={()=>threadComposerRef.current?.insertText(' 🙂')}><Smile size={16}/></button></div><button className="send-button" disabled={!threadReply.trim()} aria-label="Send reply" onClick={sendThread}><Send size={15}/></button></div></div>
+          </> : memberProfile && <div className="member-profile-panel">
+            <MemberAvatar member={memberProfile} size={104}/><h2>{memberProfile.name}</h2><span className="badge">{memberProfile.kind==='agent'?'Agent':'Member'}</span>
+            <button className="btn btn-secondary" onClick={()=>openRoom(memberProfile.id)}><MessageCircle size={16}/> Message</button>
+            {memberProfile.kind==='agent'&&<><dl><div><dt>Home</dt><dd>{memberProfile.runtime==='local'?'Dell GB10':'Cloud'}</dd></div><div><dt>Access</dt><dd>{memberProfile.accessLevel}</dd></div></dl>{memberProfile.instructions&&<section><h3>Instructions</h3><p>{memberProfile.instructions}</p></section>}<button className="btn btn-secondary" onClick={()=>{const agentId=memberProfile.id;setMemberProfile(null);navigate('agents');requestAnimationFrame(()=>window.dispatchEvent(new CustomEvent('relay:open-agent',{detail:{agentId}})))}}>Agent settings</button></>}
+          </div>}
+        </aside>}
       </main>
-      <Sheet open={!!thread} onOpenChange={(open) => !open && setThread(null)}>
-        <SheetContent className="thread-sheet">
-          <SheetHeader>
-            <SheetTitle>Thread</SheetTitle>
-            <SheetDescription className="sr-only">Replies</SheetDescription>
-          </SheetHeader>
-          {thread && (
-            <>
-              <div className="thread-original">
-                <strong>{thread.name}</strong>
-                <div className="message-text">{messageText(thread.body)}</div>
-              </div>
-              <div className="thread-replies">
-                {(replies[thread.id] || []).map((reply, index) => (
-                  <div className="thread-reply" key={index}>
-                    <strong>You</strong>
-                    <p>{reply}</p>
-                  </div>
-                ))}
-                {!replies[thread.id]?.length && (
-                    <p className="muted">
-                      No replies yet. Start the conversation.
-                    </p>
-                  )}
-              </div>
-              <div className="thread-composer">
-                <textarea
-                  className="textarea"
-                  aria-label="Thread reply"
-                  placeholder="Reply in thread…"
-                  value={threadReply}
-                  onChange={(e) => setThreadReply(e.target.value)}
-                />
-                <button
-                  className="btn btn-primary"
-                  onClick={() => {
-                    if (!threadReply.trim()) return;
-                    setReplies((all) => ({
-                      ...all,
-                      [thread.id]: [
-                        ...(all[thread.id] || []),
-                        threadReply.trim(),
-                      ],
-                    }));
-                    setThreadReply('');
-                  }}
-                >
-                  Reply
-                </button>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="search-dialog">
           <DialogHeader>
-            <DialogTitle>Search Shoal</DialogTitle>
+            <DialogTitle>Search Bell Engineering</DialogTitle>
             <DialogDescription className="sr-only">
               Search messages.
             </DialogDescription>
@@ -709,21 +690,23 @@ export function Workspace() {
             <kbd>ESC</kbd>
           </div>
           <div className="search-results">
+            {results.length === 0 && <p className="search-empty">No messages found.</p>}
             {results.map((m) => (
               <button
-                key={m.id}
+                key={`${m.room}-${m.id}`}
                 onClick={() => {
                   setSearchOpen(false);
-                  setThread(m);
+                  openRoom(m.room.startsWith('dm:') ? m.room.slice(3) : m.room);
+                  openThread(m);
                 }}
               >
-                <span className={`tiny-avatar ${m.tone}`}>{m.initials}</span>
+                <MemberAvatar member={resolveMember(members,m.memberId,m.name)} name={m.name} initials={m.initials} size={24}/>
                 <span>
                   <strong>
                     {m.name}: {m.body}
                   </strong>
                   <small>
-                    #{channel} · {m.time}
+                    {m.room.startsWith('dm:') ? members.find(person=>person.id===m.room.slice(3))?.name ?? 'Direct message' : `#${m.room}`} · {m.time}
                   </small>
                 </span>
                 <ChevronRight size={15} />
@@ -749,7 +732,7 @@ export function Workspace() {
                 setPeopleOpen(false);
               }}
             >
-              <span className="avatar">{person.kind==='agent'?<AgentAvatar character={person.character} label={person.name} size={32}/>:person.initials}</span>
+              <MemberAvatar member={person} size={32}/>
               <strong>{person.name}</strong><span className="member-directory-type">{person.kind==='agent'?'Agent':'Person'}</span>
               <MessageCircle size={16} />
             </button>
@@ -789,18 +772,12 @@ export function Workspace() {
           </form>
         </DialogContent>
       </Dialog>
-      <Dialog open={!!memberProfile} onOpenChange={open=>!open&&setMemberProfile(null)}>
-        <DialogContent><DialogHeader><DialogTitle>{memberProfile?.name}</DialogTitle><DialogDescription>{memberProfile?.kind==='agent'?'Workspace agent':'Workspace member'}</DialogDescription></DialogHeader>
-          {memberProfile?.kind==='agent'&&<><AgentAvatar character={memberProfile.character} label={memberProfile.name} size={48}/><p>{memberProfile.description}</p><p className="muted">{memberProfile.runtime==='local'?'Local · GB10':'Cloud'} · {memberProfile.model}</p></>}
-          <DialogFooter><button className="btn btn-secondary" onClick={()=>{if(memberProfile)openRoom(memberProfile.id);setMemberProfile(null)}}>Message</button>{memberProfile?.kind==='agent'&&<button className="btn btn-primary" onClick={()=>{const agentId=memberProfile?.id;setMemberProfile(null);navigate('agents');requestAnimationFrame(()=>window.dispatchEvent(new CustomEvent('relay:open-agent',{detail:{agentId}})))}}>Agent settings</button>}</DialogFooter>
-        </DialogContent>
-      </Dialog>
       <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
         <DialogContent>
           <div className="profile-preview">
-            <span className="avatar you-avatar">YO</span>
+            <MemberAvatar member={members.find(m=>m.id==='you')} size={64}/>
             <DialogTitle>Your profile</DialogTitle>
-            <p className="muted">Shoal workspace</p>
+            <p className="muted">Bell workspace</p>
           </div>
           <DialogFooter>
             <button
@@ -830,7 +807,7 @@ export function Workspace() {
 }
 
 function Chat({
-  members, onMention, retry, openMember, room,
+  recipient, members, onMention, retry, openMember, room,
   dm,
   invite,
   reactionCounts,
@@ -853,6 +830,7 @@ function Chat({
   navigate,
   notify,
 }: {
+  recipient?: WorkspaceMember;
   members: readonly WorkspaceMember[];
   onMention:(id:string)=>void;
   retry:(message:Message)=>void;
@@ -891,7 +869,7 @@ function Chat({
   const latestRun = roomRuns[0];
   const agents = members.filter((member): member is AgentMember => member.kind === 'agent');
   const roomAgents = roomRuns.length ? agents.filter((agent) => roomRuns.some((run) => run.agentId === agent.id)) : agents;
-  const projectId = room === 'launch-room' ? 'launch' : room === 'engineering' ? 'platform' : null;
+  const projectId = ({ 'engineering-release': 'summit-r8', 'horizon-validation': 'horizon-14', 'firmware-gate': 'compass-34', 'cedar-sourcing': 'cedar-power' } as Record<string, string>)[room];
   const project = projects.find((item) => item.id === projectId);
   const projectTasks = project ? tasks.filter((task) => task.project === project.id) : [];
   const projectDone = projectTasks.filter((task) => task.status === 'Done').length;
@@ -901,18 +879,14 @@ function Chat({
     buzz.inspectRun(id).then((r) => setPacket({ runId: id, packet: r.run.packet ?? null })).catch((error: unknown) => notify(error instanceof Error ? error.message : 'Could not load the run context.'));
   };
   const scrollRef = useRef<HTMLDivElement>(null);
-  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const composerRef = useRef<ComposerHandle>(null);
+  const followingMessages = useRef(true);
+  useEffect(() => { followingMessages.current = true; const el = scrollRef.current; if (el) el.scrollTop = el.scrollHeight; }, [channel, tab]);
   useEffect(() => {
     const element = scrollRef.current;
-    if (element) element.scrollTop = element.scrollHeight;
-  }, [channel, messages, tab]);
-  const insertText = (text: string) => {
-    const field = composerRef.current;
-    const start = field?.selectionStart ?? draft.length;
-    const end = field?.selectionEnd ?? draft.length;
-    setDraft(draft.slice(0, start) + text + draft.slice(end));
-    field?.focus();
-  };
+    if (element && followingMessages.current) element.scrollTop = element.scrollHeight;
+  }, [messages]);
+  const insertText = (text: string) => { composerRef.current?.insertText(text); };
   const formatSelection = () => {
     const field = composerRef.current;
     const start = field?.selectionStart ?? draft.length;
@@ -925,16 +899,17 @@ function Chat({
     <section className="chat-page">
       <ChatHeader
         title={channel}
+        onTitleClick={recipient ? () => openMember(recipient) : undefined}
         leadingContent={
           <>
             <SidebarTrigger className="mobile-menu" />
-            {dm ? <AtSign size={16} /> : <Hash size={16} />}
+            {recipient ? <button className="dm-header-avatar" aria-label={`View ${recipient.name}'s profile`} onClick={() => openMember(recipient)}><MemberAvatar member={recipient} size={32} /></button> : <Hash size={18} />}
           </>
         }
         titleAdornment={
           <button
             className={`icon-btn star-button ${starred ? 'starred' : ''}`}
-            aria-label="Star channel"
+            aria-label={dm ? 'Star conversation' : 'Star channel'}
             onClick={() => setStarred(!starred)}
           >
             <Star size={15} fill={starred ? 'currentColor' : 'none'} />
@@ -942,18 +917,15 @@ function Chat({
         }
         actions={
           <div className="channel-actions">
-            <div className="member-stack">
+            {!dm && <div className="member-stack">
               {members.slice(0,3).map((p) => (
-                <span key={p.id} className={`tiny-avatar ${p.tone}`}>
-                  {p.initials}
-                </span>
+                <MemberAvatar key={p.id} member={p} size={24}/>
               ))}
               <span className="member-number">{members.length}</span>
-            </div>
-            <button className="btn btn-secondary desktop-only" onClick={invite}>
-              {' '}
+            </div>}
+            {!dm && <button className="btn btn-secondary desktop-only" onClick={invite}>
               <Users size={15} /> People
-            </button>
+            </button>}
             <button
               className="icon-btn"
               aria-label="Toggle room context"
@@ -1005,7 +977,7 @@ function Chat({
                   {m.agent ? <AgentAvatar character={m.character ?? 'worm'} state="idle" size={32} label={m.name} className="message-agent-avatar" /> : <span className={`avatar ${m.tone}`}>{m.initials}</span>}
                   <div className="message-body">
                     <div className="message-meta">
-                      <button className="member-name-button" onClick={()=>{const member=members.find(person=>person.id===m.memberId||person.name===m.name);if(member)openMember(member)}}>{m.name}</button>
+                      <button className="member-name-button" onClick={()=>{const member=resolveMember(members,m.memberId,m.name);if(member)openMember(member)}}>{members.find(person=>person.id===m.memberId)?.name ?? m.name}</button>
                       {m.agent && (
                         <span
                           className={`badge ${m.agent === 'local' ? 'badge-green' : 'badge-blue'}`}
@@ -1285,23 +1257,20 @@ function Chat({
         </div>
       ) : tab === 'canvas' ? (
         <div className="conversation-scroll canvas-panel">
-          <div className="eyebrow">SHARED CANVAS · BROWSER ONLY</div>
-          <h2>Launch room notes</h2>
+          <h2>{channel} notes</h2>
           <textarea
             className="canvas-editor"
             value={canvas}
             onChange={(e) => setCanvas(e.target.value)}
             aria-label="Edit shared canvas"
           />
-          <p className="small muted page-note">
-            Edits are kept in this session and are not uploaded.
-          </p>
+
         </div>
       ) : (
         <div className="conversation-scroll">
           <div className="card shared-file">
             <div className="card-header">
-              <h2>Files shared in #{channel}</h2>
+              <h2>Files shared in {dm ? '' : '#'}{channel}</h2>
               <button
                 className="btn btn-secondary"
                 onClick={() => navigate('data')}
@@ -1334,6 +1303,7 @@ function Chat({
 }
 
 function View({
+  openRoom,
   preferences,
   setPreferences,
   reviewApproval,
@@ -1342,6 +1312,7 @@ function View({
   navigate,
   notify,
 }: {
+  openRoom: (name: string) => void;
   preferences: boolean[];
   setPreferences: (value: boolean[]) => void;
   reviewApproval: (id: string) => void;
@@ -1363,10 +1334,7 @@ function View({
   return (
     <>
       <div {...hidden('inbox')}>
-        <InboxView reviewApproval={reviewApproval} />
-      </div>
-      <div {...hidden('agents')}>
-        <AgentsView onNotify={notify} onNavigate={navigate} />
+        <InboxView reviewApproval={reviewApproval} openRoom={openRoom} />
       </div>
       <div {...hidden('data')}>
         <DataView onNotify={notify} />
@@ -1375,7 +1343,7 @@ function View({
         <ComputeView onNotify={notify} />
       </div>
       <div {...hidden('projects')}>
-        <ProjectsView onNotify={notify} />
+        <ProjectsView onNotify={notify} onNavigate={navigate} />
       </div>
       <div {...hidden('workflows')}>
         <WorkflowsView onNotify={notify} reviewRequest={reviewRequest} />
@@ -1383,11 +1351,10 @@ function View({
       <div {...hidden('forum')}>
         <ForumView onNotify={notify} />
       </div>
+      <div {...hidden('deep-dive')}><DeepDiveView /></div>
+      <div {...hidden('activity')}><ActivityView /></div>
       <div {...hidden('huddles')}>
         <HuddlesView />
-      </div>
-      <div {...hidden('activity')}>
-        <ActivityView />
       </div>
       <div {...hidden('settings')}>
         <SettingsView
@@ -1399,123 +1366,22 @@ function View({
     </>
   );
 }
-function InboxView({ reviewApproval }: { reviewApproval: (id: string) => void }) {
-  const { approvals, members, loaded } = useBuzz();
-  const pending = approvals.filter((approval) => approval.status === 'Pending');
-  return (
-    <div className="view-content"><div className="page">
-      <div className="page-heading"><h1>Inbox</h1><p className="subtitle">Decisions waiting for you.</p></div>
-      {pending.map((approval) => (
-        <button className="inbox-item" key={approval.id} onClick={() => reviewApproval(approval.id)}>
-          <span className="inbox-item-icon amber"><ShieldCheck size={19} /></span>
-          <span><strong>{approval.title}</strong><small>{members.find((member) => member.id === approval.agent)?.name ?? approval.agent}{approval.recipient ? ` · ${approval.recipient}` : ''}</small></span>
-          <span className="badge badge-amber">Needs review</span><ChevronRight size={17} />
-        </button>
-      ))}
-      {!pending.length && <p className="muted">{loaded ? 'No decisions waiting.' : 'Loading decisions…'}</p>}
-    </div></div>
-  );
-}
 function ActivityView() {
-  return (
-    <div className="view-content">
-      <div className="page">
-        <div className="page-heading">
-          <div className="eyebrow">A CLEAR TRAIL</div>
-          <h1>Activity</h1>
-          <p className="subtitle">
-            Workspace activity.
-          </p>
-        </div>
-        <div className="card activity-list">
-          {[
-            'Atlas reviewed the launch checklist',
-            'Olivia updated the handoff window',
-            'Nova prepared a customer update draft',
-            'You created the launch-room canvas',
-          ].map((x, i) => (
-            <div className="activity-row" key={x}>
-              <span className={`activity-icon ${i === 2 ? 'amber' : ''}`}>
-                <Activity size={17} />
-              </span>
-              <div>
-                <strong>{x}</strong>
-                <p>Workspace event</p>
-              </div>
-              <time>{i + 2}m ago</time>
-            </div>
-          ))}
-        </div>
-      </div>
+  const { runs, approvals, documents, members, loaded } = useBuzz();
+  const items = [
+    ...runs.map(run => ({ id: run.id, time: run.endedAt || run.startedAt || run.createdAt, title: `${members.find(member => member.id === run.agentId)?.name || run.agentId} · ${run.mode} task ${run.status}`, detail: run.error || (run.taskId ? `Task ${run.taskId}` : 'Conversation task') })),
+    ...approvals.map(approval => ({ id: approval.id, time: approval.decidedAt || approval.createdAt, title: `${approval.title} · ${approval.status}`, detail: approval.source === 'openclaw' ? 'Native command approval' : 'Review record' })),
+    ...documents.map(document => ({ id: document.id, time: document.updatedAt, title: `${document.name} · ${document.status}`, detail: `${document.collection} · ${document.level}` })),
+  ].sort((a,b) => b.time.localeCompare(a.time)).slice(0, 100);
+  return <div className="view-content"><div className="page">
+    <div className="page-heading"><h1>Activity</h1></div>
+    <div className="card activity-list">
+      {items.map(item => <div className="activity-row" key={item.id}>
+        <span className="activity-icon"><Activity size={17}/></span>
+        <div><strong>{item.title}</strong><p>{item.detail}</p></div>
+        <time dateTime={item.time}>{new Date(item.time).toLocaleString()}</time>
+      </div>)}
+      {!items.length && <p className="muted">{loaded ? 'No activity yet.' : 'Loading activity…'}</p>}
     </div>
-  );
+  </div></div>;
 }
-function SettingsView({
-  navigate,
-  preferences,
-  setPreferences,
-}: {
-  navigate: (s: string) => void;
-  preferences: boolean[];
-  setPreferences: (value: boolean[]) => void;
-}) {
-  return (
-    <div className="view-content">
-      <div className="page settings-page">
-        <div className="page-heading">
-          <div className="eyebrow">MAKE RELAY YOURS</div>
-          <h1>Settings</h1>
-          <p className="subtitle">
-            
-          </p>
-        </div>
-        <div className="card settings-card">
-          <h2>Workspace preferences</h2>
-          {[
-            [
-              'Desktop notifications',
-              'Get notified when a review or mention needs you.',
-            ],
-            [
-              'Compact conversation density',
-              'Show more messages at once in channels.',
-            ],
-            ['Keyboard shortcuts', 'Use ⌘ K to search and quick navigation.'],
-          ].map(([label, desc], i) => (
-            <div className="setting-row" key={label}>
-              <div>
-                <strong>{label}</strong>
-                <p>{desc}</p>
-              </div>
-              <button
-                className={`work-toggle ${preferences[i] ? 'is-on' : ''}`}
-                role="switch"
-                aria-label={label}
-                aria-checked={preferences[i]}
-                onClick={() => {
-                  setPreferences(
-                    preferences.map((value, index) =>
-                      index === i ? !value : value,
-                    ),
-                  );
-                }}
-              >
-                <span />
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="card settings-card">
-          <h2>Connections</h2>
-          <button
-            className="btn btn-secondary"
-            onClick={() => navigate('compute')}
-          >
-            <Settings size={15} /> Manage connections
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-export default Workspace;

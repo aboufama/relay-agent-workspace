@@ -11,6 +11,8 @@
 @import './components/agents-buzz.css';
 @import './components/agent-menu.css';
 @import './components/member-cards.css';
+@import './components/quality-modules.css';
+@import './components/settings-inbox.css';
 
 @custom-variant dark (&:is(.dark *));
 

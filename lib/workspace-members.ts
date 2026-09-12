@@ -1,6 +1,6 @@
 "use client";
 // Workspace directory, read from the shared Buzz store. Agent fields live in MemberRecord.data.
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { buzz, useBuzz } from "@/lib/buzz/store";
 import type { MemberRecord } from "@/lib/buzz/types";
 export type AccessLevel = "Public" | "Internal" | "Confidential" | "Restricted";
@@ -23,6 +23,11 @@ export type AgentMember = MemberBase & {
   channels: string[];
   context: string[];
   capabilities: string[];
+  goal: string;
+  audiences: string[];
+  accessPaths: string[];
+  approvalGates: string[];
+  examplePrompts: string[];
   nameCustomized?: boolean;
   isNew?: boolean;
   paused?: boolean;
@@ -60,7 +65,7 @@ function normalize(value: unknown): WorkspaceMember | null {
     ...base,
     kind: "agent",
     runtime,
-    homeId: text(v.homeId, "", 100),
+    homeId: ['studio', 'lab'].includes(String(v.homeId)) ? 'lab' : ['cloud-preview', 'openai-preview'].includes(String(v.homeId)) ? 'openai-preview' : text(v.homeId, '', 100),
     character: characters.includes(v.character as AgentCharacter)
       ? (v.character as AgentCharacter)
       : "worm",
@@ -70,7 +75,7 @@ function normalize(value: unknown): WorkspaceMember | null {
         ? "Public"
         : "Confidential",
     instructions,
-    description: instructions,
+    description: text(v.description, instructions),
     role: text(v.role, "", 200),
     model: text(v.model, "", 200),
     device: text(v.device, "", 200),
@@ -79,6 +84,11 @@ function normalize(value: unknown): WorkspaceMember | null {
     channels: strings(v.channels),
     context: strings(v.context),
     capabilities: strings(v.capabilities),
+    goal: text(v.goal),
+    audiences: strings(v.audiences),
+    accessPaths: strings(v.accessPaths),
+    approvalGates: strings(v.approvalGates),
+    examplePrompts: strings(v.examplePrompts),
     nameCustomized: v.nameCustomized === true,
     isNew: v.isNew === true,
     paused: v.paused === true,
@@ -95,10 +105,12 @@ export function getWorkspaceMembers(): readonly WorkspaceMember[] {
 }
 export function useWorkspaceMembers(): readonly WorkspaceMember[] {
   const { members } = useBuzz();
-  return (latest = useMemo(
+  const snapshot = useMemo(
     () => members.map(fromRecord).filter((member): member is WorkspaceMember => !!member),
     [members],
-  ));
+  );
+  useEffect(() => { latest = snapshot; }, [snapshot]);
+  return snapshot;
 }
 export function useAgentMembers(): readonly AgentMember[] {
   const snapshot = useWorkspaceMembers();

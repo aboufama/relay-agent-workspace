@@ -1,3 +1,5 @@
+import { AgentsView } from './AgentsView';
+import { ComputeHomesView } from './ComputeHomesView';
 import { useAgentHomes, addPendingAgentHome, removePendingAgentHome } from "@/lib/agent-homes";
 import { useBuzz } from "@/lib/buzz/store";
 import type { NodeRecord } from "@/lib/buzz/types";
@@ -32,7 +34,7 @@ const seen = (iso: string) => {
   return Number.isNaN(t.getTime()) ? iso : t.toLocaleString();
 };
 
-export function ComputeView({ onNotify }: { onNotify?: (message: string) => void }) {
+function RuntimeDetails({ onNotify }: { onNotify?: (message: string) => void }) {
   // useAgentHomes keeps the 30 s /api/runtime poll alive while this view is mounted; nodes land in the buzz store.
   const homes = useAgentHomes();
   const { nodes } = useBuzz();
@@ -416,4 +418,14 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
       </Dialog>
     </div>
   );
+}
+
+export function ComputeView({ onNotify }: { onNotify?: (message: string) => void }) {
+  const homes = useAgentHomes();
+  const local = homes.find(home => home.id === 'lab');
+  return <AgentsView onNotify={onNotify} renderHomes={groups => <ComputeHomesView {...groups}
+    localStatus={<span className={`badge ${local?.status === 'connected' ? 'badge-green' : 'badge-amber'}`}>{local?.status === 'connected' ? 'Connected' : 'Not connected'}</span>}
+    cloudStatus={<span className="muted small">Not configured</span>}
+    localSetup={<details className="bell-runtime-details"><summary>Runtime services and configuration</summary><RuntimeDetails onNotify={onNotify} /></details>}
+  />} />;
 }

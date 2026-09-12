@@ -18,7 +18,7 @@ export function apply(events: EventRecord[]) {
     switch (ev.type) {
       case 'message.created': case 'message.updated': {
         const m = p.message as MessageRecord;
-        s = { ...s, messages: upsert(s.messages, m), channels: m.room.startsWith('dm:') || s.channels.includes(m.room) ? s.channels : [...s.channels, m.room] };
+        s = { ...s, messages: upsert(s.messages, m), channels: m.room.startsWith('dm:') || m.room.startsWith('thread:') || s.channels.includes(m.room) ? s.channels : [...s.channels, m.room] };
         break;
       }
       case 'run.delta': {
@@ -78,7 +78,7 @@ export function refresh() { return load(); }
 
 // Mutations: every write goes to the API; the event stream brings the durable record back.
 async function call<T>(path: string, init: RequestInit): Promise<T> {
-  const res = await fetch(path, { ...init, headers: { 'Content-Type': 'application/json', ...(init.headers || {}) } });
+  const res = await fetch(path, { ...init, headers: { 'Content-Type': 'application/json', ...init.headers } });
   const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
   if (!res.ok) throw new Error(data?.error || `Request failed (${res.status}).`);
   return data as T;

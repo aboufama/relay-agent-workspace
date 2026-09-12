@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-import { type BuzzEnv, body, emit, ensureSchema, fail, id, mapTask, now, ok, sameOrigin } from '@/lib/buzz/db';
+import { type BuzzEnv, body, emit, ensureSchema, fail, mapTask, now, ok, sameOrigin } from '@/lib/buzz/db';
 export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   const e = env as unknown as BuzzEnv;

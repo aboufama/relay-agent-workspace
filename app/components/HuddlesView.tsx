@@ -3,7 +3,7 @@ import { Headphones, Mic, MicOff, Plus, Video, VideoOff, PhoneOff, Users, X } fr
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/buzz/PageHeader";
 export function HuddlesView() {
-  const [rooms, setRooms] = useState(["launch-room", "engineering"]);
+  const [rooms, setRooms] = useState(["engineering-release", "horizon-validation"]);
   const [name, setName] = useState("");
   const [adding, setAdding] = useState(false);
   const [active, setActive] = useState<string | null>(null);

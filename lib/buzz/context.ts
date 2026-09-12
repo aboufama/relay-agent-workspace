@@ -2,6 +2,7 @@
 // All model calls go to local vLLM servers; nothing here reaches a hosted model.
 import { type BuzzEnv, mapMember, mapMessage } from './db';
 import { LEVELS, type Level, type MemberRecord, type Packet, type Passage, type RunMode } from './types';
+import { canReadHistoryMessage, canUseContextRoom, resolveContextRoom, roomLevel } from './context-scope';
 
 export const approxTokens = (text: string) => Math.ceil(text.length / 3.6); // ponytail: chars/3.6; swap for vLLM /tokenize when counts matter.
 const EMBED_DIM = 256; // Qwen3-Embedding supports MRL truncation; 256 keeps rows small.
@@ -114,6 +115,8 @@ export async function buildPacket(env: BuzzEnv, input: PacketInput): Promise<Pac
   const rules = rulesRow.results.find((r) => r.key === 'rules')?.value ?? '';
   const rulesVersion = rulesRow.results.find((r) => r.key === 'rules_version')?.value ?? '0';
   const a = input.agent;
+  const scopeRoom = await resolveContextRoom(env, input.room);
+  if (!canUseContextRoom(a, scopeRoom)) throw new Error(`${a.name} does not have access to this conversation.`);
   const instructions = String(a.data.instructions ?? '');
   const role = String(a.data.role ?? 'assistant');
   const system = [
@@ -133,7 +136,9 @@ export async function buildPacket(env: BuzzEnv, input: PacketInput): Promise<Pac
   used += approxTokens(contract);
   if (used > budget) throw new Error('Required instructions and request exceed this context budget. Shorten the request or choose Deep.');
 
-  let evidence = await retrieve(env, input.objective, agentLevel(a), input.mode === 'deep' ? 16 : 6, a);
+  const ceiling = roomLevel(scopeRoom);
+  const retrievalLevel = ceiling ? LEVELS[Math.min(LEVELS.indexOf(agentLevel(a)), LEVELS.indexOf(ceiling))] : agentLevel(a);
+  let evidence = await retrieve(env, input.objective, retrievalLevel, input.mode === 'deep' ? 16 : 6, a);
   const evidenceBudget = Math.floor((budget - used) * 0.6);
   let evidenceTokens = 0; const kept: Passage[] = [];
   for (const p of evidence) { const t = approxTokens(p.text) + 12; if (evidenceTokens + t > evidenceBudget) break; evidenceTokens += t; kept.push(p); }
@@ -147,6 +152,7 @@ export async function buildPacket(env: BuzzEnv, input: PacketInput): Promise<Pac
     const rows = await env.DB.prepare("SELECT * FROM messages WHERE room = ? AND (state IS NULL OR state = 'complete') ORDER BY created_at DESC LIMIT 40").bind(input.room).all();
     const msgs = (rows.results as Record<string, unknown>[]).map(mapMessage);
     for (const m of msgs) {
+      if (!canReadHistoryMessage(a, scopeRoom, m.memberId)) { droppedHistory++; continue; }
       if (m.body === input.objective && m.memberId !== a.id) continue; // the objective is appended last
       const text = m.body; // Keep coherent messages; full records remain retrievable in the workspace.
       const content = `${m.name}: ${text}`;

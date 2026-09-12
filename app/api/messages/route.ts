@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { type BuzzEnv, body, emit, ensureSchema, fail, id, mapMember, mapMessage, mapRun, now, ok, sameOrigin } from '@/lib/buzz/db';
 import type { MemberRecord, RunMode } from '@/lib/buzz/types';
+import { canUseContextRoom, resolveContextRoom } from '@/lib/buzz/context-scope';
 export const dynamic = 'force-dynamic';
 
 function mentioned(text: string, name: string): boolean {
@@ -26,10 +27,14 @@ export async function POST(request: Request) {
   }
   const rows = await e.DB.prepare("SELECT * FROM members WHERE kind = 'agent'").all<Record<string, unknown>>();
   const agents = rows.results.map(mapMember).filter((a: MemberRecord) => !a.data.paused && (room === `dm:${a.id}` || mentioned(text, a.name)));
+  const scopeRoom = await resolveContextRoom(e, room).catch(() => null);
+  if (!scopeRoom) return fail('Conversation thread not found.', 404);
+  const denied = agents.filter(agent => !canUseContextRoom(agent, scopeRoom));
+  if (denied.length) return fail(`${denied.map(agent => agent.name).join(', ')} cannot access this conversation. Use an authorized room or send an explicitly scoped direct message.`, 403);
   const ts = now(); const triggerId = id('msg');
   const pending = agents.map((a) => ({ agent: a, replyId: id('msg'), runId: id('run') }));
   const stmts = [e.DB.prepare('INSERT INTO messages(id, room, member_id, name, body, created_at, state, client_id) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)').bind(triggerId, room, memberId, String(member?.name || 'You'), text, ts, clientId)];
-  if (!room.startsWith('dm:')) stmts.push(e.DB.prepare('INSERT OR IGNORE INTO channels(name, created_at) VALUES (?, ?)').bind(room, ts));
+  if (!room.startsWith('dm:') && !room.startsWith('thread:')) stmts.push(e.DB.prepare('INSERT OR IGNORE INTO channels(name, created_at) VALUES (?, ?)').bind(room, ts));
   for (const { agent, replyId, runId } of pending) stmts.push(
     e.DB.prepare("INSERT INTO messages(id, room, member_id, name, body, created_at, run_id, state) VALUES (?, ?, ?, ?, '', ?, ?, 'pending')").bind(replyId, room, agent.id, agent.name, ts, runId),
     e.DB.prepare("INSERT INTO runs(id, kind, agent_id, room, message_id, trigger_message_id, status, backend, mode, created_at) VALUES (?, 'chat', ?, ?, ?, ?, 'queued', 'openclaw', ?, ?)").bind(runId, agent.id, room, replyId, triggerId, mode, ts),
