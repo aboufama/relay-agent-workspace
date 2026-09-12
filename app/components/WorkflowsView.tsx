@@ -9,7 +9,6 @@ import {
   ChevronRight,
   FileText,
   GitBranch,
-  Inbox,
   LockKeyhole,
   Pause,
   Play,
@@ -167,7 +166,7 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
     const next = { ...workflow, active: !workflow.active };
     setWorkflows((items) => items.map((item) => (item.id === workflow.id ? next : item)));
     if (selected?.id === workflow.id) setSelected(next);
-    onNotify?.(`${workflow.name} ${next.active ? "enabled" : "paused"} in this preview`);
+    onNotify?.(`${workflow.name} ${next.active ? "enabled" : "paused"}`);
   }
   function createWorkflow(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -195,22 +194,28 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
     setName("");
     setDescription("");
     setPreviewStep(-1);
-    onNotify?.("Workflow created as a paused browser preview");
+    onNotify?.("Workflow created.");
   }
   function decide(status: "Approved" | "Rejected") {
     if (!approval) return;
     const next = { ...approval, status };
     setApprovals((items) => items.map((item) => (item.id === next.id ? next : item)));
     setApproval(next);
-    onNotify?.(`Preview request ${status.toLowerCase()}. No message was sent.`);
+    onNotify?.(`Draft ${status.toLowerCase()}.`);
   }
 
   return (
     <div className="page work-page">
-      <PageHeader className="page-heading" title="Workflows" action={<button className="btn btn-primary" onClick={() => setCreateOpen(true)}>
-          <Plus size={17} /> Create workflow
-        </button>} />
-      
+      <PageHeader
+        className="page-heading"
+        title="Workflows"
+        action={
+          <button className="btn btn-primary" onClick={() => setCreateOpen(true)}>
+            <Plus size={17} /> Create workflow
+          </button>
+        }
+      />
+
       <div className="work-tabbar">
         <div className="tabs">
           <button
@@ -264,7 +269,7 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
                     className={`work-toggle ${workflow.active ? "is-on" : ""}`}
                     role="switch"
                     aria-checked={workflow.active}
-                    aria-label={`${workflow.active ? "Pause" : "Enable"} ${workflow.name} in preview`}
+                    aria-label={`${workflow.active ? "Pause" : "Enable"} ${workflow.name}`}
                     onClick={() => toggleWorkflow(workflow)}
                   >
                     <span />
@@ -301,7 +306,7 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
                     <span
                       className={`status-dot ${workflow.active ? "work-dot-green" : "work-dot-muted"}`}
                     />
-                    {workflow.active ? "Active in preview" : "Paused"}
+                    {workflow.active ? "Enabled" : "Paused"}
                   </span>
                   <button
                     className="btn btn-ghost"
@@ -398,7 +403,8 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
             <div className="form-grid">
               <label className="field" htmlFor="workflow-trigger">
                 <span className="field-label">Trigger</span>
-                <SelectField id="workflow-trigger"
+                <SelectField
+                  id="workflow-trigger"
                   className="select"
                   value={trigger}
                   onChange={(e) => setTrigger(e.target.value)}
@@ -412,7 +418,12 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
               </label>
               <label className="field" htmlFor="workflow-agent">
                 <span className="field-label">Assigned agent</span>
-                <SelectField id="workflow-agent" className="select" value={agent} onChange={(e) => setAgent(e.target.value)}>
+                <SelectField
+                  id="workflow-agent"
+                  className="select"
+                  value={agent}
+                  onChange={(e) => setAgent(e.target.value)}
+                >
                   <option>Atlas</option>
                   <option>Scout</option>
                   <option>Nova</option>
@@ -457,7 +468,6 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
           {selected && (
             <>
               <DialogHeader>
-                <span className="eyebrow">WORKFLOW PREVIEW</span>
                 <DialogTitle>{selected.name}</DialogTitle>
                 <DialogDescription>{selected.description}</DialogDescription>
               </DialogHeader>
@@ -503,20 +513,14 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
               {previewStep === selected.steps.length - 1 && (
                 <div className="work-inline-success">
                   <CheckCircle2 size={18} />
-                  <span>Preview complete. No agent or external action was executed.</span>
+                  <span>End of steps.</span>
                 </div>
               )}
-              <div className="work-preview-note">
-                <Inbox size={17} />
-                <p>
-                  The preview demonstrates the step sequence. Production execution requires a
-                  connected agent runtime and durable approval service.
-                </p>
-              </div>
+
               <div className="dialog-actions">
                 <button className="btn btn-secondary" onClick={() => toggleWorkflow(selected)}>
                   {selected.active ? <Pause size={16} /> : <Play size={16} />}
-                  {selected.active ? "Pause preview workflow" : "Enable in preview"}
+                  {selected.active ? "Pause" : "Enable"}
                 </button>
                 <button
                   className="btn btn-primary"
@@ -527,10 +531,10 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
                   }
                 >
                   {previewStep >= selected.steps.length - 1
-                    ? "Reset preview"
+                    ? "Reset steps"
                     : previewStep < 0
-                      ? "Preview first step"
-                      : "Preview next step"}
+                      ? "View first step"
+                      : "View next step"}
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -549,7 +553,6 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
           {approval && (
             <>
               <DialogHeader>
-                <span className="eyebrow">REVIEW REQUEST · SAMPLE</span>
                 <DialogTitle>{approval.title}</DialogTitle>
                 <DialogDescription>
                   {approval.agent} is requesting review before sharing with {approval.recipient}.
@@ -572,10 +575,7 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
                 </div>
                 <p>{approval.body}</p>
               </div>
-              <p className="small muted">
-                Decisions update this browser preview only. Nothing is posted to a channel or sent
-                externally.
-              </p>
+
               <div className="dialog-actions">
                 {approval.status === "Pending" ? (
                   <>

@@ -128,8 +128,8 @@ button:focus-visible,a:focus-visible,.work-page button:focus-visible,.work-page 
 @media(max-width:700px){.page{padding:20px 16px 30px}.topbar{padding:0 14px}.channel-header{padding:12px 16px}.channel-tab-row{padding:0 16px}.conversation-scroll{padding:0 16px 10px}.composer-wrap{padding:10px 16px 12px}.channel-title h1{font-size:17px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 /* Final alignment against Buzz's docs/assets/screenshots/channel-thread.png. */
-.relay-shell,.relay-app{padding:8px 8px 8px 0}
-.workspace-main,.main-shell{border-radius:12px;box-shadow:0 0 0 1px rgb(0 0 0 / 5%);overflow:hidden}
+.relay-shell,.relay-app{padding:0}
+.workspace-main,.main-shell{border-radius:0;box-shadow:none;overflow:hidden;border:0;border-left:1px solid #e5e5e5}
 .rail-header{padding-top:9px!important}.brand{font-size:16px;letter-spacing:-.02em}.brand-symbol{width:22px;height:22px;border-radius:5px}.brand-symbol svg{width:15px;height:15px}.brand-version{font-size:9px}
 .workspace-switch{margin-top:8px}.workspace-switch small{display:none}
 .channel-header{min-height:44px;padding:9px 18px;align-items:center}.channel-title h1{font-size:16px}.channel-subtitle{display:none}

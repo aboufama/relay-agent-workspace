@@ -40,6 +40,10 @@ const POSITIONS: Record<AgentState, string> = {
   idle: '0% 0%', sleep: '100% 0%', thinking: '0% 100%', stuck: '100% 100%',
 };
 
+export function useAgentState(name: string): AgentState {
+  return useSyncExternalStore(subscribe, () => identities.get(name)?.state ?? 'idle', () => 'idle');
+}
+
 /** Select a sheet quadrant, then inset its circular portrait without exposing its frame. */
 export function AgentAvatar({
   character = 'worm', state = 'idle', size = 32, label, className = '', preview = false,

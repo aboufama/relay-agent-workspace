@@ -362,9 +362,7 @@ export function DataView({ onNotify }: Props) {
     setQuery("");
     setImportOpen(false);
     setPendingFiles([]);
-    notify(
-      `${newItems.length} ${newItems.length === 1 ? "file added" : "files added"} to this browser session. Nothing was uploaded or indexed.`,
-    );
+    notify(`${newItems.length} ${newItems.length === 1 ? "file added" : "files added"}.`);
   };
   const patchItem = (id: string, patch: Partial<DataItem>) =>
     setItems((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
@@ -378,9 +376,7 @@ export function DataView({ onNotify }: Props) {
         ? item.audiences.filter((a) => a !== "Everyone in workspace")
         : item.audiences,
     });
-    notify(
-      `Classification updated to ${level} in this preview. Backend enforcement is not connected.`,
-    );
+    notify(`Classification updated to ${level}.`);
   };
   const download = (item: DataItem) => {
     if (!item.file) return;
@@ -411,7 +407,7 @@ export function DataView({ onNotify }: Props) {
     setCollection(name);
     setCollectionOpen(false);
     setNewCollection("");
-    notify(`Created ${name} in this browser session.`);
+    notify(`Created ${name}.`);
   };
 
   return (
@@ -458,7 +454,7 @@ export function DataView({ onNotify }: Props) {
           </div>
         </div>
       </header>
-      
+
       <div className="data-workspace">
         <aside className="data-collections card" aria-label="Data collections">
           <div className="data-collections-header">
@@ -657,7 +653,7 @@ export function DataView({ onNotify }: Props) {
                           ) : (
                             <Check size={13} />
                           )}
-                          {item.example ? "Example metadata" : "Local · not indexed"}
+                          {item.example ? "No file attached" : "Local · not indexed"}
                         </span>
                       </td>
                       <td>
@@ -690,7 +686,7 @@ export function DataView({ onNotify }: Props) {
                   <span>{item.collection}</span>
                   <div className="data-file-card-bottom">
                     <small>{bytes(item.size)}</small>
-                    <small>{item.example ? "Example metadata" : "Local · not indexed"}</small>
+                    <small>{item.example ? "No file attached" : "Local · not indexed"}</small>
                   </div>
                 </button>
               ))}
@@ -724,7 +720,6 @@ export function DataView({ onNotify }: Props) {
             <UploadCloud size={40} />
             <h2>Give your agents the context</h2>
             <p>Drop files to choose their collection and security level.</p>
-            <span>Nothing leaves this browser.</span>
           </div>
         </div>
       )}
@@ -739,9 +734,8 @@ export function DataView({ onNotify }: Props) {
         <DialogContent className="data-dialog">
           <DialogHeader>
             <DialogTitle>Import files</DialogTitle>
-            <DialogDescription>
-              Choose a security level first. File contents remain in your browser and are not sent
-              to an agent.
+            <DialogDescription className="sr-only">
+              Choose files and a classification.
             </DialogDescription>
           </DialogHeader>
           <div className="field">
@@ -848,13 +842,7 @@ export function DataView({ onNotify }: Props) {
               {importError}
             </p>
           )}
-          <div className="data-dialog-note">
-            <LockKeyhole size={15} />
-            <span>
-              Agents have no access until a backend is connected. Classification here is a policy
-              preview.
-            </span>
-          </div>
+
           <DialogFooter>
             <button className="btn btn-secondary" onClick={() => setImportOpen(false)}>
               Cancel
@@ -883,9 +871,7 @@ export function DataView({ onNotify }: Props) {
                     <DialogTitle>{selected.name}</DialogTitle>
                     <DialogDescription>
                       {selected.type} · {bytes(selected.size)} ·{" "}
-                      {selected.example
-                        ? "Fictional example metadata"
-                        : "Stored in this browser session"}
+                      {selected.example ? "No file attached" : "Local file"}
                     </DialogDescription>
                   </div>
                 </div>
@@ -893,9 +879,7 @@ export function DataView({ onNotify }: Props) {
               <div className="data-detail-state">
                 <span className={`data-file-state ${selected.example ? "" : "available"}`}>
                   {selected.example ? <Info size={15} /> : <HardDrive size={15} />}
-                  {selected.example
-                    ? "Sample entry — no file attached"
-                    : "Local file available — not indexed"}
+                  {selected.example ? "No file attached" : "Local file available — not indexed"}
                 </span>
                 <span>{selected.example ? "No agent access" : "No network upload"}</span>
               </div>
@@ -910,7 +894,7 @@ export function DataView({ onNotify }: Props) {
                     value={selected.collection}
                     onChange={(event) => {
                       patchItem(selected.id, { collection: event.target.value });
-                      notify("Collection updated in this browser session.");
+                      notify("Collection updated.");
                     }}
                   >
                     {collections.map((name) => (
@@ -942,17 +926,12 @@ export function DataView({ onNotify }: Props) {
                       ? "Local inference only"
                       : "Local and approved cloud inference"}
                   </strong>
-                  <p>
-                    {descriptions[selected.level]} These rules need a connected backend to take
-                    effect.
-                  </p>
+                  <p>{descriptions[selected.level]}</p>
                 </div>
               </div>
               <div className="data-detail-access">
                 <fieldset>
-                  <legend>
-                    Intended audiences <span>Policy preview</span>
-                  </legend>
+                  <legend>Audiences</legend>
                   {audienceOptions.map((audience) => (
                     <label className="data-checkbox-row" key={audience}>
                       <input
@@ -972,9 +951,7 @@ export function DataView({ onNotify }: Props) {
                   ))}
                 </fieldset>
                 <fieldset>
-                  <legend>
-                    Intended agents <span>Policy preview</span>
-                  </legend>
+                  <legend>Agents</legend>
                   {agentOptions.map((agent) => (
                     <label className="data-checkbox-row" key={agent}>
                       <input
@@ -995,9 +972,6 @@ export function DataView({ onNotify }: Props) {
                       )}
                     </label>
                   ))}
-                  <p className="data-access-footnote">
-                    Selections are saved for this session only. No agent can retrieve these files.
-                  </p>
                 </fieldset>
               </div>
               {selected.path && (
@@ -1060,9 +1034,7 @@ export function DataView({ onNotify }: Props) {
         <DialogContent className="data-dialog data-preview-dialog">
           <DialogHeader>
             <DialogTitle>{previewItem?.name}</DialogTitle>
-            <DialogDescription>
-              Local preview · file contents stay in this browser.
-            </DialogDescription>
+            <DialogDescription>Local file</DialogDescription>
           </DialogHeader>
           {previewLoading ? (
             <div className="empty-state">Reading local file…</div>
@@ -1140,13 +1112,7 @@ export function DataView({ onNotify }: Props) {
               with it.
             </p>
           </div>
-          <div className="data-dialog-note">
-            <Info size={16} />
-            <span>
-              This is a UI policy model. Authentication, encryption, audit logging, and server-side
-              permission enforcement are not connected in this preview.
-            </span>
-          </div>
+
           <DialogFooter>
             <button className="btn btn-primary" onClick={() => setPolicyOpen(false)}>
               Got it
@@ -1158,9 +1124,7 @@ export function DataView({ onNotify }: Props) {
         <DialogContent className="data-dialog data-small-dialog">
           <DialogHeader>
             <DialogTitle>New collection</DialogTitle>
-            <DialogDescription>
-              Organize related sources into a collection in this browser session.
-            </DialogDescription>
+            <DialogDescription>Organize related sources into a collection</DialogDescription>
           </DialogHeader>
           <form
             onSubmit={(event) => {

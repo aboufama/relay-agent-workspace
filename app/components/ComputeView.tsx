@@ -1,11 +1,7 @@
 import { SelectField } from "@/components/SelectField";
-import {
-  useAgentHomes,
-  addPendingAgentHome,
-  removePendingAgentHome,
-} from '@/lib/agent-homes';
-import { PageHeader } from '@/components/buzz/PageHeader';
-import { useState } from 'react';
+import { useAgentHomes, addPendingAgentHome, removePendingAgentHome } from "@/lib/agent-homes";
+import { PageHeader } from "@/components/buzz/PageHeader";
+import { useState } from "react";
 import {
   ArrowDownToLine,
   ArrowRight,
@@ -14,13 +10,12 @@ import {
   Cloud,
   Cpu,
   HardDrive,
-  Info,
   Laptop,
   Plus,
   Server,
   ShieldCheck,
   Wifi,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +23,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 
 type Device = {
   id: string;
@@ -46,84 +41,67 @@ type Model = {
 };
 const models: Model[] = [
   {
-    name: 'Holo-3.1-35B-A3B',
-    family: 'NVFP4 · Mixture of experts',
+    name: "Holo-3.1-35B-A3B",
+    family: "NVFP4 · Mixture of experts",
     size: 23.724,
-    tag: 'Planning only',
-    description:
-      'Hcompany/Holo-3.1-35B-A3B-NVFP4 · approximately 24 GB of repository files. Download and runtime connection happen outside this interface.',
+    tag: "Planning only",
+    description: "Hcompany/Holo-3.1-35B-A3B-NVFP4 · approximately 24 GB of repository files. ",
   },
 ];
-export function ComputeView({
-  onNotify,
-}: {
-  onNotify?: (message: string) => void;
-}) {
+export function ComputeView({ onNotify }: { onNotify?: (message: string) => void }) {
   const homes = useAgentHomes();
   const devices: Device[] = homes
-    .filter((home) => home.kind === 'local')
+    .filter((home) => home.kind === "local")
     .map((home) => ({
       id: home.id,
       name: home.name,
-      location: home.location || 'Awaiting device verification',
-      pending: home.status === 'pending',
+      location: home.location || "Awaiting device verification",
+      pending: home.status === "pending",
     }));
   const [pairOpen, setPairOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [code, setCode] = useState('');
-  const [error, setError] = useState('');
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
   const [deviceDetail, setDeviceDetail] = useState<Device | null>(null);
   const [chosenModel, setChosenModel] = useState<Model | null>(null);
-  const [target, setTarget] = useState('lab');
+  const [target, setTarget] = useState("lab");
   const [speed, setSpeed] = useState(16);
-  const [requests, setRequests] = useState<
-    { model: string; device: string; size: number }[]
-  >([]);
-  const [filter, setFilter] = useState('all');
+  const [requests, setRequests] = useState<{ model: string; device: string; size: number }[]>([]);
+  const [filter, setFilter] = useState("all");
   const [cloudOpen, setCloudOpen] = useState(false);
-  const [provider, setProvider] = useState('Anthropic');
-  const [connectionName, setConnectionName] = useState('');
-  const clouds = homes.filter((home) => home.kind === 'cloud');
+  const [provider, setProvider] = useState("Anthropic");
+  const [connectionName, setConnectionName] = useState("");
+  const clouds = homes.filter((home) => home.kind === "cloud");
   const estimate = (gb: number) => {
     const minutes = Math.ceil((gb * 1000) / Math.max(1, speed) / 60);
-    return minutes >= 60
-      ? `${Math.floor(minutes / 60)}h ${minutes % 60}m`
-      : `${minutes} min`;
+    return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} min`;
   };
   function pair() {
     if (!name.trim()) {
-      setError('Give this device a name.');
+      setError("Give this device a name.");
       return;
     }
     if (!/^[a-zA-Z0-9-]{6,20}$/.test(code.trim())) {
-      setError(
-        'Enter a pairing code between 6 and 20 letters, numbers, or hyphens.',
-      );
+      setError("Enter a pairing code between 6 and 20 letters, numbers, or hyphens.");
       return;
     }
     addPendingAgentHome({
-      kind: 'local',
+      kind: "local",
       name: name.trim(),
-      location: 'Awaiting device verification',
+      location: "Awaiting device verification",
     });
     setPairOpen(false);
-    setName('');
-    setCode('');
-    setError('');
-    onNotify?.(
-      'Device pairing configuration saved for this session. Verification requires the device gateway.',
-    );
+    setName("");
+    setCode("");
+    setError("");
+    onNotify?.("Device saved. Waiting for verification.");
   }
   function queue() {
     if (!chosenModel) return;
     const device = devices.find((d) => d.id === target);
     if (!device) return;
-    if (
-      requests.some(
-        (r) => r.model === chosenModel.name && r.device === device.name,
-      )
-    ) {
-      onNotify?.('This model is already in your installation plan.');
+    if (requests.some((r) => r.model === chosenModel.name && r.device === device.name)) {
+      onNotify?.("This model is already in your installation plan.");
       setChosenModel(null);
       return;
     }
@@ -132,9 +110,7 @@ export function ComputeView({
       { model: chosenModel.name, device: device.name, size: chosenModel.size },
     ]);
     setChosenModel(null);
-    onNotify?.(
-      'Added to installation plan. No download starts until a runtime is connected.',
-    );
+    onNotify?.("Added to installation plan. No download starts until a runtime is connected.");
   }
   return (
     <div className="page agents-compute-page">
@@ -145,7 +121,7 @@ export function ComputeView({
           <button
             className="btn btn-primary"
             onClick={() => {
-              setError('');
+              setError("");
               setPairOpen(true);
             }}
           >
@@ -157,13 +133,13 @@ export function ComputeView({
       <div className="agents-compute-heading">
         <div className="tabs" aria-label="Compute type">
           {[
-            ['all', 'All compute'],
-            ['local', 'Local devices'],
-            ['cloud', 'Cloud providers'],
+            ["all", "All compute"],
+            ["local", "Local devices"],
+            ["cloud", "Cloud providers"],
           ].map(([v, l]) => (
             <button
               key={v}
-              className={`tab ${filter === v ? 'active' : ''}`}
+              className={`tab ${filter === v ? "active" : ""}`}
               aria-pressed={filter === v}
               onClick={() => setFilter(v)}
             >
@@ -171,9 +147,8 @@ export function ComputeView({
             </button>
           ))}
         </div>
-        <span className="small muted">Preview · No live telemetry</span>
       </div>
-      {filter !== 'cloud' && (
+      {filter !== "cloud" && (
         <div className="agents-device-grid">
           {devices.map((device) => (
             <article className="card agents-device-card" key={device.id}>
@@ -181,15 +156,13 @@ export function ComputeView({
                 <div className="agents-device-icon">
                   <Server size={23} />
                 </div>
-                <span
-                  className={`badge ${device.pending ? 'badge-amber' : 'badge-muted'}`}
-                >
-                  {device.pending ? <Clock3 size={12} /> : <Laptop size={12} />}{' '}
-                  {device.pending ? 'Pending verification' : 'Example device'}
+                <span className={`badge ${device.pending ? "badge-amber" : "badge-muted"}`}>
+                  {device.pending ? <Clock3 size={12} /> : <Laptop size={12} />}{" "}
+                  {device.pending ? "Waiting" : "Not connected"}
                 </span>
               </div>
               <h3>{device.name}</h3>
-              <p className="muted small">{device.location}</p>
+              <p className="muted small">{device.location?.replace(/ · Sample device/i, "")}</p>
               <div className="agents-device-spec">
                 <span>NVIDIA GB10</span>
                 <span>128 GB unified</span>
@@ -197,9 +170,7 @@ export function ComputeView({
               <div className="agents-device-metrics">
                 <div>
                   <span>Connection</span>
-                  <strong>
-                    {device.pending ? 'Pending' : 'Not connected'}
-                  </strong>
+                  <strong>{device.pending ? "Pending" : "Not connected"}</strong>
                 </div>
                 <div>
                   <span>Model inventory</span>
@@ -210,10 +181,7 @@ export function ComputeView({
                   <strong>—</strong>
                 </div>
               </div>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setDeviceDetail(device)}
-              >
+              <button className="btn btn-secondary" onClick={() => setDeviceDetail(device)}>
                 Device details <ArrowRight size={15} />
               </button>
             </article>
@@ -221,7 +189,7 @@ export function ComputeView({
           <button
             className="agents-add-device"
             onClick={() => {
-              setError('');
+              setError("");
               setPairOpen(true);
             }}
           >
@@ -240,7 +208,7 @@ export function ComputeView({
           </button>
         </div>
       )}
-      {filter !== 'local' && (
+      {filter !== "local" && (
         <div className="card agents-cloud-panel">
           <div className="agents-cloud-panel-heading">
             <div className="agents-cloud-icon">
@@ -250,10 +218,7 @@ export function ComputeView({
               <h3>Cloud connections</h3>
               <p>Extend your team with a hosted model provider.</p>
             </div>
-            <button
-              className="btn btn-secondary"
-              onClick={() => setCloudOpen(true)}
-            >
+            <button className="btn btn-secondary" onClick={() => setCloudOpen(true)}>
               <Plus size={15} /> Add provider
             </button>
           </div>
@@ -264,15 +229,10 @@ export function ComputeView({
                   <Cloud size={15} />
                   <strong>{c.name}</strong>
                   <span className="badge badge-amber">
-                    {c.status === 'preview'
-                      ? 'Example provider'
-                      : 'Authentication required'}
+                    {c.status === "preview" ? "Not connected" : "Authentication required"}
                   </span>
-                  {c.status === 'pending' && (
-                    <button
-                      className="btn btn-ghost"
-                      onClick={() => removePendingAgentHome(c.id)}
-                    >
+                  {c.status === "pending" && (
+                    <button className="btn btn-ghost" onClick={() => removePendingAgentHome(c.id)}>
                       Remove
                     </button>
                   )}
@@ -283,22 +243,18 @@ export function ComputeView({
           <div className="agents-cloud-policy">
             <ShieldCheck size={15} />
             <span>
-              Cloud agents use approved context. Confidential and restricted
-              data stay local by the proposed workspace policy.
+              Cloud agents use approved context. Confidential and restricted data stay local by the
+              proposed workspace policy.
             </span>
           </div>
         </div>
       )}
-      {filter !== 'cloud' && (
+      {filter !== "cloud" && (
         <>
           <div className="agents-model-heading">
             <div>
               <div className="eyebrow">CHOOSE YOUR INTELLIGENCE</div>
               <h2>Model catalog</h2>
-              <p className="muted small">
-                Example model configurations for a single GB10. Verify current
-                model packages and runtime support before installation.
-              </p>
             </div>
             <label className="agents-speed-input">
               <Wifi size={15} />
@@ -310,9 +266,7 @@ export function ComputeView({
                 max="10000"
                 value={speed}
                 onChange={(e) =>
-                  setSpeed(
-                    Math.min(10000, Math.max(1, Number(e.target.value) || 1)),
-                  )
+                  setSpeed(Math.min(10000, Math.max(1, Number(e.target.value) || 1)))
                 }
               />
               <span>MB/s</span>
@@ -358,9 +312,7 @@ export function ComputeView({
         <section className="card agents-installation-plan">
           <div className="card-header">
             <h3>Installation plan</h3>
-            <span className="badge badge-amber">
-              {requests.length} awaiting connection
-            </span>
+            <span className="badge badge-amber">{requests.length} awaiting connection</span>
           </div>
           {requests.map((r, i) => (
             <div className="agents-install-row" key={`${r.model}-${r.device}`}>
@@ -382,13 +334,7 @@ export function ComputeView({
           ))}
         </section>
       )}
-      <div className="agents-bottom-note">
-        <Info size={16} />
-        <span>
-          This is a configuration preview. Pairing and installation plans stay
-          in this browser session; no device is contacted or model downloaded.
-        </span>
-      </div>
+
       <Dialog open={pairOpen} onOpenChange={setPairOpen}>
         <DialogContent className="agents-small-dialog">
           <DialogHeader>
@@ -396,31 +342,8 @@ export function ComputeView({
               <Cpu size={23} />
             </div>
             <DialogTitle>Connect your GB10</DialogTitle>
-            <DialogDescription>
-              Your hardware becomes part of the workspace.
-            </DialogDescription>
+            <DialogDescription>Device details</DialogDescription>
           </DialogHeader>
-          <div className="agents-pair-instructions">
-            <div>
-              <span>1</span>
-              <p>Open the Relay device connector on your GB10.</p>
-            </div>
-            <div>
-              <span>2</span>
-              <p>Copy its one-time workspace pairing code.</p>
-            </div>
-            <div>
-              <span>3</span>
-              <p>Name your device and enter the code below.</p>
-            </div>
-          </div>
-          <div className="agents-policy-note">
-            <Info size={16} />
-            <span>
-              The device connector is an integration point in this preview.
-              Saving creates a pending configuration only.
-            </span>
-          </div>
           <label className="field">
             <span className="field-label">Device name</span>
             <input
@@ -447,10 +370,7 @@ export function ComputeView({
             </p>
           )}
           <DialogFooter>
-            <button
-              className="btn btn-secondary"
-              onClick={() => setPairOpen(false)}
-            >
+            <button className="btn btn-secondary" onClick={() => setPairOpen(false)}>
               Cancel
             </button>
             <button className="btn btn-primary" onClick={pair}>
@@ -471,7 +391,9 @@ export function ComputeView({
               <Server size={23} />
             </div>
             <DialogTitle>{deviceDetail?.name}</DialogTitle>
-            <DialogDescription>{deviceDetail?.location}</DialogDescription>
+            <DialogDescription>
+              {deviceDetail?.location?.replace(/ · Sample device/i, "")}
+            </DialogDescription>
           </DialogHeader>
           <dl className="agents-review-details">
             <div>
@@ -484,11 +406,7 @@ export function ComputeView({
             </div>
             <div>
               <dt>Connection</dt>
-              <dd>
-                {deviceDetail?.pending
-                  ? 'Pending verification'
-                  : 'Sample — not connected'}
-              </dd>
+              <dd>{deviceDetail?.pending ? "Waiting" : "Not connected"}</dd>
             </div>
             <div>
               <dt>Telemetry</dt>
@@ -499,18 +417,9 @@ export function ComputeView({
               <dd>Not verified</dd>
             </div>
           </dl>
-          <div className="agents-policy-note">
-            <ShieldCheck size={16} />
-            <span>
-              A live connection must verify device identity and workspace
-              membership before accepting jobs or company data.
-            </span>
-          </div>
+
           <DialogFooter>
-            <button
-              className="btn btn-secondary"
-              onClick={() => setDeviceDetail(null)}
-            >
+            <button className="btn btn-secondary" onClick={() => setDeviceDetail(null)}>
               Close
             </button>
             {deviceDetail?.pending && (
@@ -519,7 +428,7 @@ export function ComputeView({
                 onClick={() => {
                   removePendingAgentHome(deviceDetail.id);
                   setDeviceDetail(null);
-                  onNotify?.('Pending device removed.');
+                  onNotify?.("Pending device removed.");
                 }}
               >
                 Remove request
@@ -554,7 +463,7 @@ export function ComputeView({
               {devices.map((d) => (
                 <option value={d.id} key={d.id}>
                   {d.name}
-                  {d.pending ? ' · Pending pairing' : ' · Example'}
+                  {d.pending ? " · Waiting" : " · Not connected"}
                 </option>
               ))}
             </SelectField>
@@ -575,19 +484,9 @@ export function ComputeView({
               <dd>Runtime and context overhead required</dd>
             </div>
           </dl>
-          <div className="agents-policy-note">
-            <Info size={16} />
-            <span>
-              This records an installation plan. A connected device will need to
-              verify disk space, model compatibility, and the package checksum
-              before downloading.
-            </span>
-          </div>
+
           <DialogFooter>
-            <button
-              className="btn btn-secondary"
-              onClick={() => setChosenModel(null)}
-            >
+            <button className="btn btn-secondary" onClick={() => setChosenModel(null)}>
               Cancel
             </button>
             <button className="btn btn-primary" onClick={queue}>
@@ -603,14 +502,12 @@ export function ComputeView({
               <Cloud size={23} />
             </div>
             <DialogTitle>Add a cloud provider</DialogTitle>
-            <DialogDescription>
-              Configure the connection now; authenticate securely when your
-              backend is connected.
-            </DialogDescription>
+            <DialogDescription className="sr-only">Provider connection</DialogDescription>
           </DialogHeader>
           <label className="field" htmlFor="compute-provider">
             <span className="field-label">Provider</span>
-            <SelectField id="compute-provider"
+            <SelectField
+              id="compute-provider"
               className="select"
               value={provider}
               onChange={(e) => setProvider(e.target.value)}
@@ -631,33 +528,22 @@ export function ComputeView({
               onChange={(e) => setConnectionName(e.target.value)}
             />
           </label>
-          <div className="agents-policy-note">
-            <ShieldCheck size={16} />
-            <span>
-              No API keys are collected here. Production credentials should be
-              held in a server-side vault, scoped to the workspace.
-            </span>
-          </div>
+
           <DialogFooter>
-            <button
-              className="btn btn-secondary"
-              onClick={() => setCloudOpen(false)}
-            >
+            <button className="btn btn-secondary" onClick={() => setCloudOpen(false)}>
               Cancel
             </button>
             <button
               className="btn btn-primary"
               onClick={() => {
                 addPendingAgentHome({
-                  kind: 'cloud',
+                  kind: "cloud",
                   provider,
-                  name: `${provider}${connectionName.trim() ? ` · ${connectionName.trim()}` : ''}`,
+                  name: `${provider}${connectionName.trim() ? ` · ${connectionName.trim()}` : ""}`,
                 });
                 setCloudOpen(false);
-                setConnectionName('');
-                onNotify?.(
-                  'Provider configuration saved. Authentication is still required.',
-                );
+                setConnectionName("");
+                onNotify?.("Provider configuration saved. Authentication is still required.");
               }}
             >
               Save configuration

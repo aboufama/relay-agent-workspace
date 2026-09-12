@@ -37,3 +37,7 @@ Profile sprite changes were additionally verified to propagate from Agents into 
 Production-worker browser checks pass for generated names, draft cancellation, create/edit persistence during navigation, local/cloud access defaults and freely editable overrides, dropdown keyboard selection, mobile dialog/popup fit, and all five other dropdown surfaces. Ten feature scenarios cover data import/preview/removal/reclassification, projects/tasks/comments, workflows, forum, and compute configuration; no production browser errors. Lint, TypeScript, and production build pass.
 
 All 16 sprite quadrants visually checked; original images unchanged. Runtime activity-to-sprite updates tested independently through the adapter export. Native visible select elements are absent from the app.
+
+## Member directory and live-chat integration
+
+Shared-directory storage checks pass for create, rename, reload, cross-tab changes, malformed data, and unavailable storage. Browser tests against a controlled SSE response verify @agent routing, agent DMs, human DMs, error/Retry, and no duplicate user posts; those controlled tests do not establish Dell inference readiness. Real endpoint verification is tracked separately. Current agent create/edit form and ten feature scenarios pass against the production Worker. No runtime/browser errors; mobile fit verified at 390px. All visible dropdowns use the shared custom control.

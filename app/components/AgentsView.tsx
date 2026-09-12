@@ -1,7 +1,14 @@
+import { AgentThinkingBubble } from "@/components/AgentThinkingBubble";
+import {
+  useAgentMembers,
+  useWorkspaceMembers,
+  upsertWorkspaceMember,
+  type AgentMember as Agent,
+} from "@/lib/workspace-members";
 import { SelectField } from "@/components/SelectField";
 // Identity-card layout adapted from block/buzz; see third-party notices.
-import { useState } from "react";
-import { Cloud, Database, Plus, Search, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Cloud, Database, Plus } from "lucide-react";
 import { AgentAvatar, setAgentAvatarIdentity } from "@/components/AgentAvatar";
 import { useAgentHomes } from "@/lib/agent-homes";
 import { PageHeader } from "@/components/buzz/PageHeader";
@@ -16,35 +23,8 @@ import {
 type AccessLevel = "Public" | "Internal" | "Confidential" | "Restricted";
 const accessLevels: AccessLevel[] = ["Public", "Internal", "Confidential", "Restricted"];
 type Character = "worm" | "firefly" | "ladybug" | "caterpillar";
-type Agent = {
-  id: string;
-  name: string;
-  role: string;
-  description: string;
-  runtime: "local" | "cloud";
-  model: string;
-  device: string;
-  initials: string;
-  color: string;
-  owner: string;
-  channels: string[];
-  context: string[];
-  capabilities: string[];
-  character?: Character;
-  homeId?: string;
-  accessLevel?: AccessLevel;
-  nameCustomized?: boolean;
-  isNew?: boolean;
-  paused?: boolean;
-};
 type Props = { onNotify?: (message: string) => void; onNavigate?: (view: string) => void };
 const characters: Character[] = ["worm", "firefly", "ladybug", "caterpillar"];
-const capabilityOptions = [
-  "Search company knowledge",
-  "Draft messages & documents",
-  "Create work items",
-  "Use connected tools",
-];
 const quirkyNames: Record<Character, string[]> = {
   worm: ["Professor Wiggles", "Noodle McDoodle", "Sir Squiggle"],
   firefly: ["Captain Glimmer", "Flicker Pickles", "Doctor Twinkle"],
@@ -61,116 +41,10 @@ function generatedName(character: Character, existing: string[]) {
   }
   return candidate;
 }
-const seedAgents: Agent[] = [
-  {
-    id: "atlas",
-    name: "Atlas",
-    role: "Engineering partner",
-    description:
-      "Turns technical questions into clear answers and helps the team ship with confidence.",
-    runtime: "local",
-    model: "Holo-3.1-35B-A3B",
-    device: "Meridian Lab · GB10",
-    initials: "At",
-    color: "green",
-    owner: "Alex Morgan",
-    channels: ["engineering", "product"],
-    context: ["Company handbook", "Product & engineering"],
-    capabilities: capabilityOptions.slice(0, 3),
-  },
-  {
-    id: "sage",
-    name: "Sage",
-    role: "Operations partner",
-    description:
-      "Connects the dots across projects, finds blockers, and keeps every handoff moving.",
-    runtime: "local",
-    model: "Holo-3.1-35B-A3B",
-    device: "Meridian Lab · GB10",
-    initials: "Sa",
-    color: "amber",
-    owner: "Jamie Chen",
-    channels: ["operations", "team"],
-    context: ["Company handbook", "Customer knowledge"],
-    capabilities: capabilityOptions.slice(0, 3),
-  },
-  {
-    id: "nova",
-    name: "Nova",
-    role: "Creative partner",
-    description:
-      "A thoughtful collaborator for campaign ideas, launch stories, and your next first draft.",
-    runtime: "cloud",
-    model: "Claude Sonnet",
-    device: "Anthropic",
-    initials: "No",
-    color: "purple",
-    owner: "Sam Rivera",
-    channels: ["marketing", "product"],
-    context: ["Company handbook"],
-    capabilities: capabilityOptions.slice(0, 2),
-  },
-  {
-    id: "iris",
-    name: "Iris",
-    role: "Customer partner",
-    description:
-      "Brings the customer perspective to every conversation, with the right account context.",
-    runtime: "local",
-    model: "Holo-3.1-35B-A3B",
-    device: "Studio · GB10",
-    initials: "Ir",
-    color: "rose",
-    owner: "Jordan Lee",
-    channels: ["customer-success"],
-    context: ["Company handbook", "Customer knowledge"],
-    capabilities: capabilityOptions.slice(0, 3),
-  },
-  {
-    id: "scout",
-    name: "Scout",
-    role: "Research partner",
-    description:
-      "Explores new questions, compares sources, and brings useful findings back to the team.",
-    runtime: "cloud",
-    model: "GPT",
-    device: "OpenAI",
-    initials: "Sc",
-    color: "blue",
-    owner: "Alex Morgan",
-    channels: ["research", "product"],
-    context: ["Company handbook", "Product & engineering"],
-    capabilities: capabilityOptions,
-  },
-  {
-    id: "ledger",
-    name: "Ledger",
-    role: "Finance partner",
-    description:
-      "Makes financial context easier to understand while keeping sensitive work close to home.",
-    runtime: "local",
-    model: "Holo-3.1-35B-A3B",
-    device: "Studio · GB10",
-    initials: "Le",
-    color: "slate",
-    owner: "Taylor Kim",
-    channels: ["finance"],
-    context: ["Company handbook", "Financial planning"],
-    capabilities: capabilityOptions.slice(0, 2),
-  },
-];
-
 export function AgentsView({ onNotify }: Props) {
   const homes = useAgentHomes();
-  const [agents, setAgents] = useState<Agent[]>(
-    seedAgents.map((agent, index) => ({
-      ...agent,
-      character: characters[index % characters.length],
-      nameCustomized: true,
-    })),
-  );
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const agents = useAgentMembers();
+  const members = useWorkspaceMembers();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -181,43 +55,83 @@ export function AgentsView({ onNotify }: Props) {
   const [instructions, setInstructions] = useState("");
   const [avatarChoices, setAvatarChoices] = useState(false);
   const [error, setError] = useState("");
-  const [teams, setTeams] = useState<{ id: string; name: string; members: string[] }[]>([]);
-  const [teamOpen, setTeamOpen] = useState(false);
-  const [teamId, setTeamId] = useState<string | null>(null);
-  const [teamName, setTeamName] = useState("");
-  const [teamMembers, setTeamMembers] = useState<string[]>([]);
-  const visible = agents.filter(
-    (agent) =>
-      (filter === "all" || agent.runtime === filter) &&
-      `${agent.name} ${agent.description}`.toLowerCase().includes(search.toLowerCase()),
-  );
+  const [newlyCreatedId, setNewlyCreatedId] = useState<string | null>(null);
+  const createdCard = useRef<HTMLDivElement>(null);
+  const [bubblePreviewIds, setBubblePreviewIds] = useState<string[]>(['sage', 'nova']);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const cycle = () => {
+      setBubblePreviewIds(current => {
+        const candidates = agents.filter(agent => !current.includes(agent.id));
+        if (!candidates.length) return current;
+        const next = candidates[Math.floor(Math.random() * candidates.length)];
+        return [current[current.length - 1], next.id].filter(Boolean);
+      });
+      timer = setTimeout(cycle, 4500 + Math.random() * 4500);
+    };
+    timer = setTimeout(cycle, 4500);
+    return () => clearTimeout(timer);
+  }, [agents]);
+  useEffect(() => {
+    if (!newlyCreatedId) return;
+    const frame = requestAnimationFrame(() =>
+      createdCard.current?.scrollIntoView({
+        block: "nearest",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [newlyCreatedId]);
   function openAgent(agent?: Agent) {
     const nextCharacter =
       agent?.character || characters[Math.floor(Math.random() * characters.length)];
     setEditingId(agent?.id || null);
     setCharacter(nextCharacter);
-    setName(agent?.name || generatedName(nextCharacter, agents.map((item) => item.name)));
+    setName(
+      agent?.name ||
+        generatedName(
+          nextCharacter,
+          agents.map((item) => item.name),
+        ),
+    );
     setNameCustomized(agent?.nameCustomized ?? false);
     const initialHome =
       homes.find((home) => home.id === agent?.homeId) ||
-      homes.find((home) => agent && agent.device.startsWith(home.name) && home.kind === agent.runtime) ||
+      homes.find(
+        (home) => agent && agent.device.startsWith(home.name) && home.kind === agent.runtime,
+      ) ||
       homes.find((home) => home.kind === (agent?.runtime || "local") && home.status !== "pending");
     setHomeId(initialHome?.id || "");
     setAccessLevel(
       agent?.accessLevel || (initialHome?.kind === "cloud" ? "Public" : "Confidential"),
     );
     setInstructions(agent?.description || "");
-    setAvatarChoices(false);
+    setAvatarChoices(!agent);
     setError("");
     setDialogOpen(true);
   }
+  useEffect(() => {
+    const onOpenAgent = (event: Event) => {
+      const agentId = (event as CustomEvent<{ agentId?: string }>).detail?.agentId;
+      const agent = agents.find((member) => member.id === agentId);
+      if (agent) openAgent(agent);
+    };
+    window.addEventListener("relay:open-agent", onOpenAgent);
+    return () => window.removeEventListener("relay:open-agent", onOpenAgent);
+  });
   function saveAgent() {
     if (!name.trim()) {
       setError("Enter a name.");
       return;
     }
-    if (agents.some((agent) => agent.id !== editingId && agent.name.toLocaleLowerCase() === name.trim().toLocaleLowerCase())) {
-      setError("An agent with this name already exists.");
+    if (
+      members.some(
+        (agent) =>
+          agent.id !== editingId &&
+          agent.name.toLocaleLowerCase() === name.trim().toLocaleLowerCase(),
+      )
+    ) {
+      setError("A workspace member with this name already exists.");
       return;
     }
     const home = homes.find((item) => item.id === homeId);
@@ -228,6 +142,8 @@ export function AgentsView({ onNotify }: Props) {
     const previous = agents.find((agent) => agent.id === editingId);
     const next: Agent = {
       id: editingId || crypto.randomUUID(),
+      kind: "agent",
+      instructions: instructions.trim(),
       name: name.trim(),
       role: previous?.role || "",
       description: instructions.trim(),
@@ -247,11 +163,8 @@ export function AgentsView({ onNotify }: Props) {
       isNew: previous?.isNew ?? true,
       paused: previous?.paused,
     };
-    setAgents((current) =>
-      editingId
-        ? current.map((agent) => (agent.id === editingId ? next : agent))
-        : [...current, next],
-    );
+    upsertWorkspaceMember(next);
+    if (!editingId) setNewlyCreatedId(next.id);
     setAgentAvatarIdentity(next.name, character);
     setDialogOpen(false);
     onNotify?.(editingId ? "Agent saved." : "Agent created.");
@@ -259,41 +172,6 @@ export function AgentsView({ onNotify }: Props) {
   return (
     <div className="page agents-page buzz-agents-page">
       <PageHeader className="page-heading" title="Agents" />
-      <details className="buzz-agent-filters">
-        <summary>Search & filter</summary>
-        <div className="agents-directory-heading">
-          <div className="tabs" aria-label="Agent runtime filter">
-            {[
-              ["all", "All agents"],
-              ["local", "Local"],
-              ["cloud", "Cloud"],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                className={`tab ${filter === value ? "active" : ""}`}
-                aria-pressed={filter === value}
-                onClick={() => setFilter(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <label className="agents-search">
-            <Search size={16} />
-            <input
-              aria-label="Search agents"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search agents"
-            />
-            {search && (
-              <button className="icon-btn" aria-label="Clear search" onClick={() => setSearch("")}>
-                <X size={14} />
-              </button>
-            )}
-          </label>
-        </div>
-      </details>
       <div className="buzz-identity-grid" data-testid="unified-agents-groups">
         <button
           className="buzz-identity-card buzz-create-identity"
@@ -302,9 +180,10 @@ export function AgentsView({ onNotify }: Props) {
         >
           <Plus size={28} />
         </button>
-        {visible.map((agent) => (
+        {agents.map((agent) => (
           <div
-            className={`buzz-identity-card agent-paper agent-paper-${agent.character || "worm"}`}
+            className={`buzz-identity-card agent-paper agent-paper-${agent.character || "worm"}${agent.id === newlyCreatedId ? " agent-card-created" : ""}`}
+            ref={agent.id === newlyCreatedId ? createdCard : undefined}
             key={agent.id}
           >
             <button
@@ -313,7 +192,10 @@ export function AgentsView({ onNotify }: Props) {
               onClick={() => openAgent(agent)}
             />
             <div className="buzz-identity-avatar">
-              <AgentAvatar character={agent.character || "worm"} size={120} label={agent.name} />
+              <div className="agent-card-portrait">
+                <AgentAvatar character={agent.character || "worm"} size={120} label={agent.name} />
+                <AgentThinkingBubble name={agent.name} preview={bubblePreviewIds.includes(agent.id)} />
+              </div>
             </div>
             <div className="buzz-identity-footer">
               <strong className="agent-card-name">
@@ -328,54 +210,6 @@ export function AgentsView({ onNotify }: Props) {
           </div>
         ))}
       </div>
-      {visible.length === 0 && <p className="small muted">No matching agents.</p>}
-      <section className="buzz-agent-teams">
-        <h2>Agent teams</h2>
-        <div className="buzz-identity-grid">
-          <button
-            className="buzz-identity-card buzz-create-identity"
-            aria-label="New team"
-            onClick={() => {
-              setTeamId(null);
-              setTeamName("");
-              setTeamMembers([]);
-              setTeamOpen(true);
-            }}
-          >
-            <Plus size={28} />
-          </button>
-          {teams.map((team) => (
-            <button
-              className="buzz-identity-card buzz-team-card"
-              key={team.id}
-              onClick={() => {
-                setTeamId(team.id);
-                setTeamName(team.name);
-                setTeamMembers(team.members);
-                setTeamOpen(true);
-              }}
-            >
-              <div className="buzz-team-avatars">
-                {team.members.slice(0, 4).map((id) => {
-                  const agent = agents.find((item) => item.id === id);
-                  return agent ? (
-                    <AgentAvatar
-                      key={id}
-                      character={agent.character || "worm"}
-                      size={48}
-                      label={agent.name}
-                    />
-                  ) : null;
-                })}
-              </div>
-              <div className="buzz-identity-footer">
-                <strong>{team.name}</strong>
-                <span>{team.members.length} agents</span>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="agent-minimal-dialog">
           <DialogHeader className="sr-only">
@@ -409,7 +243,15 @@ export function AgentsView({ onNotify }: Props) {
                       aria-pressed={character === value}
                       onClick={() => {
                         setCharacter(value);
-                        if (!nameCustomized) setName(generatedName(value, agents.filter((item) => item.id !== editingId).map((item) => item.name)));
+                        if (!nameCustomized)
+                          setName(
+                            generatedName(
+                              value,
+                              agents
+                                .filter((item) => item.id !== editingId)
+                                .map((item) => item.name),
+                            ),
+                          );
                         setAvatarChoices(false);
                       }}
                     >
@@ -453,7 +295,7 @@ export function AgentsView({ onNotify }: Props) {
                   <option key={home.id} value={home.id} disabled={home.status === "pending"}>
                     {home.name}
                     {home.status === "preview"
-                      ? " · Demo"
+                      ? " · Not connected"
                       : home.status === "pending"
                         ? " · Pending"
                         : ""}
@@ -493,79 +335,6 @@ export function AgentsView({ onNotify }: Props) {
             <DialogFooter>
               <button type="submit" className="btn btn-primary">
                 {editingId ? "Save" : "Create"}
-              </button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={teamOpen} onOpenChange={setTeamOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{teamId ? "Edit team" : "Create team"}</DialogTitle>
-            <DialogDescription className="sr-only">Choose a name and members.</DialogDescription>
-          </DialogHeader>
-          <form
-            className="work-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!teamName.trim()) return;
-              const team = {
-                id: teamId || crypto.randomUUID(),
-                name: teamName.trim(),
-                members: teamMembers,
-              };
-              setTeams((current) =>
-                teamId
-                  ? current.map((value) => (value.id === teamId ? team : value))
-                  : [...current, team],
-              );
-              setTeamOpen(false);
-            }}
-          >
-            <label className="field">
-              <span className="field-label">Team name</span>
-              <input
-                className="input"
-                required
-                value={teamName}
-                onChange={(event) => setTeamName(event.target.value)}
-              />
-            </label>
-            <fieldset>
-              <legend>Members</legend>
-              {agents.map((agent) => (
-                <label className="buzz-team-member" key={agent.id}>
-                  <input
-                    type="checkbox"
-                    checked={teamMembers.includes(agent.id)}
-                    onChange={() =>
-                      setTeamMembers((current) =>
-                        current.includes(agent.id)
-                          ? current.filter((id) => id !== agent.id)
-                          : [...current, agent.id],
-                      )
-                    }
-                  />
-                  <AgentAvatar character={agent.character || "worm"} size={32} label={agent.name} />
-                  <span>{agent.name}</span>
-                </label>
-              ))}
-            </fieldset>
-            <DialogFooter>
-              {teamId && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setTeams((current) => current.filter((team) => team.id !== teamId));
-                    setTeamOpen(false);
-                  }}
-                >
-                  Remove
-                </button>
-              )}
-              <button type="submit" className="btn btn-primary">
-                {teamId ? "Save" : "Create"}
               </button>
             </DialogFooter>
           </form>

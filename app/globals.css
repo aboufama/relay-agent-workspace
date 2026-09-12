@@ -10,6 +10,7 @@
 @import './qa-fixes.css';
 @import './components/agents-buzz.css';
 @import './components/agent-menu.css';
+@import './components/member-cards.css';
 
 @custom-variant dark (&:is(.dark *));
 

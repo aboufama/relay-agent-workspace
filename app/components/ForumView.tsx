@@ -104,7 +104,7 @@ const initialTopics: Topic[] = [
   {
     id: "f3",
     title: "Decision: restricted data stays on our local agents",
-    body: "We have aligned on a default for the pilot: restricted company data should be assigned only to locally hosted agents.\n\nThe interface should make the compute location visible before anyone shares context. Any change to this policy should have a named owner and a recorded decision.\n\nThis sample decision describes our intended policy; production enforcement needs the server-side access and egress controls.",
+    body: "We have aligned on a default for the pilot: restricted company data should be assigned only to locally hosted agents.\n\nThe interface should make the compute location visible before anyone shares context. Any change to this policy should have a named owner and a recorded decision.",
     category: "Decisions",
     author: "Alex Morgan",
     initials: "AM",
@@ -219,7 +219,7 @@ export function ForumView({ onNotify }: { onNotify?: (message: string) => void }
     setTitle("");
     setBody("");
     setActiveId(id);
-    onNotify?.("Discussion added to your browser preview");
+    onNotify?.("Discussion added.");
   }
   function postReply(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -242,10 +242,16 @@ export function ForumView({ onNotify }: { onNotify?: (message: string) => void }
 
   return (
     <div className="page work-page">
-      <PageHeader className="page-heading" title="Forum" action={<button className="btn btn-primary" onClick={() => setCreateOpen(true)}>
-          <Plus size={17} />
-          New discussion
-        </button>} />
+      <PageHeader
+        className="page-heading"
+        title="Forum"
+        action={
+          <button className="btn btn-primary" onClick={() => setCreateOpen(true)}>
+            <Plus size={17} />
+            New discussion
+          </button>
+        }
+      />
       <div className="work-forum-layout">
         <aside className="work-forum-sidebar">
           <span className="work-sidebar-label">BROWSE</span>
@@ -379,7 +385,6 @@ export function ForumView({ onNotify }: { onNotify?: (message: string) => void }
                     required
                   />
                   <div>
-                    <span className="small muted">Saved in this browser preview.</span>
                     <button type="submit" className="btn btn-primary" disabled={!reply.trim()}>
                       <Send size={15} />
                       Post reply
@@ -503,9 +508,7 @@ export function ForumView({ onNotify }: { onNotify?: (message: string) => void }
         <DialogContent className="work-dialog work-dialog-wide">
           <DialogHeader>
             <DialogTitle>Start a discussion</DialogTitle>
-            <DialogDescription>
-              Give your idea a little space. This post will be saved in the local workspace preview.
-            </DialogDescription>
+            <DialogDescription>Start a discussion.</DialogDescription>
           </DialogHeader>
           <form className="work-form" onSubmit={createTopic}>
             <label className="field">

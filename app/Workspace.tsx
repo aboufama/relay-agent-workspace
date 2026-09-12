@@ -1,6 +1,9 @@
 'use client';
-import { AgentAvatar } from '@/components/AgentAvatar';
+import { AgentAvatar, setAgentActivity } from '@/components/AgentAvatar';
 import { HuddlesView } from './components/HuddlesView';
+import { useWorkspaceMembers, type WorkspaceMember, type AgentMember } from '@/lib/workspace-members';
+import { LiveComposer } from './LiveComposer';
+import './live-chat.css';
 import { ChatHeader } from '@/components/buzz/ChatHeader';
 
 import { isValidElement, useEffect, useRef, useState } from 'react';
@@ -96,6 +99,9 @@ type Message = {
   agent?: 'local' | 'cloud';
   reactions?: number;
   replies?: number;
+  memberId?: string;
+  requestState?: 'pending' | 'error' | 'complete';
+  error?: string;
   attachment?: { name: string; detail: string };
 };
 function plainText(node: ReactNode): string {
@@ -105,11 +111,6 @@ function plainText(node: ReactNode): string {
     return plainText(node.props.children);
   return '';
 }
-const people = [
-  { name: 'Olivia Chen', initials: 'OC', tone: 'peach' },
-  { name: 'Marcus Reed', initials: 'MR', tone: 'lavender' },
-  { name: 'You', initials: 'YO', tone: 'you-avatar' },
-];
 const seed: Message[] = [
   {
     id: 'm1',
@@ -351,6 +352,12 @@ function NavigationContent({ children }: { children: ReactNode }) {
   );
 }
 export function Workspace() {
+  const members = useWorkspaceMembers();
+  const [, setMentionedIds] = useState<string[]>([]);
+  const requests = useRef(new Map<string, {controller: AbortController; agent: AgentMember; room: string; history: {role: string;content: string}[]}>());
+  const retries = useRef(new Map<string, {agent: AgentMember; room: string; history: {role: string;content: string}[]}>());
+  const [memberProfile, setMemberProfile] = useState<WorkspaceMember | null>(null);
+  useEffect(() => () => { requests.current.forEach(request => request.controller.abort()); }, []);
   const [view, setView] = useState<View>('chat');
   const [channel, setChannel] = useState('launch-room');
   const [channels, setChannels] = useState([
@@ -397,6 +404,7 @@ export function Workspace() {
             preferences?: boolean[];
             canvas?: string;
           };
+          if (data.rooms) Object.values(data.rooms).forEach(room=>room.forEach(message=>{if(message.requestState==='pending'){message.requestState='error';message.error='Response interrupted by reload. Retry to continue.'}}));
           if (Array.isArray(data.channels))
             setChannels(
               data.channels.filter((name) => typeof name === 'string'),
@@ -595,26 +603,71 @@ export function Workspace() {
       )
     : messages;
   function openRoom(name: string) {
-    setChannel(name);
-    setDm(people.some((p) => p.name === name) ? name : null);
+    const member = members.find(person => person.id === name || person.name === name);
+    const room = member ? `dm:${member.id}` : name;
+    setChannel(room);
+    setDm(member?.id ?? null);
+    if (member) setMessagesByRoom(all => ({...all, [room]: all[room] ?? all[member.name] ?? []}));
     setDraft('');
+    setMentionedIds([]);
     setTab('messages');
     setView('chat');
+  }
+  function updateRequest(room: string, id: string, patch: Partial<Message>) {
+    setMessagesByRoom(all => ({...all,[room]:(all[room] ?? []).map(message=>message.id===id?{...message,...patch}:message)}));
+  }
+  async function requestAgent(agent: AgentMember, room: string, history: {role:string;content:string}[], existingId?:string) {
+    if ([...requests.current.values()].some(request=>request.agent.id===agent.id)) {
+      notify(`${agent.name} is already responding. Wait or stop the current response.`);
+      return;
+    }
+    const id=existingId ?? `agent-${crypto.randomUUID()}`;
+    const controller=new AbortController();
+    const request={controller,agent,room,history};
+    requests.current.set(id,request);retries.current.set(id,{agent,room,history});
+    const reply:Message={id,name:agent.name,initials:agent.initials,tone:agent.tone??'mint',time:new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}),body:'',agent:agent.runtime,memberId:agent.id,requestState:'pending'};
+    if(existingId)updateRequest(room,id,{body:'',requestState:'pending',error:undefined});
+    else setMessagesByRoom(all=>({...all,[room]:[...(all[room]??[]),reply]}));
+    setAgentActivity(agent.name,'working');
+    const timeout=setTimeout(()=>controller.abort(),120000);
+    let content='';
+    try {
+      const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({messages:history,agentId:agent.id,agent:{id:agent.id,name:agent.name,instructions:agent.instructions,runtime:agent.runtime,model:agent.model,homeId:agent.homeId}})});
+      if(!response.ok){const error:unknown=await response.json().catch(()=>null);const detail=error&&typeof error==='object'&&'error' in error&&typeof error.error==='string'?error.error:`Request failed (${response.status}).`;throw new Error(detail)}
+      if(!response.body)throw new Error('The server returned no response stream.');
+      const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
+      function consume(frame:string){
+        for(const line of frame.split('\n')){if(!line.startsWith('data:'))continue;const payload=line.slice(5).trim();if(!payload||payload==='[DONE]')continue;
+          const data=JSON.parse(payload);if(data.error)throw new Error(typeof data.error==='string'?data.error:data.error.message??'Agent request failed.');
+          const delta=data.choices?.[0]?.delta?.content;if(typeof delta==='string'){content+=delta;updateRequest(room,id,{body:content})}
+        }
+      }
+      while(true){const chunk=await reader.read();if(chunk.done)break;buffer+=decoder.decode(chunk.value,{stream:true});buffer=buffer.replace(/\r\n/g,'\n');let split;while((split=buffer.indexOf('\n\n'))>=0){consume(buffer.slice(0,split));buffer=buffer.slice(split+2)}}
+      buffer+=decoder.decode();if(buffer.trim())consume(buffer);
+      if(!content.trim())throw new Error('The agent returned an empty response. Try again.');
+      updateRequest(room,id,{requestState:'complete',error:undefined});retries.current.delete(id);setAgentActivity(agent.name,'ready');
+    }catch(error){
+      const message=controller.signal.aborted?'Response stopped. You can retry.':error instanceof Error?error.message:'Unable to reach the agent. Try again.';
+      updateRequest(room,id,{requestState:'error',error:message});setAgentActivity(agent.name,'blocked');
+    }finally{clearTimeout(timeout);requests.current.delete(id)}
+  }
+  function retryMessage(message:Message){
+    const retry=retries.current.get(message.id);
+    const agent=members.find((member):member is AgentMember=>member.kind==='agent'&&member.id===message.memberId);
+    const history=(messagesByRoom[channel]??[]).slice(0,(messagesByRoom[channel]??[]).findIndex(item=>item.id===message.id)).filter(item=>!item.requestState||item.requestState==='complete').map(item=>({role:item.memberId===agent?.id?'assistant':'user',content:`${item.name}: ${plainText(item.body)}`})).slice(-40);
+    if(retry)void requestAgent(agent??retry.agent,retry.room,retry.history,message.id);
+    else if(agent)void requestAgent(agent,channel,history,message.id);
   }
   function send() {
     const text = draft.trim();
     if (!text) return;
-    const message = {
-      id: `local-${Date.now()}`,
-      name: 'You',
-      initials: 'YO',
-      tone: 'you-avatar',
-      time: 'now',
-      body: text,
-    } as Message;
-    const next = [...(messagesByRoom[channel] || messages), message];
-    setMessagesByRoom((all) => ({ ...all, [channel]: next }));
-    setDraft('');
+    const message:Message = {id:`local-${crypto.randomUUID()}`,name:'You',initials:'YO',tone:'you-avatar',time:new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}),body:text,memberId:'you'};
+    const history=[...(messagesByRoom[channel]??[]),message].filter(item=>!item.requestState||item.requestState==='complete');
+    setMessagesByRoom(all=>({...all,[channel]:[...(all[channel]??[]),message]}));
+    setDraft('');setMentionedIds([]);
+    const hasMention=(name:string)=>{const at=text.toLowerCase().indexOf(`@${name.toLowerCase()}`);return at>=0&&(at===0||/\s/.test(text[at-1]))&&(!text[at+name.length+1]||/[\s.,!?;:]/.test(text[at+name.length+1]));};
+    const requested=members.filter((member):member is AgentMember=>member.kind==='agent'&&(dm===member.id||hasMention(member.name)));
+    requested.forEach(agent=>void requestAgent(agent,channel,history.slice(-40).map(item=>({role:item.memberId===agent.id?'assistant':'user',content:`${item.name}: ${plainText(item.body)}`}))));
   }
   function addChannel(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -736,13 +789,13 @@ export function Workspace() {
             </button>
           </div>
           <SidebarMenu>
-            {people.slice(0, 2).map((p) => (
-              <SidebarMenuItem key={p.name}>
+            {members.filter(member=>member.id!=='you').map((p) => (
+              <SidebarMenuItem key={p.id}>
                 <SidebarMenuButton
                   className="rail-link"
-                  onClick={() => openRoom(p.name)}
+                  onClick={() => openRoom(p.id)}
                 >
-                  <span className={`tiny-avatar ${p.tone}`}>{p.initials}</span>
+                  <span className="tiny-avatar">{p.kind==='agent'?<AgentAvatar character={p.character} label={p.name} size={24}/>:p.initials}</span>
                   <span>{p.name.split(' ')[0]}</span>
                   <span className="rail-dot" />
                 </SidebarMenuButton>
@@ -754,10 +807,9 @@ export function Workspace() {
           <button className="compute-mini" onClick={() => navigate('compute')}>
             <Cpu size={17} className="compute-chip" />
             <span>
-              <strong>Meridian Lab · GB10</strong>
+              <strong>Dell GB10</strong>
               <small>
-                <span className="status-dot amber" /> sample runtime · pending
-                connection
+                <span className="status-dot amber" /> Not connected
               </small>
             </span>
           </button>
@@ -773,7 +825,7 @@ export function Workspace() {
               className="icon-btn"
               aria-label="Help"
               onClick={() =>
-                notify('Relay preview help is available in this workspace')
+                notify('Use @ to mention a member, or open a direct message.')
               }
             >
               <CircleHelp size={16} />
@@ -797,9 +849,6 @@ export function Workspace() {
             <span>Meridian</span>
           </div>
           <div className="topbar-actions">
-            <span className="preview-label">
-              <span /> Demo
-            </span>
             <button
               className="icon-btn"
               aria-label="Notifications"
@@ -822,7 +871,12 @@ export function Workspace() {
           aria-hidden={view !== 'chat'}
         >
           <Chat
-            channel={channel}
+            channel={members.find(member=>member.id===dm)?.name ?? channel}
+            members={members}
+            onMention={id=>setMentionedIds(ids=>ids.includes(id)?ids:[...ids,id])}
+            retry={retryMessage}
+            stop={id=>requests.current.get(id)?.controller.abort()}
+            openMember={member=>setMemberProfile(member)}
             dm={!!dm}
             approval={approval}
             reviewDraft={() => setApprovalOpen(true)}
@@ -964,22 +1018,22 @@ export function Workspace() {
       <Dialog open={peopleOpen} onOpenChange={setPeopleOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>People</DialogTitle>
+            <DialogTitle>Members</DialogTitle>
             <DialogDescription className="sr-only">
               Choose a conversation.
             </DialogDescription>
           </DialogHeader>
-          {people.slice(0, 2).map((person) => (
+          {members.filter(person=>person.id!=='you').map((person) => (
             <button
               className="list-row"
-              key={person.name}
+              key={person.id}
               onClick={() => {
-                openRoom(person.name);
+                openRoom(person.id);
                 setPeopleOpen(false);
               }}
             >
-              <span className={`avatar ${person.tone}`}>{person.initials}</span>
-              <strong>{person.name}</strong>
+              <span className="avatar">{person.kind==='agent'?<AgentAvatar character={person.character} label={person.name} size={32}/>:person.initials}</span>
+              <strong>{person.name}</strong><span className="member-directory-type">{person.kind==='agent'?'Agent':'Person'}</span>
               <MessageCircle size={16} />
             </button>
           ))}
@@ -1053,12 +1107,18 @@ export function Workspace() {
           </form>
         </DialogContent>
       </Dialog>
+      <Dialog open={!!memberProfile} onOpenChange={open=>!open&&setMemberProfile(null)}>
+        <DialogContent><DialogHeader><DialogTitle>{memberProfile?.name}</DialogTitle><DialogDescription>{memberProfile?.kind==='agent'?'Workspace agent':'Workspace member'}</DialogDescription></DialogHeader>
+          {memberProfile?.kind==='agent'&&<><AgentAvatar character={memberProfile.character} label={memberProfile.name} size={48}/><p>{memberProfile.description}</p><p className="muted">{memberProfile.runtime==='local'?'Local · GB10':'Cloud'} · {memberProfile.model}</p></>}
+          <DialogFooter><button className="btn btn-secondary" onClick={()=>{if(memberProfile)openRoom(memberProfile.id);setMemberProfile(null)}}>Message</button>{memberProfile?.kind==='agent'&&<button className="btn btn-primary" onClick={()=>{const agentId=memberProfile?.id;setMemberProfile(null);navigate('agents');requestAnimationFrame(()=>window.dispatchEvent(new CustomEvent('relay:open-agent',{detail:{agentId}})))}}>Agent settings</button>}</DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
         <DialogContent>
           <div className="profile-preview">
             <span className="avatar you-avatar">YO</span>
             <DialogTitle>Your profile</DialogTitle>
-            <p className="muted">Meridian demo workspace</p>
+            <p className="muted">Meridian workspace</p>
           </div>
           <DialogFooter>
             <button
@@ -1088,6 +1148,7 @@ export function Workspace() {
 }
 
 function Chat({
+  members, onMention, retry, stop, openMember,
   dm,
   approval,
   reviewDraft,
@@ -1110,6 +1171,11 @@ function Chat({
   navigate,
   notify,
 }: {
+  members: readonly WorkspaceMember[];
+  onMention:(id:string)=>void;
+  retry:(message:Message)=>void;
+  stop:(id:string)=>void;
+  openMember:(member:WorkspaceMember)=>void;
   dm: boolean;
   approval: string;
   reviewDraft: () => void;
@@ -1139,7 +1205,7 @@ function Chat({
   useEffect(() => {
     const element = scrollRef.current;
     if (element) element.scrollTop = element.scrollHeight;
-  }, [channel, messages.length, tab]);
+  }, [channel, messages, tab]);
   const insertText = (text: string) => {
     const field = composerRef.current;
     const start = field?.selectionStart ?? draft.length;
@@ -1177,12 +1243,12 @@ function Chat({
         actions={
           <div className="channel-actions">
             <div className="member-stack">
-              {people.map((p) => (
-                <span key={p.name} className={`tiny-avatar ${p.tone}`}>
+              {members.slice(0,3).map((p) => (
+                <span key={p.id} className={`tiny-avatar ${p.tone}`}>
                   {p.initials}
                 </span>
               ))}
-              <span className="member-number">3</span>
+              <span className="member-number">{members.length}</span>
             </div>
             <button className="btn btn-secondary desktop-only" onClick={invite}>
               {' '}
@@ -1216,9 +1282,6 @@ function Chat({
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <span className="channel-security">
-          <ShieldCheck size={13} /> Demo
-        </span>
       </div>
       {tab === 'messages' ? (
         <div
@@ -1238,12 +1301,12 @@ function Chat({
                   {m.agent ? <AgentAvatar character={m.name === 'Nova' ? 'ladybug' : 'worm'} state="idle" size={32} label={m.name} className="message-agent-avatar" /> : <span className={`avatar ${m.tone}`}>{m.initials}</span>}
                   <div className="message-body">
                     <div className="message-meta">
-                      <strong>{m.name}</strong>
+                      <button className="member-name-button" onClick={()=>{const member=members.find(person=>person.id===m.memberId||person.name===m.name);if(member)openMember(member)}}>{m.name}</button>
                       {m.agent && (
                         <span
                           className={`badge ${m.agent === 'local' ? 'badge-green' : 'badge-blue'}`}
                         >
-                          {m.agent === 'local' ? 'Agent' : 'Draft'}
+                          Agent
                         </span>
                       )}
                       <time>{m.time}</time>
@@ -1253,6 +1316,8 @@ function Chat({
                         ? messageText(m.body)
                         : m.body}
                     </div>
+                    {m.requestState==='pending'&&<output className="message-request-state">Responding… <button onClick={()=>stop(m.id)}>Stop</button></output>}
+                    {m.requestState==='error'&&<div className="message-request-state message-request-error" role="alert">{m.error}<button onClick={()=>retry(m)}>Retry</button></div>}
                     {m.attachment && (
                       <button
                         className="chat-attachment"
@@ -1327,19 +1392,7 @@ function Chat({
             </div>
             <div className="composer-wrap">
               <div className="composer">
-                <textarea
-                  ref={composerRef}
-                  aria-label="Message channel"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      send();
-                    }
-                  }}
-                  placeholder={`Message ${dm ? '@' : '#'}${channel}`}
-                />
+                <LiveComposer ref={composerRef} value={draft} onChange={setDraft} onSend={send} members={members} onMention={onMention} placeholder={`Message ${dm?'@':'#'}${channel}`} />
                 <div className="composer-bottom">
                   <div>
                     <button
@@ -1373,7 +1426,7 @@ function Chat({
                     <button
                       className="icon-btn"
                       aria-label="Mention teammate"
-                      onClick={() => insertText('@Olivia ')}
+                      onClick={() => insertText('@')}
                     >
                       <AtSign size={16} />
                     </button>
@@ -1419,7 +1472,7 @@ function Chat({
                 <button
                   className="icon-btn"
                   aria-label="Context info"
-                  onClick={() => notify('Room context is sample data')}
+                  onClick={() => notify('Room details')}
                 >
                   <Info size={15} />
                 </button>
@@ -1563,7 +1616,7 @@ function Chat({
                 <span>
                   <strong>{f}</strong>
                   <small className="muted">
-                    Available in this sample workspace
+                    Workspace files
                   </small>
                 </span>
                 <ChevronRight size={16} />
@@ -1693,7 +1746,7 @@ function ActivityView() {
           <div className="eyebrow">A CLEAR TRAIL</div>
           <h1>Activity</h1>
           <p className="subtitle">
-            A readable history of work in this sample workspace.
+            Workspace activity.
           </p>
         </div>
         <div className="card activity-list">
@@ -1709,7 +1762,7 @@ function ActivityView() {
               </span>
               <div>
                 <strong>{x}</strong>
-                <p>Workspace event · no external action taken</p>
+                <p>Workspace event</p>
               </div>
               <time>{i + 2}m ago</time>
             </div>
@@ -1735,7 +1788,7 @@ function SettingsView({
           <div className="eyebrow">MAKE RELAY YOURS</div>
           <h1>Settings</h1>
           <p className="subtitle">
-            Preferences for this browser-only sample workspace.
+            
           </p>
         </div>
         <div className="card settings-card">
@@ -1776,13 +1829,6 @@ function SettingsView({
         </div>
         <div className="card settings-card">
           <h2>Connections</h2>
-          <div className="notice">
-            <Info size={16} />
-            <span>
-              No servers connected. Runtime identity, data permissions, and
-              external providers are intentionally unavailable in this demo.
-            </span>
-          </div>
           <button
             className="btn btn-secondary"
             onClick={() => navigate('compute')}

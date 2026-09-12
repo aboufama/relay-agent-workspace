@@ -245,7 +245,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
     setCreateOpen(false);
     setTitle("");
     setDescription("");
-    onNotify?.("Task added to your browser preview");
+    onNotify?.("Task added.");
   }
   function addProject(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -265,7 +265,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
     setProjectDescription("");
     setProjectOpen(false);
     setSearch("");
-    onNotify?.("Project created in your browser preview");
+    onNotify?.("Project created.");
   }
   function postComment(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -276,10 +276,16 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
 
   return (
     <div className="page work-page work-projects-page">
-      <PageHeader className="page-heading" title="Projects" action={<button className="btn btn-secondary" onClick={() => setProjectOpen(true)}>
-          <Plus size={17} />
-          New project
-        </button>} />
+      <PageHeader
+        className="page-heading"
+        title="Projects"
+        action={
+          <button className="btn btn-secondary" onClick={() => setProjectOpen(true)}>
+            <Plus size={17} />
+            New project
+          </button>
+        }
+      />
       <div className="work-project-selector">
         {projects.map((item) => (
           <button
@@ -542,7 +548,11 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
             <div className="form-grid">
               <label className="field">
                 <span className="field-label">Assign to</span>
-                <SelectField className="select" value={owner} onChange={(e) => setOwner(e.target.value)}>
+                <SelectField
+                  className="select"
+                  value={owner}
+                  onChange={(e) => setOwner(e.target.value)}
+                >
                   {["You", "Maya Chen", "Alex Morgan", "Jordan Lee", "Atlas", "Scout", "Nova"].map(
                     (item) => (
                       <option key={item}>{item}</option>
@@ -564,7 +574,8 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
               </label>
               <label className="field" htmlFor="new-task-priority">
                 <span className="field-label">Priority</span>
-                <SelectField id="new-task-priority"
+                <SelectField
+                  id="new-task-priority"
                   className="select"
                   value={priority}
                   onChange={(e) => setPriority(e.target.value)}
@@ -575,12 +586,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                 </SelectField>
               </label>
             </div>
-            {isAgent(owner) && (
-              <p className="small muted">
-                This saves the assignment in the preview. A connected runtime is needed to dispatch
-                work to an agent.
-              </p>
-            )}
+
             <div className="dialog-actions">
               <button
                 type="button"
@@ -693,7 +699,8 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                 </label>
                 <label htmlFor="task-detail-priority">
                   <span>Priority</span>
-                  <SelectField id="task-detail-priority"
+                  <SelectField
+                    id="task-detail-priority"
                     className="select"
                     value={selected.priority}
                     onChange={(e) => updateTask(selected.id, { priority: e.target.value })}
@@ -707,7 +714,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
               {selected.deliverable && (
                 <div className="work-draft">
                   <div className="work-draft-label">
-                    <FileText size={15} /> SAMPLE DELIVERABLE
+                    <FileText size={15} /> DELIVERABLE
                   </div>
                   <p>{selected.deliverable}</p>
                 </div>
@@ -758,7 +765,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                     className="btn btn-primary"
                     onClick={() => {
                       updateTask(selected.id, { status: "Done" });
-                      onNotify?.("Task marked complete in the preview");
+                      onNotify?.("Task marked complete.");
                     }}
                   >
                     <CheckCircle2 size={16} />

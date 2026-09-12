@@ -37,10 +37,33 @@ const initialHomes: readonly AgentHome[] = [
 ];
 let homes = initialHomes;
 const listeners = new Set<() => void>();
+let healthTimer: ReturnType<typeof setInterval> | undefined;
+let checkingHealth = false;
+async function refreshRuntimeHealth() {
+  if (checkingHealth) return;
+  checkingHealth = true;
+  try {
+    const response = await fetch('/api/runtime', { signal: AbortSignal.timeout(7000) });
+    if (!response.ok) return;
+    const data: unknown = await response.json();
+    if (!data || typeof data !== 'object' || !('homes' in data) || !Array.isArray(data.homes)) return;
+    const verified = data.homes.find((home: unknown) => home && typeof home === 'object' && 'id' in home && home.id === 'lab');
+    if (!verified || typeof verified !== 'object' || !('connected' in verified)) return;
+    const connected = verified.connected === true;
+    const next = homes.map(home => home.id === 'lab' ? { ...home, name: 'Dell GB10', location: 'Dell Pro Max · NVIDIA GB10', status: connected ? 'connected' as const : 'preview' as const } : home);
+    if (next.some((home, index) => home.name !== homes[index].name || home.status !== homes[index].status)) publish(next);
+  } catch { /* Health is advisory; chat reports retryable connection failures. */ }
+  finally { checkingHealth = false; }
+}
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
+  if (listeners.size === 1 && typeof window !== 'undefined') {
+    void refreshRuntimeHealth();
+    healthTimer = setInterval(() => { void refreshRuntimeHealth(); }, 30000);
+  }
   return () => {
     listeners.delete(listener);
+    if (!listeners.size && healthTimer) { clearInterval(healthTimer); healthTimer = undefined; }
   };
 };
 const getSnapshot = () => homes;
