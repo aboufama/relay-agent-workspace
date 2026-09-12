@@ -7,7 +7,7 @@ import {
 } from "@/lib/workspace-members";
 import { SelectField } from "@/components/SelectField";
 // Identity-card layout adapted from block/buzz; see third-party notices.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Cloud, Database, Plus } from "lucide-react";
 import { AgentAvatar, setAgentAvatarIdentity } from "@/components/AgentAvatar";
 import { useAgentHomes } from "@/lib/agent-homes";
@@ -23,7 +23,8 @@ import {
 type AccessLevel = "Public" | "Internal" | "Confidential" | "Restricted";
 const accessLevels: AccessLevel[] = ["Public", "Internal", "Confidential", "Restricted"];
 type Character = "worm" | "firefly" | "ladybug" | "caterpillar";
-type Props = { onNotify?: (message: string) => void; onNavigate?: (view: string) => void };
+export type AgentHomeGroups = { localAgents: ReactNode; cloudAgents: ReactNode; localPreview: ReactNode; cloudPreview: ReactNode; localCount: number; cloudCount: number };
+type Props = { onNotify?: (message: string) => void; onNavigate?: (view: string) => void; renderHomes?: (groups: AgentHomeGroups) => ReactNode };
 const characters: Character[] = ["worm", "firefly", "ladybug", "caterpillar"];
 const quirkyNames: Record<Character, string[]> = {
   worm: ["Professor Wiggles", "Noodle McDoodle", "Sir Squiggle"],
@@ -41,7 +42,7 @@ function generatedName(character: Character, existing: string[]) {
   }
   return candidate;
 }
-export function AgentsView({ onNotify }: Props) {
+export function AgentsView({ onNotify, renderHomes }: Props) {
   const homes = useAgentHomes();
   const agents = useAgentMembers();
   const members = useWorkspaceMembers();
@@ -53,7 +54,6 @@ export function AgentsView({ onNotify }: Props) {
   const [homeId, setHomeId] = useState("");
   const [accessLevel, setAccessLevel] = useState<AccessLevel>("Confidential");
   const [instructions, setInstructions] = useState("");
-  const [avatarChoices, setAvatarChoices] = useState(false);
   const [error, setError] = useState("");
   const [newlyCreatedId, setNewlyCreatedId] = useState<string | null>(null);
   const createdCard = useRef<HTMLDivElement>(null);
@@ -67,7 +67,7 @@ export function AgentsView({ onNotify }: Props) {
     );
     return () => cancelAnimationFrame(frame);
   }, [newlyCreatedId]);
-  function openAgent(agent?: Agent) {
+  function openAgent(agent?: Agent, preferredKind?: "local" | "cloud") {
     const nextCharacter =
       agent?.character || characters[Math.floor(Math.random() * characters.length)];
     setEditingId(agent?.id || null);
@@ -81,6 +81,7 @@ export function AgentsView({ onNotify }: Props) {
     );
     setNameCustomized(agent?.nameCustomized ?? false);
     const initialHome =
+      homes.find((home) => !agent && home.kind === preferredKind && home.status !== "pending") ||
       homes.find((home) => home.id === agent?.homeId) ||
       homes.find(
         (home) => agent && agent.device.startsWith(home.name) && home.kind === agent.runtime,
@@ -90,8 +91,7 @@ export function AgentsView({ onNotify }: Props) {
     setAccessLevel(
       agent?.accessLevel || (initialHome?.kind === "cloud" ? "Public" : "Confidential"),
     );
-    setInstructions(agent?.description || "");
-    setAvatarChoices(!agent);
+    setInstructions(agent?.instructions ?? agent?.description ?? "");
     setError("");
     setDialogOpen(true);
   }
@@ -154,18 +154,18 @@ export function AgentsView({ onNotify }: Props) {
     setDialogOpen(false);
     onNotify?.(editingId ? "Agent saved." : "Agent created.");
   }
-  return (
-    <div className="page agents-page buzz-agents-page">
-      <PageHeader className="page-heading" title="Agents" />
-      <div className="buzz-identity-grid" data-testid="unified-agents-groups">
+  const kindOf = (agent: Agent) => homes.find(home => home.id === agent.homeId)?.kind ?? agent.runtime;
+  const local = agents.filter(agent => kindOf(agent) !== "cloud");
+  const cloud = agents.filter(agent => kindOf(agent) === "cloud");
+  const renderGrid = (group: readonly Agent[], kind: "local" | "cloud") => (<div className="buzz-identity-grid" data-testid="unified-agents-groups">
         <button
           className="buzz-identity-card buzz-create-identity"
-          aria-label="New agent"
-          onClick={() => openAgent()}
+          aria-label={`New ${kind} agent`}
+          onClick={() => openAgent(undefined, kind)}
         >
           <Plus size={28} />
         </button>
-        {agents.map((agent) => (
+        {group.map((agent) => (
           <div
             className={`buzz-identity-card agent-paper agent-paper-${agent.character || "worm"}${agent.id === newlyCreatedId ? " agent-card-created" : ""}`}
             ref={agent.id === newlyCreatedId ? createdCard : undefined}
@@ -194,7 +194,11 @@ export function AgentsView({ onNotify }: Props) {
             </div>
           </div>
         ))}
-      </div>
+      </div>);
+  const preview = (group: readonly Agent[]) => group.slice(0,4).map(agent => <AgentAvatar key={agent.id} identityKey={agent.id} character={agent.character || "worm"} label={agent.name} size={24} />);
+  return (
+    <div className={renderHomes ? "compute-agents-controller" : "page agents-page buzz-agents-page"}>
+      {renderHomes ? renderHomes({localAgents: renderGrid(local, "local"), cloudAgents: renderGrid(cloud, "cloud"), localPreview: preview(local), cloudPreview: preview(cloud), localCount: local.length, cloudCount: cloud.length}) : <><PageHeader className="page-heading" title="Agents" />{renderGrid(agents, "local")}</>}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="agent-minimal-dialog">
           <DialogHeader className="sr-only">
@@ -209,16 +213,10 @@ export function AgentsView({ onNotify }: Props) {
             }}
           >
             <div className="agent-editor-identity">
-              <button
-                type="button"
-                className="agent-editor-avatar"
-                aria-label="Choose agent avatar"
-                aria-expanded={avatarChoices}
-                onClick={() => setAvatarChoices((value) => !value)}
-              >
+              <div className="agent-editor-avatar">
                 <AgentAvatar character={character} size={128} label={name || "Agent"} preview />
-              </button>
-              {avatarChoices && (
+              </div>
+              {(
                 <div className="agent-avatar-choices" aria-label="Avatar choices">
                   {characters.map((value) => (
                     <button
@@ -237,7 +235,6 @@ export function AgentsView({ onNotify }: Props) {
                                 .map((item) => item.name),
                             ),
                           );
-                        setAvatarChoices(false);
                       }}
                     >
                       <AgentAvatar character={value} size={48} label={value} preview />

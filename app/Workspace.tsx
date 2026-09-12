@@ -15,10 +15,8 @@ import { ChatHeader } from '@/components/buzz/ChatHeader';
 import { isValidElement, useEffect, useRef, useState } from 'react';
 import type { ReactNode, SyntheticEvent, CSSProperties } from 'react';
 import {
-  Activity,
   Archive,
   AtSign,
-  Bot,
   Bold,
   Code,
   CheckCircle2,
@@ -31,7 +29,6 @@ import {
   Hash,
   Inbox,
   Info,
-  Layers3,
   MessageCircle,
   MoreHorizontal,
   Paperclip,
@@ -41,7 +38,6 @@ import {
   Settings,
   ShieldCheck,
   Smile,
-  Sparkles,
   Star,
   Users,
   ThumbsUp,
@@ -70,11 +66,8 @@ import {
 } from '@/components/ui/sidebar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataView } from './components/DataView';
-import { AgentsView } from './components/AgentsView';
 import { ComputeView } from './components/ComputeView';
-import { ProjectsView } from './components/ProjectsView';
-import { WorkflowsView } from './components/WorkflowsView';
-import { ForumView } from './components/ForumView';
+import { DeepDiveView } from './components/DeepDiveView';
 
 type View =
   | 'chat'
@@ -82,11 +75,8 @@ type View =
   | 'agents'
   | 'data'
   | 'compute'
-  | 'projects'
-  | 'workflows'
-  | 'forum'
+  | 'deep-dive'
   | 'huddles'
-  | 'activity'
   | 'settings';
 type Message = {
   id: string;
@@ -570,11 +560,8 @@ export function Workspace() {
       'agents',
       'data',
       'compute',
-      'projects',
-      'workflows',
-      'forum',
+      'deep-dive',
       'huddles',
-      'activity',
       'settings',
     ]);
     const result = (value: unknown) => ({
@@ -585,7 +572,7 @@ export function Workspace() {
         context.registerTool(
           {
             name: 'navigate_workspace',
-            description: 'Navigate the local Relay demo workspace.',
+            description: 'Navigate the Relay workspace.',
             inputSchema: {
               type: 'object',
               properties: { view: { type: 'string', enum: [...allowed] } },
@@ -602,7 +589,7 @@ export function Workspace() {
                 !allowed.has(next as View)
               )
                 throw new Error('Invalid workspace view');
-              setView(next as View);
+              setView((next === 'agents' ? 'compute' : next) as View);
               return result({ view: next, localOnly: true });
             },
           },
@@ -639,7 +626,7 @@ export function Workspace() {
   }, []);
   const notify = (message: string) => setToast(message);
   const navigate = (next: string) => {
-    setView(next as View);
+    setView((next === 'agents' ? 'compute' : next) as View);
   };
   const results = Object.entries(messagesByRoom).filter(([room]) => !room.startsWith('thread:')).flatMap(([room, items]) => items.map(message => ({...message, room}))).filter(message => !search.trim() || `${message.name} ${plainText(message.body)}`.toLowerCase().includes(search.toLowerCase())).slice(-100).reverse();
   function openRoom(name: string) {
@@ -793,7 +780,6 @@ export function Workspace() {
           </button>
           <SidebarMenu>
             {nav(<Inbox size={17} />, 'Inbox', 'inbox')}
-            {nav(<Bot size={17} />, 'Agents', 'agents')}
             {nav(<Database size={17} />, 'Data', 'data')}
             {nav(<Cpu size={17} />, 'Compute', 'compute')}
           </SidebarMenu>
@@ -828,11 +814,8 @@ export function Workspace() {
             <span>WORKSPACE</span>
           </div>
           <SidebarMenu>
-            {nav(<Layers3 size={16} />, 'Projects', 'projects')}
-            {nav(<Sparkles size={16} />, 'Workflows', 'workflows', '1')}
-            {nav(<MessageCircle size={16} />, 'Forum', 'forum')}
+            {nav(<Search size={16} />, 'Deep Dive', 'deep-dive')}
             {nav(<Users size={16} />, 'Huddles', 'huddles')}
-            {nav(<Activity size={16} />, 'Activity', 'activity')}
             {nav(<Settings size={16} />, 'Settings', 'settings')}
           </SidebarMenu>
           <div className="rail-section-label">
@@ -901,7 +884,7 @@ export function Workspace() {
             <strong>
               {view === 'chat'
                 ? `${dm ? '@' : '#'} ${channel}`
-                : view[0].toUpperCase() + view.slice(1)}
+                : view === 'deep-dive' ? 'Deep Dive' : view[0].toUpperCase() + view.slice(1)}
             </strong>
             <span>/</span>
             <span>{workspaceName}</span>
@@ -1581,8 +1564,8 @@ function Chat({
                   <span>6 of 8 tasks</span>
                   <strong>72%</strong>
                 </div>
-                <button className="btn" onClick={() => navigate('projects')}>
-                  Open project <ChevronRight size={13} />
+                <button className="btn" onClick={() => navigate('deep-dive')}>
+                  Open Deep Dive <ChevronRight size={13} />
                 </button>
               </div>
               <div className="context-note">
@@ -1677,29 +1660,17 @@ function View({
       <div {...hidden('inbox')}>
         <InboxView reviewDraft={reviewDraft} openRoom={openRoom} />
       </div>
-      <div {...hidden('agents')}>
-        <AgentsView onNotify={notify} onNavigate={navigate} />
-      </div>
       <div {...hidden('data')}>
         <DataView onNotify={notify} />
       </div>
       <div {...hidden('compute')}>
         <ComputeView onNotify={notify} />
       </div>
-      <div {...hidden('projects')}>
-        <ProjectsView onNotify={notify} />
-      </div>
-      <div {...hidden('workflows')}>
-        <WorkflowsView onNotify={notify} />
-      </div>
-      <div {...hidden('forum')}>
-        <ForumView onNotify={notify} />
+      <div {...hidden('deep-dive')}>
+        <DeepDiveView />
       </div>
       <div {...hidden('huddles')}>
         <HuddlesView />
-      </div>
-      <div {...hidden('activity')}>
-        <ActivityView />
       </div>
       <div {...hidden('settings')}>
         <SettingsView
@@ -1709,40 +1680,6 @@ function View({
         />
       </div>
     </>
-  );
-}
-function ActivityView() {
-  return (
-    <div className="view-content">
-      <div className="page">
-        <div className="page-heading">
-          <div className="eyebrow">A CLEAR TRAIL</div>
-          <h1>Activity</h1>
-          <p className="subtitle">
-            Workspace activity.
-          </p>
-        </div>
-        <div className="card activity-list">
-          {[
-            'Atlas reviewed the launch checklist',
-            'Olivia updated the handoff window',
-            'Nova prepared a customer update draft',
-            'You created the launch-room canvas',
-          ].map((x, i) => (
-            <div className="activity-row" key={x}>
-              <span className={`activity-icon ${i === 2 ? 'amber' : ''}`}>
-                <Activity size={17} />
-              </span>
-              <div>
-                <strong>{x}</strong>
-                <p>Workspace event</p>
-              </div>
-              <time>{i + 2}m ago</time>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }
 export default Workspace;

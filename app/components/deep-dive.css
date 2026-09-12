@@ -1,0 +1,142 @@
+.deep-dive-page {
+  max-width: 1100px;
+}
+.deep-dive-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 0 20px;
+}
+.deep-dive-toolbar h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+.deep-dive-toolbar h2 span {
+  margin-left: 8px;
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+}
+.deep-dive-empty {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.deep-dive-empty h2 {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
+  text-align: center;
+}
+.deep-dive-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid var(--border, #ddd);
+}
+.deep-dive-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border, #ddd);
+  padding: 8px 0;
+}
+.deep-dive-request {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 14px 10px;
+  cursor: pointer;
+  border-radius: 6px;
+  color: inherit;
+}
+.deep-dive-request:hover {
+  background: rgba(128, 128, 128, 0.07);
+}
+.deep-dive-request strong {
+  font-size: 14px;
+}
+.deep-dive-request span {
+  font-size: 13px;
+  opacity: 0.65;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.deep-dive-request small {
+  font-size: 11px;
+  opacity: 0.5;
+}
+.deep-dive-editor {
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.deep-dive-back {
+  align-self: flex-start;
+}
+.deep-dive-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.deep-dive-editor input,
+.deep-dive-editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1.6;
+}
+.deep-dive-editor textarea {
+  resize: vertical;
+  min-height: 190px;
+}
+.deep-dive-editor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+}
+.deep-dive-editor-footer span,
+.deep-dive-notice {
+  font-size: 12px;
+  opacity: 0.65;
+}
+.deep-dive-notice {
+  display: block;
+  margin-top: 18px;
+}
+.deep-dive-request:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+@media (max-width: 560px) {
+  .deep-dive-editor-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .deep-dive-editor-footer .btn {
+    align-self: flex-end;
+  }
+  .deep-dive-toolbar {
+    gap: 8px;
+  }
+}

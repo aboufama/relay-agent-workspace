@@ -1,10 +1,9 @@
 import "./compute-setup.css";
-import { ComputeIcon } from "@/components/ComputeIcon";
+import { ComputeHomesView } from "./ComputeHomesView";
+import { AgentsView } from "./AgentsView";
 import { useEffect, useRef, useState } from "react";
 import { Check, Download } from "lucide-react";
-import { PageHeader } from "@/components/buzz/PageHeader";
 
-const MODEL_LABEL = "Holo-3.1-35B-A3B · NVFP4";
 
 type Phase = "not_installed" | "downloading" | "installing" | "starting" | "ready" | "error";
 type SetupStatus = {
@@ -161,35 +160,13 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
         : connectionError || status?.phase === "error"
           ? "Retry setup"
           : "Download and set up";
-  return (
-    <div className="page compute-setup-page">
-      <PageHeader className="page-heading" title="Compute" />
-      <section className={`compute-setup-card compute-paper ${ready ? "compute-ready" : ""}`} aria-label="Dell GB10 setup">
-        <header className="compute-setup-heading">
-          <ComputeIcon size={116} label="Dell Pro Max GB10" />
-          <h2>Dell GB10</h2>
-          <output className="compute-setup-state" aria-live="polite">
-            {ready && <Check size={14} />} {phaseLabel}
-          </output>
-        </header>
-        <dl className="compute-stack">
-          <div>
-            <dt>Model</dt>
-            <dd>{MODEL_LABEL}</dd>
-          </div>
-          <div>
-            <dt>Harness setup</dt>
-            <dd>NemoClaw</dd>
-          </div>
-          <div>
-            <dt>Agent runtime</dt>
-            <dd>OpenClaw</dd>
-          </div>
-          <div>
-            <dt>Sandbox</dt>
-            <dd>OpenShell</dd>
-          </div>
-        </dl>
+  return <AgentsView onNotify={onNotify} renderHomes={(groups) => <ComputeHomesView
+    {...groups}
+    metrics={null}
+    localStatus={<output aria-live="polite">{ready && <Check size={14} />} {phaseLabel}</output>}
+    cloudStatus="Not connected"
+    localActions={!ready ? <button className="btn btn-primary" disabled={submitting || active} onClick={() => void setup()}><Download size={16} /> {buttonText}</button> : undefined}
+    localSetup={active || error || status?.logs?.length ? <>
         {active && (
           <div className="compute-setup-progress">
             <progress aria-label="Setup progress" max={100} value={progress} />
@@ -209,20 +186,12 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
             {error}
           </p>
         )}
-        {!ready && <button
-          className="btn btn-primary compute-setup-action"
-          disabled={submitting || active || ready}
-          onClick={() => void setup()}
-        >
-          <Download size={16} /> {buttonText}
-        </button>}
         {Boolean(status?.logs?.length) && (
           <details className="compute-setup-logs">
             <summary>Details</summary>
             <pre>{status?.logs?.join("\n")}</pre>
           </details>
         )}
-      </section>
-    </div>
-  );
+    </> : undefined}
+  />} />;
 }
