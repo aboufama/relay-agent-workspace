@@ -148,24 +148,8 @@ export function SettingsView({ navigate, preferences, setPreferences }: Props) {
           )}
           {section === 'connections' && (
             <div className="settings-group">
-              <button
-                className="settings-link-row"
-                onClick={() => navigate('compute')}
-              >
-                <span>
-                  <strong>Compute</strong>
-                  <small>Dell GB10 and the agent runtime</small>
-                </span>
-                <ArrowUpRight size={18} />
-              </button>
-              <button
-                className="settings-link-row"
-                onClick={() => navigate('agents')}
-              >
-                <span>
-                  <strong>Agents</strong>
-                  <small>Homes, instructions, and access levels</small>
-                </span>
+              <button className="settings-link-row" onClick={() => navigate('compute')}>
+                <span><strong>Habitats</strong><small>Homes, members, and access</small></span>
                 <ArrowUpRight size={18} />
               </button>
             </div>

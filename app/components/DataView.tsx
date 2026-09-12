@@ -77,7 +77,6 @@ const audienceOptions = [
   "Leadership",
   "Finance",
 ];
-const agentOptions = ["Atlas · local", "Scout · local", "Quill · cloud"];
 const seeds: DataItem[] = [
   {
     id: "ex-1",
@@ -213,6 +212,7 @@ function LevelBadge({ level }: { level: Level }) {
 
 export function DataView({ onNotify }: Props) {
   const directoryAgents = useAgentMembers();
+  const resolveAgent = (value: string) => directoryAgents.find(member => member.id === value || member.name === value.split(" · ")[0]);
   const [items, setItems] = useState<DataItem[]>(seeds);
   const [collections, setCollections] = useState(initialCollections);
   const [collection, setCollection] = useState("All data");
@@ -377,9 +377,10 @@ export function DataView({ onNotify }: Props) {
   const changeLevel = (item: DataItem, level: Level) => {
     patchItem(item.id, {
       level,
-      agents: localOnly(level)
-        ? item.agents.filter((agent) => !agent.includes("cloud"))
-        : item.agents,
+      agents: item.agents.flatMap(value => {
+        const agent = resolveAgent(value);
+        return agent && (!localOnly(level) || agent.runtime === "local") && levels.indexOf(agent.accessLevel) >= levels.indexOf(level) ? [agent.id] : [];
+      }),
       audiences: localOnly(level)
         ? item.audiences.filter((a) => a !== "Everyone in workspace")
         : item.audiences,
@@ -697,7 +698,7 @@ export function DataView({ onNotify }: Props) {
                       <div className="data-shelf-access" aria-label={`${level} agent clearance`}>
                         <span className="data-access-wire" aria-hidden="true" />
                         <div className="data-access-end">
-                          <span className="data-access-label">Access</span>
+                          <span className="data-access-label">Eligible</span>
                           <div className="data-access-avatars">
                             {eligible.map((agent) => (
                               <span
@@ -1125,22 +1126,22 @@ export function DataView({ onNotify }: Props) {
                 </fieldset>
                 <fieldset>
                   <legend>Agents</legend>
-                  {agentOptions.map((agent) => (
-                    <label className="data-checkbox-row" key={agent}>
+                  {directoryAgents.map((agent) => (
+                    <label className="data-checkbox-row" key={agent.id}>
                       <input
                         type="checkbox"
-                        checked={selected.agents.includes(agent)}
-                        disabled={localOnly(selected.level) && agent.includes("cloud")}
+                        checked={selected.agents.some(value => resolveAgent(value)?.id === agent.id)}
+                        disabled={(localOnly(selected.level) && agent.runtime === "cloud") || levels.indexOf(agent.accessLevel) < levels.indexOf(selected.level)}
                         onChange={(event) =>
                           patchItem(selected.id, {
                             agents: event.target.checked
-                              ? [...selected.agents, agent]
-                              : selected.agents.filter((a) => a !== agent),
+                              ? [...selected.agents.filter(value => resolveAgent(value)?.id !== agent.id), agent.id]
+                              : selected.agents.filter(value => resolveAgent(value)?.id !== agent.id),
                           })
                         }
                       />
-                      <span>{agent}</span>
-                      {localOnly(selected.level) && agent.includes("cloud") && (
+                      <AgentAvatar identityKey={agent.id} character={agent.character} label={agent.name} size={24} /><span>{agent.name}</span>
+                      {((localOnly(selected.level) && agent.runtime === "cloud") || levels.indexOf(agent.accessLevel) < levels.indexOf(selected.level)) && (
                         <LockKeyhole size={12} />
                       )}
                     </label>

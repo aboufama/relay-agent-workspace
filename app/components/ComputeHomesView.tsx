@@ -2,7 +2,7 @@
 
 import { useId, useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { ChevronDown, Cloud } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import './compute-homes.css';
 
 export type ComputeHomeMetrics = {
@@ -82,7 +82,7 @@ function Home({ name, kind, count, preview, status, actions, setup, children, me
         <span className="compute-home-art" aria-hidden="true">
           {kind === 'local'
             ? <Image src="/compute/dell-icon.png" alt="" width={112} height={112} unoptimized />
-            : <Cloud size={48} strokeWidth={1.25} />}
+            : <Image src="/compute/cloud-clay.png" alt="" width={112} height={112} unoptimized />}
         </span>
         <span className="compute-home-identity">
           <span className="compute-home-name" id={`${id}-name`}>{name}</span>

@@ -53,3 +53,30 @@
 @media(prefers-reduced-motion:reduce){.conversation-detail-pane{animation:none}}
 .rail-link>.member-avatar,.rail-link>.agent-sprite{flex:0 0 24px!important;width:24px!important;height:24px!important}
 .conversation-detail-pane .detail-pane-header h2{display:block!important}
+/* Search rows: only the text column grows, never a member portrait. */
+.search-results > button > .member-avatar,
+.search-results > button > .agent-sprite {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+}
+.search-results > button > svg { flex: none; }
+/* Keep Data readable when both app rail and collection rail cannot fit. */
+@media (max-width: 1100px) {
+  .quality-data .data-workspace { grid-template-columns: minmax(0, 1fr); }
+  .quality-data .data-collections { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px; }
+  .quality-data .data-collections-header,
+  .quality-data .data-collection-divider,
+  .quality-data .data-collection-help { display: none; }
+  .quality-data .data-collection,
+  .quality-data .data-new-collection { flex: 0 0 auto; width: auto; max-width: 220px; }
+}
+/* Align the layer instruction with its toolbar instead of the card border. */
+.data-visual-hint { padding-inline: 20px; }
+/* File titles need a readable column even when a layer has only one file. */
+.data-visual-layers .data-layer-file {
+  width: 210px;
+  max-width: 100%;
+}
+
+.member-clearance{color:#8a8a8a;font-size:12px;line-height:18px;font-weight:400}
