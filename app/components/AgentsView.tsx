@@ -191,6 +191,7 @@ export function AgentsView({ onNotify, renderHomes }: Props) {
                   <Database size={16} aria-label="Local" />
                 )}
               </strong>
+              <small className="agent-card-clearance" aria-label={`Data access: ${agent.accessLevel}`}>{agent.accessLevel}</small>
             </div>
           </div>
         ))}

@@ -971,9 +971,9 @@ export function Workspace() {
             </div>
             <div className="thread-composer composer"><LiveComposer ref={threadComposerRef} value={threadReply} onChange={setThreadReply} onSend={sendThread} members={members} onMention={()=>{}} placeholder="Reply in thread…"/><div className="composer-bottom"><div><button className="icon-btn" aria-label="Mention in thread" onClick={()=>threadComposerRef.current?.insertText('@')}><AtSign size={16}/></button><button className="icon-btn" aria-label="Add emoji to reply" onClick={()=>threadComposerRef.current?.insertText(' 🙂')}><Smile size={16}/></button></div><button className="send-button" disabled={!threadReply.trim()} aria-label="Send reply" onClick={sendThread}><Send size={15}/></button></div></div>
           </> : memberProfile && <div className="member-profile-panel">
-            <MemberAvatar member={memberProfile} size={104}/><h2>{memberProfile.name}</h2><span className="badge">{memberProfile.kind==='agent'?'Agent':'Member'}</span>
+            <MemberAvatar member={memberProfile} size={104}/><h2>{memberProfile.name}</h2>
             <button className="btn btn-secondary" onClick={()=>openRoom(memberProfile.id)}><MessageCircle size={16}/> Message</button>
-            {memberProfile.kind==='agent'&&<><dl><div><dt>Home</dt><dd>{memberProfile.runtime==='local'?'Dell GB10':'Cloud'}</dd></div><div><dt>Access</dt><dd>{memberProfile.accessLevel}</dd></div></dl>{memberProfile.instructions&&<section><h3>Instructions</h3><p>{memberProfile.instructions}</p></section>}<button className="btn btn-secondary" onClick={()=>{const agentId=memberProfile.id;setMemberProfile(null);navigate('agents');requestAnimationFrame(()=>window.dispatchEvent(new CustomEvent('relay:open-agent',{detail:{agentId}})))}}>Agent settings</button></>}
+            {memberProfile.kind==='agent'&&<><dl><div><dt>Home</dt><dd>{memberProfile.runtime==='local'?'Dell GB10':'Cloud'}</dd></div><div><dt>Access</dt><dd>{memberProfile.accessLevel}</dd></div></dl>{memberProfile.instructions&&<section><h3>Instructions</h3><p>{memberProfile.instructions}</p></section>}<button className="btn btn-secondary" onClick={()=>{const agentId=memberProfile.id;setMemberProfile(null);navigate('agents');requestAnimationFrame(()=>window.dispatchEvent(new CustomEvent('relay:open-agent',{detail:{agentId}})))}}>Edit profile</button></>}
           </div>}
         </aside>}
       </main>
@@ -1039,7 +1039,7 @@ export function Workspace() {
               }}
             >
               <MemberAvatar member={person} size={32}/>
-              <strong>{person.name}</strong><span className="member-directory-type">{person.kind==='agent'?'Agent':'Person'}</span>
+              <strong>{person.name}</strong>
               <MessageCircle size={16} />
             </button>
           ))}
@@ -1304,13 +1304,6 @@ function Chat({
                   <div className="message-body">
                     <div className="message-meta">
                       <button className="member-name-button" onClick={()=>{const member=resolveMember(members,m.memberId,m.name);if(member)openMember(member)}}>{members.find(person=>person.id===m.memberId)?.name ?? m.name}</button>
-                      {m.agent && (
-                        <span
-                          className={`badge ${m.agent === 'local' ? 'badge-green' : 'badge-blue'}`}
-                        >
-                          Agent
-                        </span>
-                      )}
                       <time>{m.time}</time>
                     </div>
                     <div className="message-text">

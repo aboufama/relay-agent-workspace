@@ -58,3 +58,12 @@
   width: 14px;
   height: 14px;
 }
+
+.compute-homes-page button:active:not(:disabled){transform:none}
+.compute-home-disclosure{transition:background-color 140ms ease}
+.compute-home-agents .agent-card-clearance{font-size:12px;line-height:16px;color:#777;font-weight:400}
+.compute-home-agents .buzz-identity-card.agent-paper{background-image:radial-gradient(ellipse 100% 80% at 12px calc(100% - 12px),var(--agent-glow) 0%,transparent 78%)!important}
+.compute-home-agents .buzz-identity-card.agent-paper-worm{background-color:#fbf9f7!important}
+.compute-home-agents .buzz-identity-card.agent-paper-firefly{background-color:#fbfaf6!important}
+.compute-home-agents .buzz-identity-card.agent-paper-ladybug{background-color:#fcf8f8!important}
+.compute-home-agents .buzz-identity-card.agent-paper-caterpillar{background-color:#f8faf7!important}

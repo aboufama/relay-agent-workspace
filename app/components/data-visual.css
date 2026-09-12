@@ -41,7 +41,7 @@
 }
 .data-visual-layers .data-security-shelf {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr) 142px;
+  grid-template-columns: 158px minmax(0, 1fr) 142px;
   align-items: center;
   min-height: 124px;
   border: 0;
