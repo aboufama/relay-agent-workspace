@@ -67,3 +67,6 @@
 .compute-home-agents .buzz-identity-card.agent-paper-firefly{background-color:#fbfaf6!important}
 .compute-home-agents .buzz-identity-card.agent-paper-ladybug{background-color:#fcf8f8!important}
 .compute-home-agents .buzz-identity-card.agent-paper-caterpillar{background-color:#f8faf7!important}
+
+.agent-delete-button{margin-right:auto;color:#9d3f3f;font-size:13px;padding:8px 0;background:transparent;border:0}
+.agent-delete-button:hover{color:#782c2c;text-decoration:underline}

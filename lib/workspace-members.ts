@@ -153,6 +153,7 @@ const initialMembers: readonly WorkspaceMember[] = [
 ];
 let members = initialMembers;
 let hydrated = false;
+let deletedIds = new Set<string>();
 const listeners = new Set<() => void>();
 function text(value: unknown, fallback = "", max = 20000): string {
   return typeof value === "string" ? value.slice(0, max) : fallback;
@@ -213,16 +214,17 @@ function decode(raw: string | null): readonly WorkspaceMember[] | null {
   try {
     const data = JSON.parse(raw);
     if (!data || data.version !== 1 || !Array.isArray(data.members)) return null;
-    const next = new Map<string, WorkspaceMember>(
-      initialMembers.map((member) => [member.id, member]),
-    );
+    const deleted = new Set(strings(data.deletedIds).filter(id => !initialMembers.some(member => member.id === id && member.kind === "human")));
+    const next = new Map<string, WorkspaceMember>();
     for (const value of data.members.slice(0, 1000)) {
       const member = normalize(value);
       if (member) {
         const seed = initialMembers.find((item) => item.id === member.id);
-        if (!seed || seed.kind === member.kind) next.set(member.id, member);
+        if ((!seed || seed.kind === member.kind) && !deleted.has(member.id)) next.set(member.id, member);
       }
     }
+    for (const member of initialMembers) if (!next.has(member.id) && !deleted.has(member.id)) next.set(member.id, member);
+    deletedIds = deleted;
     return [...next.values()];
   } catch {
     return null;
@@ -246,6 +248,7 @@ function hydrate() {
 }
 function onStorage(event: StorageEvent) {
   if (event.key !== storageKey) return;
+  if (event.newValue === null) deletedIds.clear();
   const next = event.newValue === null ? initialMembers : decode(event.newValue);
   if (next) {
     members = next;
@@ -288,12 +291,22 @@ export function upsertWorkspaceMember(value: WorkspaceMember): void {
   if (previous && previous.kind !== member.kind) return;
   members = previous
     ? members.map((item) => (item.id === member.id ? member : item))
-    : [...members, member];
+    : [member, ...members];
+  deletedIds.delete(member.id);
   try {
     if (typeof window !== "undefined")
-      window.localStorage.setItem(storageKey, JSON.stringify({ version: 1, members }));
+      window.localStorage.setItem(storageKey, JSON.stringify({ version: 1, members, deletedIds: [...deletedIds] }));
   } catch {
     /* Quota or private mode: keep the in-memory directory usable. */
   }
+  emit();
+}
+
+export function removeWorkspaceAgent(id: string): void {
+  hydrate();
+  if (!members.some(member => member.id === id && member.kind === "agent")) return;
+  deletedIds.add(id);
+  members = members.filter(member => member.id !== id);
+  try { if (typeof window !== "undefined") window.localStorage.setItem(storageKey, JSON.stringify({version: 1, members, deletedIds: [...deletedIds]})); } catch { /* Session directory remains usable. */ }
   emit();
 }

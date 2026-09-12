@@ -1,10 +1,9 @@
 import { useAgentMembers } from "@/lib/workspace-members";
 import { AgentAvatar } from "@/components/AgentAvatar";
-import "./data-layers.css";
-import "./data-visual.css";
+import "./data-reef.css";
 import { PageHeader } from "@/components/buzz/PageHeader";
 import { SelectField } from "@/components/SelectField";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import {
   ArrowDownToLine,
   ArrowUpRight,
@@ -17,13 +16,13 @@ import {
   FileText,
   Folder,
   FolderPlus,
-  Grid2X2,
   HardDrive,
   Info,
-  List,
-  Layers3,
+  Link2,
+  ArrowRight,
+  SlidersHorizontal,
+  Waves,
   LockKeyhole,
-  MoreHorizontal,
   Plus,
   Search,
   ShieldCheck,
@@ -210,6 +209,39 @@ function LevelBadge({ level }: { level: Level }) {
   );
 }
 
+
+const reefRegions: Record<Level, {
+  path: string; mobilePath: string; label: [number, number]; mobileLabel: [number, number];
+  spots: [number, number][]; mobileSpots: [number, number][];
+}> = {
+  Public: {
+    path: "M0 0H1000V600H0Z", mobilePath: "M0 0H400V1000H0Z",
+    label: [7, 8], mobileLabel: [8, 3],
+    spots: [[14, 29], [12, 51], [20, 73]], mobileSpots: [[27, 14], [73, 14], [44, 23]],
+  },
+  Internal: {
+    path: "M396 -10C387 107 208 105 218 249C227 393 451 328 414 610H1010V-10Z",
+    mobilePath: "M-10 265C126 310 223 200 410 280V1010H-10Z",
+    label: [43, 10], mobileLabel: [8, 30],
+    spots: [[40, 28], [36, 49], [49, 72]], mobileSpots: [[29, 39], [73, 40], [44, 49]],
+  },
+  Confidential: {
+    path: "M737 -10C723 132 467 122 491 310C515 464 671 401 599 610H1010V-10Z",
+    mobilePath: "M-10 543C113 484 268 603 410 529V1010H-10Z",
+    label: [68, 24], mobileLabel: [8, 58],
+    spots: [[64, 41], [65, 62], [68, 80]], mobileSpots: [[29, 67], [73, 68], [44, 76]],
+  },
+  Restricted: {
+    path: "M1010 210C849 182 762 250 776 367C791 465 771 536 826 610H1010Z",
+    mobilePath: "M-10 811C126 886 237 762 410 835V1010H-10Z",
+    label: [84, 48], mobileLabel: [8, 84],
+    spots: [[89, 65], [91, 84], [84, 96]], mobileSpots: [[28, 93], [73, 93], [48, 99]],
+  },
+};
+function reefPosition(x: number, y: number, mx: number, my: number): CSSProperties {
+  return { "--reef-x": `${x}%`, "--reef-y": `${y}%`, "--reef-mx": `${mx}%`, "--reef-my": `${my}%` } as CSSProperties;
+}
+
 export function DataView({ onNotify }: Props) {
   const directoryAgents = useAgentMembers();
   const resolveAgent = (value: string) => directoryAgents.find(member => member.id === value || member.name === value.split(" · ")[0]);
@@ -218,7 +250,9 @@ export function DataView({ onNotify }: Props) {
   const [collection, setCollection] = useState("All data");
   const [query, setQuery] = useState("");
   const [levelFilter, setLevelFilter] = useState("All classifications");
-  const [layout, setLayout] = useState<"layers" | "list" | "grid">("layers");
+  const [connectedId, setConnectedId] = useState<string | null>(null);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [levelPages, setLevelPages] = useState<Record<Level, number>>({ Public: 0, Internal: 0, Confidential: 0, Restricted: 0 });
   const [sort, setSort] = useState("recent");
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
@@ -419,461 +453,151 @@ export function DataView({ onNotify }: Props) {
     notify(`Created ${name}.`);
   };
 
+  const connectedItem = items.find(item => item.id === connectedId);
+  const canUse = (agent: (typeof directoryAgents)[number], level: Level) =>
+    levels.indexOf(agent.accessLevel) >= levels.indexOf(level) && (!localOnly(level) || agent.runtime === "local");
+  const dropInto = (event: DragEvent<Element>, level: Level) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDropLevel(null);
+    setDragging(false);
+    setDraggedId(null);
+    dragDepth.current = 0;
+    const id = event.dataTransfer.getData("application/x-relay-file");
+    if (id) {
+      const item = items.find(file => file.id === id);
+      if (item && item.level !== level) changeLevel(item, level);
+    } else if (event.dataTransfer.files.length) {
+      setImportLevel(level);
+      receiveFiles(event.dataTransfer.files);
+    }
+  };
+  const overRegion = (event: DragEvent<Element>, level: Level) => {
+    if (!event.dataTransfer.types.some(type => type === "Files" || type === "application/x-relay-file")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = event.dataTransfer.types.includes("application/x-relay-file") ? "move" : "copy";
+    setDropLevel(level);
+  };
+  const reefFiles = levels.flatMap(level => {
+    const matches = visible.filter(item => item.level === level);
+    const pageSize = level === "Restricted" ? 2 : 3;
+    const pageCount = Math.ceil(matches.length / pageSize);
+    const page = pageCount ? levelPages[level] % pageCount : 0;
+    return matches.slice(page * pageSize, page * pageSize + pageSize).map((item, index) => ({
+      item, spot: reefRegions[level].spots[index], mobileSpot: reefRegions[level].mobileSpots[index],
+    }));
+  });
+  const connectedPosition = reefFiles.find(({item}) => item.id === connectedId);
+  const toggleConnection = (agent: (typeof directoryAgents)[number]) => {
+    if (!connectedItem || !canUse(agent, connectedItem.level)) return;
+    const isLinked = connectedItem.agents.some(value => resolveAgent(value)?.id === agent.id);
+    patchItem(connectedItem.id, {
+      agents: isLinked
+        ? connectedItem.agents.filter(value => resolveAgent(value)?.id !== agent.id)
+        : [...connectedItem.agents.filter(value => resolveAgent(value)?.id !== agent.id), agent.id],
+    });
+    notify(`${agent.name} ${isLinked ? "removed from" : "added to"} this file’s access settings.`);
+  };
+
   return (
     <div
-      className={`page data-page quality-data data-visual ${layout === "layers" ? "data-visual-layers" : ""}`}
-      onDragEnter={(event) => {
-        event.preventDefault();
-        if (event.dataTransfer.types.includes("Files")) {
-          dragDepth.current++;
-          setDragging(true);
-        }
+      className={`page data-page quality-data shoal-reef-page ${dragging || draggedId ? "reef-dragging" : ""}`}
+      onDragEnter={event => {
+        if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); dragDepth.current++; setDragging(true); }
       }}
-      onDragOver={(event) => event.preventDefault()}
-      onDragLeave={(event) => {
-        event.preventDefault();
-        dragDepth.current--;
-        if (dragDepth.current <= 0) {
-          dragDepth.current = 0;
-          setDragging(false);
-        }
+      onDragOver={event => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); }}
+      onDragLeave={event => {
+        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+        dragDepth.current = 0; setDragging(false); setDropLevel(null);
       }}
-      onDrop={(event) => {
-        event.preventDefault();
-        dragDepth.current = 0;
-        setDragging(false);
+      onDrop={event => {
+        event.preventDefault(); dragDepth.current = 0; setDragging(false); setDropLevel(null);
         receiveFiles(event.dataTransfer.files);
       }}
     >
-      <PageHeader
-        className="page-heading"
-        title="Data"
-        action={
-          <div className="data-heading-actions">
-            <button className="btn btn-secondary" onClick={() => setPolicyOpen(true)}>
-              <ShieldCheck size={16} />
-              Access policy
-            </button>
-            <button className="btn btn-primary" onClick={startImport}>
-              <Plus size={17} />
-              Add data
-            </button>
+      <PageHeader className="page-heading" title="Data" action={
+        <div className="data-heading-actions">
+          <button className="btn btn-secondary reef-policy" onClick={() => setPolicyOpen(true)}><ShieldCheck size={16}/><span>Access policy</span></button>
+          <button className="btn btn-primary" onClick={startImport}><Plus size={17}/>Add data</button>
+        </div>
+      } />
+      <section className="reef-workspace" aria-label="Security reef">
+        <div className="reef-toolbar">
+          <div className="reef-collection-control">
+            <Folder size={16} aria-hidden="true" />
+            <SelectField aria-label="Data collection" value={collection} onChange={event => setCollection(event.target.value)}>
+              <option>All data</option>
+              {collections.map(name => <option key={name}>{name}</option>)}
+            </SelectField>
+            <button className="reef-icon-button" aria-label="New collection" onClick={() => { setCollectionError(""); setCollectionOpen(true); }}><Plus size={16}/></button>
           </div>
-        }
-      />
-
-      <div className="data-workspace">
-        <aside className="data-collections card" aria-label="Data collections">
-          <div className="data-collections-header">
-            <span className="eyebrow">COLLECTIONS</span>
-            <button
-              className="icon-btn"
-              aria-label="New collection"
-              onClick={() => {
-                setCollectionError("");
-                setCollectionOpen(true);
-              }}
-            >
-              <Plus size={16} />
-            </button>
-          </div>
-          <button
-            className={`data-collection ${collection === "All data" ? "active" : ""}`}
-            aria-current={collection === "All data" ? "page" : undefined}
-            onClick={() => setCollection("All data")}
-          >
-            <Grid2X2 size={16} />
-            <span>All data</span>
-            <small>{items.length}</small>
-          </button>
-          <div className="data-collection-divider" />
-          {collections.map((name) => (
-            <button
-              className={`data-collection ${collection === name ? "active" : ""}`}
-              aria-current={collection === name ? "page" : undefined}
-              key={name}
-              onClick={() => setCollection(name)}
-            >
-              <Folder size={16} />
-              <span>{name}</span>
-              <small>{items.filter((item) => item.collection === name).length}</small>
-            </button>
-          ))}
-          <button
-            className="data-new-collection"
-            onClick={() => {
-              setCollectionError("");
-              setCollectionOpen(true);
-            }}
-          >
-            <FolderPlus size={16} />
-            New collection
-          </button>
-        </aside>
-        <section className="data-library card" aria-label="Knowledge sources">
-          <div className="data-library-heading">
-            <div>
-              <h2>{collection}</h2>
-              <span>
-                {visible.length} {visible.length === 1 ? "source" : "sources"}
-              </span>
-            </div>
-            <div className="data-view-toggle" aria-label="View style">
-              <button
-                className={layout === "layers" ? "active" : ""}
-                onClick={() => setLayout("layers")}
-                aria-label="Security layers view"
-                aria-pressed={layout === "layers"}
-              >
-                <Layers3 size={17} />
+          <label className="reef-search"><Search size={17}/><input aria-label="Search knowledge sources" placeholder="Find a file…" value={query} onChange={event => setQuery(event.target.value)}/>{query && <button className="reef-icon-button" aria-label="Clear search" onClick={() => setQuery("")}><X size={14}/></button>}</label>
+          <details className="reef-filters"><summary aria-label="Filter and sort"><SlidersHorizontal size={17}/><span>Refine</span></summary><div>
+            <SelectField aria-label="Filter classification" value={levelFilter} onChange={event => setLevelFilter(event.target.value)}><option>All classifications</option>{levels.map(level => <option key={level}>{level}</option>)}</SelectField>
+            <SelectField aria-label="Sort files" value={sort} onChange={event => setSort(event.target.value)}><option value="recent">Recently added</option><option value="name">Name A–Z</option><option value="size">Largest first</option></SelectField>
+          </div></details>
+        </div>
+        <div className="reef-intro"><div><Waves size={17}/><span>Security depths</span></div><span>{visible.length} files <span aria-hidden="true">·</span> {bytes(visible.reduce((sum, file) => sum + file.size, 0))}</span></div>
+        <div className={`reef-world ${connectedItem ? "has-connection" : ""}`}>
+          <div className="reef-canvas">
+            <div className="reef-map-caption"><span>OPEN WATER</span><span>DEEPER = MORE PRIVATE <ArrowRight size={12}/></span></div>
+            {([false, true] as const).map(mobile => (
+              <svg key={String(mobile)} className={`reef-map ${mobile ? "reef-map-mobile" : "reef-map-desktop"}`} viewBox={mobile ? "0 0 400 1000" : "0 0 1000 600"} preserveAspectRatio="none" aria-hidden="true">
+                {levels.map(level => <path key={level} d={mobile ? reefRegions[level].mobilePath : reefRegions[level].path}
+                  className={`reef-water reef-water-${level.toLowerCase()} ${dropLevel === level ? "is-drop-target" : ""} ${levelFilter !== "All classifications" && levelFilter !== level ? "is-muted" : ""}`}
+                  onDragEnter={event => overRegion(event, level)} onDragOver={event => overRegion(event, level)} onDrop={event => dropInto(event, level)}/>) }
+              </svg>
+            ))}
+            <svg className="reef-connections" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
+              {connectedPosition && directoryAgents.map((agent, index) => {
+                if (!connectedItem?.agents.some(value => resolveAgent(value)?.id === agent.id) || !canUse(agent, connectedItem.level)) return null;
+                const x = connectedPosition.spot[0] * 10, y = connectedPosition.spot[1] * 6;
+                const target = ((index + .5) / directoryAgents.length) * 900 + 50;
+                return <path key={agent.id} d={`M ${x} ${y + 30} C ${x} ${y + 135}, ${target} 510, ${target} 600`} />;
+              })}
+            </svg>
+            {levels.map(level => {
+              const region = reefRegions[level];
+              const count = visible.filter(item => item.level === level).length;
+              const pageSize = level === "Restricted" ? 2 : 3;
+              return <div key={level} style={reefPosition(...region.label, ...region.mobileLabel)} className={`reef-region-label reef-region-${level.toLowerCase()} ${levelFilter !== "All classifications" && levelFilter !== level ? "is-muted" : ""}`} onDragOver={event => overRegion(event, level)} onDrop={event => dropInto(event, level)}>
+                <div><span className="reef-depth-mark" aria-hidden="true">{Array.from({length: levels.indexOf(level) + 1}, (_,i) => <i key={i}/>)}</span><strong>{level}</strong><button className="reef-region-add" aria-label={`Add files to ${level}`} onClick={() => { startImport(); setImportLevel(level); }}><Plus size={15}/></button></div>
+                <small>{localOnly(level) ? <LockKeyhole size={11}/> : <Cloud size={11}/>} {localOnly(level) ? "Local only" : "Local + cloud"}{count > pageSize && <button className="reef-page-turn" onClick={() => setLevelPages(current => ({...current, [level]: current[level] + 1}))} aria-label={`Show next ${level} files`}>{Math.min(count, ((levelPages[level] % Math.ceil(count / pageSize)) + 1) * pageSize)} / {count}<ArrowRight size={13}/></button>}</small>
+              </div>;
+            })}
+            {reefFiles.map(({item, spot, mobileSpot}, index) => <div key={item.id}
+              style={{...reefPosition(...spot, ...mobileSpot), "--reef-turn": `${index % 2 ? 2 : -3}deg`} as CSSProperties}
+              className={`reef-document ${connectedId === item.id ? "is-connected" : ""} ${draggedId === item.id ? "is-dragged" : ""}`}
+              draggable onDragStart={event => { event.dataTransfer.setData("application/x-relay-file", item.id); event.dataTransfer.effectAllowed = "move"; setDraggedId(item.id); }}
+              onDragEnd={() => { setDraggedId(null); setDropLevel(null); setDragging(false); }}
+              onDragOver={event => overRegion(event, item.level)} onDrop={event => dropInto(event, item.level)}>
+              <button className="reef-document-open" onClick={() => setSelectedId(item.id)} aria-label={`View details for ${item.name}`}>
+                <span className="reef-paper"><FileGlyph type={item.type}/><span className="reef-paper-lines" aria-hidden="true"><i/><i/><i/></span><span className="reef-paper-type">{item.type}</span></span>
+                <strong>{item.name}</strong><small>{item.example ? "Example" : bytes(item.size)}</small>
               </button>
-              <button
-                className={layout === "list" ? "active" : ""}
-                onClick={() => setLayout("list")}
-                aria-label="List view"
-                aria-pressed={layout === "list"}
-              >
-                <List size={17} />
-              </button>
-              <button
-                className={layout === "grid" ? "active" : ""}
-                onClick={() => setLayout("grid")}
-                aria-label="Grid view"
-                aria-pressed={layout === "grid"}
-              >
-                <Grid2X2 size={16} />
-              </button>
-            </div>
+              <button className="reef-connect-handle" aria-label={`Manage agent connections for ${item.name}`} aria-pressed={connectedId === item.id} onClick={() => setConnectedId(connectedId === item.id ? null : item.id)}><Link2 size={15}/></button>
+            </div>)}
+            {!visible.length && <div className="reef-no-results"><Search size={22}/><strong>{query || levelFilter !== "All classifications" ? "No matching files" : "Make this water yours"}</strong><button className="btn btn-secondary" onClick={() => { if(query || levelFilter !== "All classifications") { setQuery(""); setLevelFilter("All classifications"); } else startImport(); }}>{query || levelFilter !== "All classifications" ? "Clear filters" : "Add data"}</button></div>}
+            {(dragging || draggedId) && <div className="reef-drop-instruction"><UploadCloud size={16}/>{dropLevel ? `Release into ${dropLevel}` : "Drop into a security depth"}</div>}
           </div>
-          <div className="data-library-toolbar">
-            <label className="data-search">
-              <Search size={17} />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search your knowledge…"
-                aria-label="Search knowledge sources"
-              />
-              {query && (
-                <button aria-label="Clear search" onClick={() => setQuery("")}>
-                  <X size={14} />
-                </button>
-              )}
-            </label>
-            <details className="data-visual-filters">
-              <summary>Filter</summary>
-              <div>
-                {" "}
-                <SelectField
-                  className="select data-filter"
-                  aria-label="Filter classification"
-                  value={levelFilter}
-                  onChange={(event) => setLevelFilter(event.target.value)}
-                >
-                  <option>All classifications</option>
-                  {levels.map((level) => (
-                    <option key={level}>{level}</option>
-                  ))}
-                </SelectField>
-                <SelectField
-                  className="select data-sort"
-                  aria-label="Sort files"
-                  value={sort}
-                  onChange={(event) => setSort(event.target.value)}
-                >
-                  <option value="recent">Recently added</option>
-                  <option value="name">Name A–Z</option>
-                  <option value="size">Largest first</option>
-                </SelectField>
-              </div>
-            </details>
-          </div>
-          {layout === "layers" ? (
-            <div className="data-security-layers" aria-label="Security layers">
-              <p className="data-visual-hint">
-                Drag files between layers. Select a file to manage access.
-              </p>
-              {levels
-                .filter((level) => levelFilter === "All classifications" || levelFilter === level)
-                .map((level) => {
-                  const files = visible.filter((item) => item.level === level);
-                  const eligible = directoryAgents.filter(
-                    (agent) =>
-                      levels.indexOf(agent.accessLevel) >= levels.indexOf(level) &&
-                      (!localOnly(level) || agent.runtime === "local"),
-                  );
-                  return (
-                    <div
-                      key={level}
-                      className={`data-security-shelf${dropLevel === level ? " is-drop-target" : ""}`}
-                      aria-label={`${level} files`}
-                      onDragEnter={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setDragging(false);
-                        setDropLevel(level);
-                      }}
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        event.dataTransfer.dropEffect = event.dataTransfer.types.includes(
-                          "application/x-relay-file",
-                        )
-                          ? "move"
-                          : "copy";
-                      }}
-                      onDragLeave={(event) => {
-                        if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-                          setDropLevel(null);
-                      }}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setDropLevel(null);
-                        setDragging(false);
-                        dragDepth.current = 0;
-                        const id = event.dataTransfer.getData("application/x-relay-file");
-                        if (id) {
-                          const item = items.find((file) => file.id === id);
-                          if (item && item.level !== level) changeLevel(item, level);
-                        } else if (event.dataTransfer.files.length) {
-                          setImportLevel(level);
-                          receiveFiles(event.dataTransfer.files);
-                        }
-                      }}
-                    >
-                      <header className="data-shelf-header">
-                        <span className="data-shelf-index">0{levels.indexOf(level) + 1}</span>
-                        <h3>{level}</h3>
-                        <span className="data-shelf-count">{files.length}</span>
-                        <button
-                          className="icon-btn"
-                          aria-label={`Add files to ${level}`}
-                          onClick={() => {
-                            startImport();
-                            setImportLevel(level);
-                          }}
-                        >
-                          <Plus size={16} />
-                        </button>
-                      </header>
-                      <div className="data-shelf-files">
-                        {files.map((item) => (
-                          <div
-                            aria-label={item.name}
-                            key={item.id}
-                            className="data-layer-file"
-                            draggable
-                            onDragStart={(event) => {
-                              event.dataTransfer.setData("application/x-relay-file", item.id);
-                              event.dataTransfer.effectAllowed = "move";
-                            }}
-                            onDragEnd={() => setDropLevel(null)}
-                          >
-                            <button
-                              className="data-layer-file-open"
-                              onClick={() => setSelectedId(item.id)}
-                              aria-label={`View details for ${item.name}`}
-                            >
-                              <FileGlyph type={item.type} />
-                              <span>
-                                <strong>{item.name}</strong>
-                              </span>
-                            </button>
-                          </div>
-                        ))}
-                        {!files.length && (
-                          <button
-                            className="data-shelf-empty"
-                            onClick={() => {
-                              startImport();
-                              setImportLevel(level);
-                            }}
-                          >
-                            <Plus size={18} aria-hidden="true" />
-                            <span className="sr-only">Add files to {level}</span>
-                          </button>
-                        )}
-                      </div>
-                      <div className="data-shelf-access" aria-label={`${level} agent clearance`}>
-                        <span className="data-access-wire" aria-hidden="true" />
-                        <div className="data-access-end">
-                          <span className="data-access-label">Eligible</span>
-                          <div className="data-access-avatars">
-                            {eligible.map((agent) => (
-                              <span
-                                key={agent.id}
-                                className="data-access-agent"
-                                title={`${agent.name} · ${agent.accessLevel} clearance`}
-                              >
-                                <AgentAvatar
-                                  identityKey={agent.id}
-                                  character={agent.character}
-                                  label={agent.name}
-                                  size={30}
-                                />
-                              </span>
-                            ))}
-                            {!eligible.length && (
-                              <span className="data-access-none">
-                                —
-                                <span className="sr-only">No agents with sufficient clearance</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+          <div className={`reef-agent-bank ${connectedItem ? "is-editing" : ""}`}>
+            <div className="reef-agent-context"><Link2 size={15}/>{connectedItem ? <><span>{connectedItem.name}</span><button className="reef-icon-button" aria-label="Close agent connections" onClick={() => setConnectedId(null)}><X size={15}/></button></> : <span>Choose a file’s <Link2 size={13}/> to connect its agents</span>}</div>
+            <div className="reef-agent-dock">
+              {directoryAgents.map(agent => {
+                const eligible = !!connectedItem && canUse(agent, connectedItem.level);
+                const assigned = !!connectedItem?.agents.some(value => resolveAgent(value)?.id === agent.id) && eligible;
+                return <button key={agent.id} className={`reef-agent ${assigned ? "is-assigned" : ""}`} disabled={!eligible} aria-pressed={assigned} onClick={() => toggleConnection(agent)} title={connectedItem ? eligible ? `${assigned ? "Remove" : "Allow"} ${agent.name} for ${connectedItem.name}` : `${agent.name}: insufficient clearance or cloud runtime` : `${agent.name} · ${agent.accessLevel} · ${agent.runtime}`}>
+                  <span className="reef-agent-portrait"><AgentAvatar identityKey={agent.id} character={agent.character} label={agent.name} size={52}/>{assigned ? <span className="reef-agent-check"><Check size={12}/></span> : connectedItem && !eligible ? <span className="reef-agent-lock"><LockKeyhole size={11}/></span> : null}</span><span>{agent.name}</span><small>{agent.runtime === "local" ? <HardDrive size={10}/> : <Cloud size={10}/>} {agent.runtime}</small>
+                </button>;
+              })}
+              {!directoryAgents.length && <span className="reef-no-agents">Add members in Habitats to configure access.</span>}
             </div>
-          ) : !visible.length ? (
-            <div className="empty-state data-empty">
-              <Folder size={32} />
-              <h3>
-                {query || levelFilter !== "All classifications"
-                  ? "No matching sources"
-                  : "No files yet"}
-              </h3>
-              <p>
-                {query || levelFilter !== "All classifications"
-                  ? "Try a different search or classification."
-                  : "Add your first file to this collection."}
-              </p>
-              {query || levelFilter !== "All classifications" ? (
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setQuery("");
-                    setLevelFilter("All classifications");
-                  }}
-                >
-                  Clear filters
-                </button>
-              ) : (
-                <button className="btn btn-primary" onClick={startImport}>
-                  <Plus size={16} />
-                  Add data
-                </button>
-              )}
-            </div>
-          ) : layout === "list" ? (
-            <div className="table-wrap data-files-wrap">
-              <table className="data-table data-files-table">
-                <thead>
-                  <tr>
-                    <th>Source name</th>
-                    <th>Classification</th>
-                    <th>Access</th>
-                    <th>State</th>
-                    <th>
-                      <span className="data-sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map((item) => (
-                    <tr key={item.id}>
-                      <td>
-                        <button className="data-source-link" onClick={() => setSelectedId(item.id)}>
-                          <FileGlyph type={item.type} />
-                          <span>
-                            <strong>{item.name}</strong>
-                            <small>
-                              {item.type} <span>·</span> {bytes(item.size)} <span>·</span>{" "}
-                              {item.owner}
-                            </small>
-                          </span>
-                        </button>
-                      </td>
-                      <td>
-                        <LevelBadge level={item.level} />
-                      </td>
-                      <td>
-                        <span
-                          className={`data-eligibility ${localOnly(item.level) ? "local" : ""}`}
-                        >
-                          {localOnly(item.level) ? <HardDrive size={14} /> : <Cloud size={14} />}
-                          {localOnly(item.level) ? "Local only" : "Local + cloud"}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`data-file-state ${item.example ? "" : "available"}`}>
-                          {item.example ? (
-                            <span className="data-example-dot" />
-                          ) : (
-                            <Check size={13} />
-                          )}
-                          {item.example ? "No file attached" : "Local · not indexed"}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          className="icon-btn"
-                          aria-label={`View details for ${item.name}`}
-                          onClick={() => setSelectedId(item.id)}
-                        >
-                          <MoreHorizontal size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="data-files-grid">
-              {visible.map((item) => (
-                <button
-                  className="data-file-card"
-                  key={item.id}
-                  onClick={() => setSelectedId(item.id)}
-                >
-                  <div className="data-file-card-top">
-                    <FileGlyph type={item.type} />
-                    <LevelBadge level={item.level} />
-                  </div>
-                  <strong>{item.name}</strong>
-                  <span>{item.collection}</span>
-                  <div className="data-file-card-bottom">
-                    <small>{bytes(item.size)}</small>
-                    <small>{item.example ? "No file attached" : "Local · not indexed"}</small>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-          {layout !== "layers" && (
-            <button className="data-dropzone" onClick={startImport}>
-              <span className="data-drop-icon">
-                <UploadCloud size={22} strokeWidth={1.6} />
-              </span>
-              <span>
-                <strong>
-                  Drop files here, or <em>browse</em>
-                </strong>
-                <small>Files and folders</small>
-              </span>
-              <span className="data-drop-privacy">
-                <LockKeyhole size={13} />
-                Browser only
-              </span>
-            </button>
-          )}
-        </section>
-      </div>
-      <output className="data-sr-only" aria-live="polite">
-        {statusMessage}
-      </output>
-      {dragging && (
-        <div className="data-drag-overlay">
-          <div>
-            <UploadCloud size={40} />
-            <h2>Drop files to import</h2>
-            <p>Drop files to choose their collection and security level.</p>
           </div>
         </div>
-      )}
+        <footer className="reef-footer"><span><span className="reef-drag-cursor" aria-hidden="true">↗</span> Drag to change security <span aria-hidden="true">·</span> Click to manage</span><span><HardDrive size={12}/> Browser only · not indexed</span></footer>
+      </section>
+      <output className="data-sr-only" aria-live="polite">{statusMessage}</output>
 
       <Dialog
         open={importOpen}
@@ -1130,7 +854,7 @@ export function DataView({ onNotify }: Props) {
                     <label className="data-checkbox-row" key={agent.id}>
                       <input
                         type="checkbox"
-                        checked={selected.agents.some(value => resolveAgent(value)?.id === agent.id)}
+                        checked={canUse(agent, selected.level) && selected.agents.some(value => resolveAgent(value)?.id === agent.id)}
                         disabled={(localOnly(selected.level) && agent.runtime === "cloud") || levels.indexOf(agent.accessLevel) < levels.indexOf(selected.level)}
                         onChange={(event) =>
                           patchItem(selected.id, {

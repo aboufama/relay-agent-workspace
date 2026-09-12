@@ -80,3 +80,10 @@
 }
 
 .member-clearance{color:#8a8a8a;font-size:12px;line-height:18px;font-weight:400}
+
+/* Sender typography shares a baseline in a row matching the avatar height. */
+.message-row:not(.message-grouped) .message-meta,
+.thread-message .message-meta{min-height:36px;line-height:36px;align-items:baseline;margin-bottom:0;column-gap:7px}
+.message-meta .member-name-button,.message-meta>strong,.message-meta .member-clearance,.message-meta time{line-height:inherit}
+.message-meta .member-name-button{padding:0}
+.message-meta .member-clearance,.message-meta time{color:#737373}

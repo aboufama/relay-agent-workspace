@@ -3,6 +3,7 @@ import {
   useAgentMembers,
   useWorkspaceMembers,
   upsertWorkspaceMember,
+  removeWorkspaceAgent,
   type AgentMember as Agent,
 } from "@/lib/workspace-members";
 import { SelectField } from "@/components/SelectField";
@@ -316,6 +317,7 @@ export function AgentsView({ onNotify, renderHomes }: Props) {
               </p>
             )}
             <DialogFooter>
+              {editingId && <button type="button" className="agent-delete-button" onClick={() => { removeWorkspaceAgent(editingId); setDialogOpen(false); onNotify?.("Agent deleted."); }}>Delete</button>}
               <button type="submit" className="btn btn-primary">
                 {editingId ? "Save" : "Create"}
               </button>
