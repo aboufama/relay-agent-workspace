@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import path from 'node:path';
 const nextConfig: NextConfig = {
+  experimental: { proxyClientMaxBodySize: "26mb" },
   webpack(config, { webpack }) {
     config.plugins.push(new webpack.NormalModuleReplacementPlugin(/^cloudflare:workers$/, path.resolve(process.cwd(), 'lib/vercel-env.ts')));
     return config;

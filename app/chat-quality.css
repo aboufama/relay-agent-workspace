@@ -87,3 +87,5 @@
 .message-meta .member-name-button,.message-meta>strong,.message-meta .member-clearance,.message-meta time{line-height:inherit}
 .message-meta .member-name-button{padding:0}
 .message-meta .member-clearance,.message-meta time{color:#737373}
+
+.chat-title-button { min-width:0; white-space:nowrap; }

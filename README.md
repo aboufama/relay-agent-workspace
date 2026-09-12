@@ -1,43 +1,95 @@
 # Shoal
 
-An agent-native team workspace for the Dell × NVIDIA GB10 hackathon. Built with React, TypeScript, Next.js/Vinext, Base UI primitives and custom CSS, using Block Buzz's interface structure as a reference.
+The GitHub UI is the default interface. [Bell demo guide](docs/BELL_DEMO.md) describes the fictional engineering workspace, profiles, data, and presentation flow.
 
-## Run
+A local agent workspace, presented through a fictional Bell engineering demo with six specialists, four programs, twelve source documents and sixteen tasks. The frontend uses React, TypeScript and Vinext. Cloudflare D1 and R2 bindings provide shared workspace records and document storage; the local demo uses Wrangler's local emulation.
+
+## Runtime
+
+```
+Shoal UI → workspace API + durable run queue → local runner
+         → OpenClaw in a NemoClaw-managed OpenShell sandbox
+         → inference.local → local vLLM model
+```
+
+OpenClaw executes tools and delegates to the `product` and `support` agents. NemoClaw configures the agent roster and sandbox. OpenShell enforces the sandbox's filesystem/network policy and routes inference to the local model. There is no direct inference fallback in the runner and no hosted LLM in this path.
+
+Quick uses an 8,192-token submitted budget with a 2,048-token output reserve. Deep uses 20,480 with a 4,096-token output reserve. OpenClaw adds its own instructions and tool history, so these budgets leave headroom in the current 32K model configuration. Go deeper preserves the original task/session. Actual model usage can exceed the submitted context count because it includes multiple native calls.
+
+## Local setup
+
+Use Node 22.13 or later:
 
 ```sh
-npm install
-npm run dev
-npm run lint
+npm ci
+npm run dev -- --host 127.0.0.1 --port 5174
+```
+
+Create an ignored, owner-readable `.dev.vars` with server settings:
+
+```dotenv
+BUZZ_API=http://127.0.0.1:5174
+BUZZ_OPENCLAW_URL=http://127.0.0.1:18790
+BUZZ_OPENCLAW_TOKEN=<native gateway token>
+BUZZ_OPENCLAW_AGENT=main
+BUZZ_RUNNER_TOKEN=<random runner secret>
+BUZZ_VLLM_URL=http://127.0.0.1:8000/v1
+BUZZ_MODEL=holo
+BUZZ_EMBED_URL=http://127.0.0.1:8001/v1
+BUZZ_EMBED_MODEL=embed
+BUZZ_RERANK_URL=http://127.0.0.1:8002
+BUZZ_RERANK_MODEL=rerank
+BUZZ_CONCURRENCY=1
+```
+
+Optional `BUZZ_VLLM_TOKEN`, `BUZZ_EMBED_TOKEN` and `BUZZ_RERANK_TOKEN` authenticate the corresponding local service. The `BUZZ_` prefix is retained for existing installations. Never put credentials in client code or Git.
+
+After the web app initializes its database, apply migrations and start the runner with the same environment:
+
+```sh
+python3 scripts/migrate-local.py
+node --env-file=.dev.vars runner/buzz-runner.mjs
+```
+
+The migration script backs up an existing local SQLite database before changing it. Persistent deployments use dedicated systemd user services for the web app, runner and native approval bridge. The parent workspace's `runtime/install-local.py` installs the web/runner services beside a configured local sandbox.
+
+## Working demo paths
+
+- Chat and tasks save messages, run attempts, outcomes and context packets in D1.
+- Text/Markdown/code documents are stored in R2, chunked and embedded locally. Retrieval combines keyword and vector candidates, then locally reranks them. Classification, collection, audience and named-agent grants filter candidates before ranking.
+- Data shows keyword-only ingestion if embeddings are unavailable. PDF/DOCX extraction is not implemented.
+- Native command requests appear in Inbox/Workflows with their exact command and working directory. The host bridge forwards explicit human decisions to OpenClaw. A decision receipt records permission; execution must still be verified from the native result/artifact.
+- Queued work survives runner restart. An expired in-flight lease becomes a visible failure so potentially completed side effects are not blindly replayed.
+- `GET /api/runtime` reports observed model and gateway availability.
+
+## Validation and scope
+
+```sh
 npx tsc --noEmit
 npm run build
 ```
 
-## Workspace
+The demo is for one trusted operator, bound to loopback and accessed remotely through SSH. Production multiuser authentication, cross-node scheduling, external app connectors, voice/video transport and executable workflow templates remain future work. Native child agents receive the coordinator's bounded evidence packet; they do not yet have a separate per-child retrieval API. Local browser notes/preferences and workflow templates are separate from the shared backend records above.
 
-Channels, DMs, threads, reactions, workspace search, room-specific notes, Inbox, Habitats for compute and editable agents, classified Data collections, huddles and settings. People and agents share the member directory, profile controls and mention composer. Agent avatars reflect real runtime activity: idle, sleeping, thinking or stuck. The thinking bubble enters and exits with that activity.
+The repository's upstream UI is reviewed separately from runtime changes. Do not replace the durable backend with an upstream mock or browser-only state implementation when updating presentation components.
 
-Habitats offers one fixed Holo setup with NemoClaw, OpenClaw and OpenShell. The Dell illustration appears only inside its card. Setup is idempotent and its status comes from the connected Dell.
+## Vercel frontend
 
-## Verified inference
+`npm run build:vercel` builds the current Shoal UI for Vercel. Set server-side
+`SHOAL_BACKEND_URL` to the hosted workspace API origin when available, and
+`SHOAL_BACKEND_TOKEN` if that ingress requires a bearer token. Both are deliberately
+unset for now. The API returns a clear 503 until the origin is configured.
+The URL must point to the shared workspace service with `/api/state`, not an inference endpoint.
 
-The configured Dell serves **Hcompany/Holo-3.1-35B-A3B-NVFP4** through:
+The Next proxy forwards API requests, uploaded files, and event responses to that
+backend. Vinext builds retain the native D1/R2 routes using a build-time flag;
+they do not pass through this proxy. Keep the existing backend database and runner
+when connecting the frontend. If an ingress bearer and the runner bearer are different,
+configure ingress auth separately instead of replacing the runner Authorization header.
 
-`Shoal → authenticated gateway → OpenClaw in OpenShell → inference.local → Holo vLLM`
+The merge retains Habitats, the security-depth Data canvas, the minimal navigation,
+and the four-state avatar system. Agent edits/deletion and document grants are shared
+backend mutations. An unconfigured backend is never replaced with simulated replies.
 
-NemoClaw manages the sandbox and inference configuration. An independent verifier correlated a unique correct response with OpenClaw, OpenShell and Holo logs. Real DM context recall and channel @agent responses also passed through the published app. See [verification](docs/HOLO_RUNTIME_VERIFICATION.md).
-
-Server-only settings are `GB10_CHAT_URL`, `GB10_API_KEY` and `GB10_MODEL=openclaw/default`. That model value targets the OpenClaw agent; the underlying model remains Holo. Local development reads ignored `.dev.vars`; the original Sites deployment uses its environment settings; Vercel uses server environment variables configured by the backend workstation. Optional cloud homes require `CLOUD_CHAT_URL`, `CLOUD_API_KEY`, `CLOUD_MODEL` and `CLOUD_HOME_ID`. Keep credentials out of client code and Git.
-
-`GET /api/runtime` checks actual runtime health. `GET/POST /api/compute/setup` reads or starts the fixed setup. The public-facing gateway exposes only authenticated setup status/start, model discovery, health and chat. OpenClaw administration remains private.
-
-## Current limits
-
-Workspace messages, identities, notes and preferences persist in browser localStorage; this is not shared multiuser storage. Data and feature-page records remain local browser state. Access labels and approvals are configuration, not service-level authorization. Voice/video transport and workflow execution are not connected. The original Sites deployment remains owner-private. The Vercel frontend preview is public and does not contain backend credentials.
-
-[UI verification](docs/QA.md) records the independent screen review and its limits. [Buzz review](docs/BUZZ_REVIEW.md) records the reference study. Third-party notices preserve the original licenses.
-
-## Vercel
-
-Use the existing repository with the Next.js preset; `vercel.json` sets `npm run build:vercel`. The original Sites/Vinext build remains available as `npm run build`. `npm run dev:vercel` starts the Next.js preview. Vercel environment bindings are server-only and handled by the existing route contracts. Agent backend configuration is owned by the parallel backend workstation.
-
-The frontend includes Habitats (compute and agents together), draggable security depths. Deep Dive code and generated assets are retained for later chat integration; it is not an active navigation tab. Workspace browser storage remains local; it is not shared team persistence. The Vercel anonymous deployment is temporary and must be claimed by an account for continued hosting. Never commit `.vercel/anonymous.json` or its claim URL.
+The [integration notes](docs/BACKEND_MERGE.md) describe preserved UI behavior,
+shared API changes, and the deliberately unconfigured hosted-backend connection.

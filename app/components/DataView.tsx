@@ -1,3 +1,5 @@
+import { buzz, useBuzz, apply } from "@/lib/buzz/store";
+import type { DocumentRecord } from "@/lib/buzz/types";
 import { useAgentMembers } from "@/lib/workspace-members";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import "./data-reef.css";
@@ -51,6 +53,10 @@ type DataItem = {
   agents: string[];
   example?: boolean;
   file?: File;
+  mime: string;
+  status: DocumentRecord["status"];
+  chunkCount: number;
+  error?: string | null;
   path?: string;
 };
 type Props = { onNotify?: (message: string) => void };
@@ -74,86 +80,6 @@ const audienceOptions = [
   "Leadership",
   "Finance",
 ];
-const seeds: DataItem[] = [
-  {
-    id: "ex-1",
-    name: "Meridian company handbook.pdf",
-    size: 2840000,
-    type: "PDF",
-    collection: "Company knowledge",
-    level: "Internal",
-    updated: "2026-09-11",
-    owner: "Maya Chen",
-    audiences: ["Everyone in workspace"],
-    agents: ["Atlas · local", "Quill · cloud"],
-    example: true,
-  },
-  {
-    id: "ex-2",
-    name: "Platform architecture.md",
-    size: 24800,
-    type: "Markdown",
-    collection: "Engineering",
-    level: "Confidential",
-    updated: "2026-09-11",
-    owner: "Alex Rivera",
-    audiences: ["Engineering"],
-    agents: ["Atlas · local"],
-    example: true,
-  },
-  {
-    id: "ex-3",
-    name: "Customer onboarding playbook.pdf",
-    size: 1420000,
-    type: "PDF",
-    collection: "Customer operations",
-    level: "Internal",
-    updated: "2026-09-10",
-    owner: "Sam Taylor",
-    audiences: ["Customer operations"],
-    agents: ["Atlas · local", "Quill · cloud"],
-    example: true,
-  },
-  {
-    id: "ex-4",
-    name: "Q4 operating plan.xlsx",
-    size: 386000,
-    type: "Spreadsheet",
-    collection: "Business & finance",
-    level: "Restricted",
-    updated: "2026-09-09",
-    owner: "Maya Chen",
-    audiences: ["Leadership", "Finance"],
-    agents: ["Atlas · local"],
-    example: true,
-  },
-  {
-    id: "ex-5",
-    name: "Brand guidelines.pdf",
-    size: 4200000,
-    type: "PDF",
-    collection: "Company knowledge",
-    level: "Public",
-    updated: "2026-09-08",
-    owner: "Jamie Park",
-    audiences: ["Everyone in workspace"],
-    agents: ["Atlas · local", "Scout · local", "Quill · cloud"],
-    example: true,
-  },
-  {
-    id: "ex-6",
-    name: "API reference.json",
-    size: 164000,
-    type: "JSON",
-    collection: "Engineering",
-    level: "Internal",
-    updated: "2026-09-07",
-    owner: "Alex Rivera",
-    audiences: ["Engineering"],
-    agents: ["Atlas · local", "Scout · local"],
-    example: true,
-  },
-];
 function bytes(n: number) {
   return n < 1000
     ? `${n} B`
@@ -164,7 +90,7 @@ function bytes(n: number) {
 function localOnly(level: Level) {
   return level === "Confidential" || level === "Restricted";
 }
-function kind(file: File) {
+function kind(file: {name: string}) {
   return (
     (
       {
@@ -182,6 +108,11 @@ function kind(file: File) {
       } as Record<string, string>
     )[file.name.split(".").pop()?.toLowerCase() || ""] || "File"
   );
+}
+function textLike(item: DataItem) { return item.mime.startsWith("text/") || /\.(md|txt|csv|json|yaml|yml|log|xml|html|js|ts|py|css|sql)$/i.test(item.name); }
+function documentState(item: DataItem) {
+  if (item.status === "ready") return item.chunkCount ? `Indexed · ${item.chunkCount} chunks` : "Indexed";
+  return ({received:"Received",extracting:"Extracting text…",indexing:"Indexing…",failed:"Stored · not searchable",stale:"Stale · needs reindex"} as const)[item.status];
 }
 function FileGlyph({ type }: { type: string }) {
   const Icon =
@@ -243,8 +174,10 @@ function reefPosition(x: number, y: number, mx: number, my: number): CSSProperti
 export function DataView({ onNotify }: Props) {
   const directoryAgents = useAgentMembers();
   const resolveAgent = (value: string) => directoryAgents.find(member => member.id === value || member.name === value.split(" · ")[0]);
-  const [items, setItems] = useState<DataItem[]>(seeds);
-  const [collections, setCollections] = useState(initialCollections);
+  const { documents, collections: serverCollections } = useBuzz();
+  const items = useMemo<DataItem[]>(() => documents.map(doc => ({ ...doc, type: kind(doc), mime: doc.type, updated: doc.updatedAt, example: false })), [documents]);
+  const [localCollections, setCollections] = useState(initialCollections);
+  const collections = useMemo(() => Array.from(new Set([...serverCollections, ...localCollections])), [serverCollections, localCollections]);
   const collection = "All data";
   const [query, setQuery] = useState("");
   const [levelFilter, setLevelFilter] = useState("All classifications");
@@ -260,6 +193,12 @@ export function DataView({ onNotify }: Props) {
   const [importLevel, setImportLevel] = useState<Level>("Internal");
   const [importCollection, setImportCollection] = useState("Company knowledge");
   const [importError, setImportError] = useState("");
+  const [importing, setImporting] = useState(false);
+  const importingRef = useRef(false);
+  const [importAgents, setImportAgents] = useState<string[]>([]);
+  const patchQueue = useRef<Promise<void>>(Promise.resolve());
+  const [patching, setPatching] = useState(false);
+  const pendingPatches = useRef(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<DataItem | null>(null);
   const [previewText, setPreviewText] = useState("");
@@ -282,65 +221,20 @@ export function DataView({ onNotify }: Props) {
     folderInput.current?.setAttribute("directory", "");
   }, [importOpen]);
   useEffect(() => {
-    if (!previewItem?.file) return;
-    let stopped = false;
-    const file = previewItem.file;
-    if (/^image\/(png|jpeg|webp|gif|avif)$/.test(file.type) || file.type === "application/pdf") {
-      return;
-    }
-    if (
-      file.type.startsWith("text/") ||
-      /\.(md|txt|csv|json|yaml|yml|log|xml|html|js|ts|py|css|sql)$/i.test(file.name)
-    ) {
-      file
-        .slice(0, 64000)
-        .text()
-        .then((text) => {
-          if (!stopped)
-            setPreviewText(
-              text + (file.size > 64000 ? "\n\n— Preview limited to the first 64 KB —" : ""),
-            );
-        })
-        .catch(() => {
-          if (!stopped)
-            setPreviewText("This file could not be read. Download your local copy to open it.");
-        })
-        .finally(() => {
-          if (!stopped) setPreviewLoading(false);
-        });
-    }
-    return () => {
-      stopped = true;
-    };
+    if (!previewItem || !textLike(previewItem)) return;
+    const controller = new AbortController();
+    fetch(buzz.documentUrl(previewItem.id), {signal: controller.signal}).then(response => {
+      if (!response.ok) throw new Error("File preview unavailable.");
+      return response.text();
+    }).then(text => { if (!controller.signal.aborted) setPreviewText(text.slice(0,64000) + (text.length > 64000 ? "\n\n— Preview limited to the first 64 KB —" : "")); })
+      .catch(() => { if (!controller.signal.aborted) setPreviewText("This file could not be read. Download it to open it."); })
+      .finally(() => { if (!controller.signal.aborted) setPreviewLoading(false); });
+    return () => controller.abort();
   }, [previewItem]);
-  const previewObjectUrl = useRef<string | null>(null);
-  useEffect(
-    () => () => {
-      if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
-    },
-    [],
-  );
   const openPreview = (item: DataItem | null) => {
-    if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
-    previewObjectUrl.current = null;
-    setPreviewText("");
-    setPreviewUrl("");
-    setPreviewLoading(false);
-    const file = item?.file;
-    if (
-      file &&
-      (/^image\/(png|jpeg|webp|gif|avif)$/.test(file.type) || file.type === "application/pdf")
-    ) {
-      const url = URL.createObjectURL(file);
-      previewObjectUrl.current = url;
-      setPreviewUrl(url);
-    } else if (
-      file &&
-      (file.type.startsWith("text/") ||
-        /\.(md|txt|csv|json|yaml|yml|log|xml|html|js|ts|py|css|sql)$/i.test(file.name))
-    ) {
-      setPreviewLoading(true);
-    }
+    setPreviewText(""); setPreviewUrl(""); setPreviewLoading(false);
+    if (item && (/^image\/(png|jpeg|webp|gif|avif)$/.test(item.mime) || item.mime === "application/pdf")) setPreviewUrl(buzz.documentUrl(item.id) + "&preview=1");
+    else if (item && textLike(item)) setPreviewLoading(true);
     setPreviewItem(item);
   };
   const visible = useMemo(
@@ -362,13 +256,15 @@ export function DataView({ onNotify }: Props) {
     [items, collection, levelFilter, query, sort],
   );
   const startImport = () => {
+    if (importingRef.current) return;
     setPendingFiles([]);
+    setImportAgents([]);
     setImportError("");
     setImportCollection(collection === "All data" ? collections[0] : collection);
     setImportOpen(true);
   };
   const receiveFiles = (files: FileList | File[] | null) => {
-    if (!files?.length) return;
+    if (!files?.length || importingRef.current) return;
     // Classification is selected in the import dialog before any local item is created.
     // Keep the current collection when a drop starts from a filtered collection.
     if (!importOpen) setImportCollection(collection === "All data" ? collections[0] : collection);
@@ -376,37 +272,42 @@ export function DataView({ onNotify }: Props) {
     setImportError("");
     setImportOpen(true);
   };
-  const finishImport = () => {
-    if (!pendingFiles.length) {
-      setImportError("Choose at least one file to add.");
-      return;
-    }
-    const newItems: DataItem[] = pendingFiles.map((file, index) => ({
-      id: `local-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
-      name: file.name,
-      size: file.size,
-      type: kind(file),
-      collection: importCollection,
-      level: importLevel,
-      updated: new Date().toISOString(),
-      owner: "You",
-      audiences:
-        importLevel === "Public" || importLevel === "Internal" ? ["Everyone in workspace"] : [],
-      agents: [],
-      file,
-      path: file.webkitRelativePath,
-    }));
-    setItems((current) => [...newItems, ...current]);
-    setLevelFilter("All classifications");
-    setQuery("");
-    setImportOpen(false);
-    setPendingFiles([]);
-    notify(`${newItems.length} ${newItems.length === 1 ? "file added" : "files added"}.`);
+  const finishImport = async () => {
+    if (importingRef.current) return;
+    if (!pendingFiles.length) { setImportError("Choose at least one file to add."); return; }
+    const grants = importAgents.filter(id => { const member = resolveAgent(id); return member && levels.indexOf(member.accessLevel) >= levels.indexOf(importLevel) && (!localOnly(importLevel) || member.runtime === "local"); });
+    if (importLevel === "Restricted" && !grants.length) { setImportError("Choose at least one member with Restricted clearance."); return; }
+    importingRef.current = true; setImporting(true); setImportError("");
+    const failed: File[] = []; const failures: string[] = []; let added = 0;
+    try {
+      for (const file of pendingFiles) {
+        try {
+          const doc = await buzz.importDocument(file, {collection: importCollection, level: importLevel, owner: "you", audiences: localOnly(importLevel) ? [] : ["Everyone in workspace"], agents: grants});
+          added++;
+          if (doc.status === "failed" || doc.error) notify(`${file.name}: ${doc.error || "Stored, but not searchable."}`);
+        } catch (error) { failed.push(file); failures.push(`${file.name}: ${error instanceof Error ? error.message : "Import failed."}`); }
+      }
+      setPendingFiles(failed);
+      if (failed.length) setImportError(failures.join("\n")); else setImportOpen(false);
+      setLevelFilter("All classifications"); setQuery("");
+      if (added) notify(`${added} ${added === 1 ? "file added" : "files added"}.`);
+    } finally { importingRef.current = false; setImporting(false); }
   };
-  const patchItem = (id: string, patch: Partial<DataItem>) =>
-    setItems((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  const patchItem = (id: string, patch: Partial<DataItem>) => {
+    pendingPatches.current++; setPatching(true);
+    const fields = Object.fromEntries(Object.entries(patch).filter(([key]) => ["level", "collection", "agents", "audiences"].includes(key)));
+    const job = patchQueue.current.then(async () => {
+      const response = await fetch('/api/documents', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id,...fields})});
+      const value: unknown = await response.json();
+      if (!response.ok || !value || typeof value !== 'object' || !('document' in value)) throw new Error(value && typeof value === 'object' && 'error' in value && typeof value.error === 'string' ? value.error : 'Could not update document permissions.');
+      const document = value.document as DocumentRecord;
+      apply([{seq:0,ts:document.updatedAt,type:'document.updated',payload:{document}}]);
+    });
+    patchQueue.current = job.catch(error => notify(error instanceof Error ? error.message : "Could not update source.")).finally(() => { pendingPatches.current--; setPatching(pendingPatches.current > 0); });
+    return job;
+  };
   const changeLevel = (item: DataItem, level: Level) => {
-    patchItem(item.id, {
+    void patchItem(item.id, {
       level,
       agents: item.agents.flatMap(value => {
         const agent = resolveAgent(value);
@@ -415,20 +316,15 @@ export function DataView({ onNotify }: Props) {
       audiences: localOnly(level)
         ? item.audiences.filter((a) => a !== "Everyone in workspace")
         : item.audiences,
-    });
-    notify(`Classification updated to ${level}.`);
+    }).then(() => notify(`Classification updated to ${level}.`)).catch(() => {});
   };
   const download = (item: DataItem) => {
-    if (!item.file) return;
-    const url = URL.createObjectURL(item.file);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = item.name;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    notify("Downloaded your local file copy.");
+    const anchor = document.createElement("a"); anchor.href = buzz.documentUrl(item.id); anchor.download = item.name;
+    document.body.appendChild(anchor); anchor.click(); anchor.remove(); notify("Download started.");
+  };
+  const remove = async (item: DataItem) => {
+    try { await buzz.deleteDocument(item.id); setSelectedId(null); if (connectedId === item.id) setConnectedId(null); notify("Source removed."); }
+    catch(error) { notify(error instanceof Error ? error.message : "Could not remove source."); }
   };
   const addCollection = () => {
     const name = newCollection.trim();
@@ -490,12 +386,11 @@ export function DataView({ onNotify }: Props) {
   const toggleConnection = (agent: (typeof directoryAgents)[number]) => {
     if (!connectedItem || !canUse(agent, connectedItem.level)) return;
     const isLinked = connectedItem.agents.some(value => resolveAgent(value)?.id === agent.id);
-    patchItem(connectedItem.id, {
+    void patchItem(connectedItem.id, {
       agents: isLinked
         ? connectedItem.agents.filter(value => resolveAgent(value)?.id !== agent.id)
         : [...connectedItem.agents.filter(value => resolveAgent(value)?.id !== agent.id), agent.id],
-    });
-    notify(`${agent.name} ${isLinked ? "removed from" : "added to"} this file’s access settings.`);
+    }).then(() => notify(`${agent.name} ${isLinked ? "removed from" : "added to"} this file’s access settings.`)).catch(() => {});
   };
 
   return (
@@ -521,7 +416,23 @@ export function DataView({ onNotify }: Props) {
       } />
       <section className="reef-workspace" aria-label="Security reef">
         <div className={`reef-world ${connectedItem ? "has-connection" : ""}`}>
-          <div className="reef-canvas">
+          <div className={`reef-agent-bank ${connectedItem ? "is-editing" : ""} ${accessPreviewLevel ? "is-previewing" : ""}`} data-preview-level={accessPreviewLevel || undefined}>
+            <div className="reef-agent-context" aria-live="polite"><Link2 size={15}/>{accessPreviewLevel ? <span>Eligible at {accessPreviewLevel}</span> : connectedItem ? <><span>{connectedItem.name}</span><button className="reef-icon-button" aria-label="Close agent connections" onClick={() => setConnectedId(null)}><X size={15}/></button></> : <span>Choose a file’s <Link2 size={13}/> to connect its agents</span>}</div>
+            <div className="reef-agent-dock">
+              {directoryAgents.map(agent => {
+                const eligible = !!connectedItem && canUse(agent, connectedItem.level);
+                const assigned = !!connectedItem?.agents.some(value => resolveAgent(value)?.id === agent.id) && eligible;
+                const previewEligible = accessPreviewLevel ? canUse(agent, accessPreviewLevel) : null;
+                const highlighted = previewEligible ?? assigned;
+                const locked = previewEligible === false || (!accessPreviewLevel && !!connectedItem && !eligible);
+                return <button key={agent.id} className={`reef-agent ${highlighted ? "is-assigned" : ""} ${previewEligible === true ? "is-preview-eligible" : previewEligible === false ? "is-preview-blocked" : ""}`} disabled={patching || !!accessPreviewLevel || !eligible} aria-pressed={assigned} onClick={() => toggleConnection(agent)} title={accessPreviewLevel ? `${agent.name}: ${previewEligible ? "eligible" : "not eligible"} at ${accessPreviewLevel}` : connectedItem ? eligible ? `${assigned ? "Remove" : "Allow"} ${agent.name} for ${connectedItem.name}` : `${agent.name}: insufficient clearance or cloud runtime` : `${agent.name} · ${agent.accessLevel} · ${agent.runtime}`}>
+                  <span className="reef-agent-portrait"><AgentAvatar identityKey={agent.id} character={agent.character} label={agent.name} size={52}/>{highlighted ? <span className="reef-agent-check"><Check size={12}/></span> : locked ? <span className="reef-agent-lock"><LockKeyhole size={11}/></span> : null}</span><span>{agent.name}</span><small>{agent.runtime === "local" ? <HardDrive size={10}/> : <Cloud size={10}/>} {agent.runtime}</small>
+                </button>;
+              })}
+              {!directoryAgents.length && <span className="reef-no-agents">Add members in Habitats to configure access.</span>}
+            </div>
+          </div>
+          <div className="reef-canvas" onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropLevel(null); }}>
             <div className="reef-map-caption"><span>OPEN WATER</span><span>DEEPER = MORE PRIVATE <ArrowRight size={12}/></span></div>
             {([false, true] as const).map(mobile => (
               <svg key={String(mobile)} className={`reef-map ${mobile ? "reef-map-mobile" : "reef-map-desktop"}`} viewBox={mobile ? "0 0 400 1000" : "0 0 1000 600"} preserveAspectRatio="none" aria-hidden="true">
@@ -535,7 +446,7 @@ export function DataView({ onNotify }: Props) {
                 if (!connectedItem?.agents.some(value => resolveAgent(value)?.id === agent.id) || !canUse(agent, connectedItem.level)) return null;
                 const x = connectedPosition.spot[0] * 10, y = connectedPosition.spot[1] * 6;
                 const target = ((index + .5) / directoryAgents.length) * 900 + 50;
-                return <path key={agent.id} d={`M ${x} ${y + 30} C ${x} ${y + 135}, ${target} 510, ${target} 600`} />;
+                return <path key={agent.id} d={`M ${x} ${y - 30} C ${x} ${y - 100}, ${target} 90, ${target} 0`} />;
               })}
             </svg>
             {levels.map(level => {
@@ -562,30 +473,15 @@ export function DataView({ onNotify }: Props) {
             {!visible.length && <div className="reef-no-results"><Search size={22}/><strong>{query || levelFilter !== "All classifications" ? "No matching files" : "Make this water yours"}</strong><button className="btn btn-secondary" onClick={() => { if(query || levelFilter !== "All classifications") { setQuery(""); setLevelFilter("All classifications"); } else startImport(); }}>{query || levelFilter !== "All classifications" ? "Clear filters" : "Add data"}</button></div>}
             {(dragging || draggedId) && <div className="reef-drop-instruction"><UploadCloud size={16}/>{dropLevel ? `Release into ${dropLevel}` : "Drop into a security depth"}</div>}
           </div>
-          <div className={`reef-agent-bank ${connectedItem ? "is-editing" : ""} ${accessPreviewLevel ? "is-previewing" : ""}`} data-preview-level={accessPreviewLevel || undefined}>
-            <div className="reef-agent-context" aria-live="polite"><Link2 size={15}/>{accessPreviewLevel ? <span>Eligible at {accessPreviewLevel}</span> : connectedItem ? <><span>{connectedItem.name}</span><button className="reef-icon-button" aria-label="Close agent connections" onClick={() => setConnectedId(null)}><X size={15}/></button></> : <span>Choose a file’s <Link2 size={13}/> to connect its agents</span>}</div>
-            <div className="reef-agent-dock">
-              {directoryAgents.map(agent => {
-                const eligible = !!connectedItem && canUse(agent, connectedItem.level);
-                const assigned = !!connectedItem?.agents.some(value => resolveAgent(value)?.id === agent.id) && eligible;
-                const previewEligible = accessPreviewLevel ? canUse(agent, accessPreviewLevel) : null;
-                const highlighted = previewEligible ?? assigned;
-                const locked = previewEligible === false || (!accessPreviewLevel && !!connectedItem && !eligible);
-                return <button key={agent.id} className={`reef-agent ${highlighted ? "is-assigned" : ""} ${previewEligible === true ? "is-preview-eligible" : previewEligible === false ? "is-preview-blocked" : ""}`} disabled={!!accessPreviewLevel || !eligible} aria-pressed={assigned} onClick={() => toggleConnection(agent)} title={accessPreviewLevel ? `${agent.name}: ${previewEligible ? "eligible" : "not eligible"} at ${accessPreviewLevel}` : connectedItem ? eligible ? `${assigned ? "Remove" : "Allow"} ${agent.name} for ${connectedItem.name}` : `${agent.name}: insufficient clearance or cloud runtime` : `${agent.name} · ${agent.accessLevel} · ${agent.runtime}`}>
-                  <span className="reef-agent-portrait"><AgentAvatar identityKey={agent.id} character={agent.character} label={agent.name} size={52}/>{highlighted ? <span className="reef-agent-check"><Check size={12}/></span> : locked ? <span className="reef-agent-lock"><LockKeyhole size={11}/></span> : null}</span><span>{agent.name}</span><small>{agent.runtime === "local" ? <HardDrive size={10}/> : <Cloud size={10}/>} {agent.runtime}</small>
-                </button>;
-              })}
-              {!directoryAgents.length && <span className="reef-no-agents">Add members in Habitats to configure access.</span>}
-            </div>
-          </div>
         </div>
-        <footer className="reef-footer"><span><span className="reef-drag-cursor" aria-hidden="true">↗</span> Drag to change security <span aria-hidden="true">·</span> Click to manage</span><span><HardDrive size={12}/> Browser only · not indexed</span></footer>
+        <footer className="reef-footer"><span><span className="reef-drag-cursor" aria-hidden="true">↗</span> Drag to change security <span aria-hidden="true">·</span> Click to manage</span><span><HardDrive size={12}/> Workspace documents</span></footer>
       </section>
       <output className="data-sr-only" aria-live="polite">{statusMessage}</output>
 
       <Dialog
         open={importOpen}
         onOpenChange={(open) => {
+          if (importingRef.current) return;
           setImportOpen(open);
           if (!open) setPendingFiles([]);
         }}
@@ -601,7 +497,7 @@ export function DataView({ onNotify }: Props) {
             className="data-import-form"
             onSubmit={(event) => {
               event.preventDefault();
-              finishImport();
+              void finishImport();
             }}
           >
             <div className="field">
@@ -632,7 +528,7 @@ export function DataView({ onNotify }: Props) {
                       name="import-classification"
                       value={level}
                       checked={importLevel === level}
-                      onChange={() => setImportLevel(level)}
+                      onChange={() => { setImportLevel(level); setImportAgents(current => current.filter(id => { const member = resolveAgent(id); return member && levels.indexOf(member.accessLevel) >= levels.indexOf(level) && (!localOnly(level) || member.runtime === "local"); })); }}
                     />
                     <div>
                       <LevelBadge level={level} />
@@ -643,6 +539,7 @@ export function DataView({ onNotify }: Props) {
                 ))}
               </div>
             </fieldset>
+            <fieldset><legend className="field-label">Member access</legend>{directoryAgents.map(member => <label className="data-checkbox-row" key={member.id}><input type="checkbox" checked={importAgents.includes(member.id)} disabled={importing || levels.indexOf(member.accessLevel) < levels.indexOf(importLevel) || (localOnly(importLevel) && member.runtime === "cloud")} onChange={event => setImportAgents(current => event.target.checked ? [...current,member.id] : current.filter(id => id !== member.id))}/><AgentAvatar identityKey={member.id} character={member.character} label={member.name} size={24}/><span>{member.name}</span></label>)}</fieldset>
             <div className="data-picker-box">
               <UploadCloud size={23} />
               <strong>
@@ -722,13 +619,13 @@ export function DataView({ onNotify }: Props) {
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={() => setImportOpen(false)}
+                disabled={importing} onClick={() => setImportOpen(false)}
               >
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary">
+              <button type="submit" className="btn btn-primary" disabled={importing}>
                 <Plus size={16} />
-                Import
+                {importing ? "Importing…" : "Import"}
               </button>
             </DialogFooter>
           </form>
@@ -751,7 +648,7 @@ export function DataView({ onNotify }: Props) {
                     <DialogTitle>{selected.name}</DialogTitle>
                     <DialogDescription>
                       {selected.type} · {bytes(selected.size)} ·{" "}
-                      {selected.example ? "No file attached" : "Local file"}
+                      {documentState(selected)}
                     </DialogDescription>
                   </div>
                 </div>
@@ -759,9 +656,9 @@ export function DataView({ onNotify }: Props) {
               <div className="data-detail-state">
                 <span className={`data-file-state ${selected.example ? "" : "available"}`}>
                   {selected.example ? <Info size={15} /> : <HardDrive size={15} />}
-                  {selected.example ? "No file attached" : "Local file available — not indexed"}
+                  {documentState(selected)}
                 </span>
-                <span>{selected.example ? "No agent access" : "No network upload"}</span>
+                <span>{selected.error || "Stored in workspace"}</span>
               </div>
               <div className="form-grid">
                 <div className="field">
@@ -771,12 +668,11 @@ export function DataView({ onNotify }: Props) {
                   <SelectField
                     className="select"
                     id="data-detail-collection"
-                    value={selected.collection}
+                    disabled={patching} value={selected.collection}
                     onChange={(event) => {
-                      patchItem(selected.id, {
+                      void patchItem(selected.id, {
                         collection: event.target.value,
-                      });
-                      notify("Collection updated.");
+                      }).then(() => notify("Collection updated.")).catch(() => {});
                     }}
                   >
                     {collections.map((name) => (
@@ -791,7 +687,7 @@ export function DataView({ onNotify }: Props) {
                   <SelectField
                     className="select"
                     id="data-detail-level"
-                    value={selected.level}
+                    disabled={patching} value={selected.level}
                     onChange={(event) => changeLevel(selected, event.target.value as Level)}
                   >
                     {levels.map((level) => (
@@ -819,7 +715,7 @@ export function DataView({ onNotify }: Props) {
                       <input
                         type="checkbox"
                         checked={selected.audiences.includes(audience)}
-                        disabled={localOnly(selected.level) && audience === "Everyone in workspace"}
+                        disabled={patching || localOnly(selected.level) && audience === "Everyone in workspace"}
                         onChange={(event) =>
                           patchItem(selected.id, {
                             audiences: event.target.checked
@@ -839,7 +735,7 @@ export function DataView({ onNotify }: Props) {
                       <input
                         type="checkbox"
                         checked={canUse(agent, selected.level) && selected.agents.some(value => resolveAgent(value)?.id === agent.id)}
-                        disabled={(localOnly(selected.level) && agent.runtime === "cloud") || levels.indexOf(agent.accessLevel) < levels.indexOf(selected.level)}
+                        disabled={patching || (localOnly(selected.level) && agent.runtime === "cloud") || levels.indexOf(agent.accessLevel) < levels.indexOf(selected.level)}
                         onChange={(event) =>
                           patchItem(selected.id, {
                             agents: event.target.checked
@@ -866,16 +762,14 @@ export function DataView({ onNotify }: Props) {
                 <button
                   className="btn data-delete-button"
                   onClick={() => {
-                    setItems((current) => current.filter((item) => item.id !== selected.id));
-                    setSelectedId(null);
-                    notify("Source removed.");
+                    void remove(selected);
                   }}
                 >
                   <Trash2 size={16} />
                   Remove
                 </button>
                 <div>
-                  {selected.file ? (
+                  {!selected.example ? (
                     <>
                       <button
                         className="btn btn-secondary"
@@ -916,12 +810,12 @@ export function DataView({ onNotify }: Props) {
         <DialogContent className="data-dialog data-preview-dialog quality-data-dialog">
           <DialogHeader>
             <DialogTitle>{previewItem?.name}</DialogTitle>
-            <DialogDescription>Local file</DialogDescription>
+            <DialogDescription>Workspace file</DialogDescription>
           </DialogHeader>
           {previewLoading ? (
-            <div className="empty-state">Reading local file…</div>
+            <div className="empty-state">Reading file…</div>
           ) : previewUrl ? (
-            previewItem?.file?.type === "application/pdf" ? (
+            previewItem?.mime === "application/pdf" ? (
               <iframe className="data-pdf-preview" src={previewUrl} title={previewItem.name} />
             ) : (
               <div className="data-image-preview">
@@ -930,12 +824,7 @@ export function DataView({ onNotify }: Props) {
                 <img src={previewUrl} alt={`Preview of ${previewItem?.name}`} />
               </div>
             )
-          ) : previewText ||
-            (previewItem?.file &&
-              (previewItem.file.type.startsWith("text/") ||
-                /\.(md|txt|csv|json|yaml|yml|log|xml|html|js|ts|py|css|sql)$/i.test(
-                  previewItem.file.name,
-                ))) ? (
+          ) : previewText || (previewItem && textLike(previewItem)) ? (
             <pre className="data-text-preview">{previewText || "Empty file"}</pre>
           ) : (
             <div className="empty-state">

@@ -1,4 +1,4 @@
-import type { ChatRuntimeConfig } from './chat-gateway';
+export type ComputeSetupConfig = { GB10_CHAT_URL?: string; GB10_API_KEY?: string };
 
 const model = 'Holo-3.1-35B-A3B · NVFP4';
 const phases = ['not_installed', 'downloading', 'installing', 'starting', 'ready', 'error'];
@@ -6,7 +6,7 @@ const response = (value: unknown, status = 200) => Response.json(value, { status
 
 // The client can start only the fixed, idempotent installation on its configured
 // Dell. Commands, addresses, credentials, and models never come from the request.
-export async function computeSetup(request: Request, config: ChatRuntimeConfig): Promise<Response> {
+export async function computeSetup(request: Request, config: ComputeSetupConfig): Promise<Response> {
   const origin = request.headers.get('Origin');
   if (origin && origin !== new URL(request.url).origin) return response({ error: 'Open setup from your workspace.' }, 403);
   if (!config.GB10_CHAT_URL || !config.GB10_API_KEY) return response({ error: 'The Dell setup service is not connected.' }, 503);

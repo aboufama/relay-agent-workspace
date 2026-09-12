@@ -23,16 +23,11 @@ import {
 } from "@/components/ui/dialog";
 type AccessLevel = "Public" | "Internal" | "Confidential" | "Restricted";
 const accessLevels: AccessLevel[] = ["Public", "Internal", "Confidential", "Restricted"];
-type Character = "worm" | "firefly" | "ladybug" | "caterpillar";
+import { AGENT_CHARACTERS, CHARACTER_NAMES, type AgentCharacter as Character } from '@/lib/agent-characters';
 export type AgentHomeGroups = { localAgents: ReactNode; cloudAgents: ReactNode; localPreview: ReactNode; cloudPreview: ReactNode; localCount: number; cloudCount: number };
 type Props = { onNotify?: (message: string) => void; onNavigate?: (view: string) => void; renderHomes?: (groups: AgentHomeGroups) => ReactNode };
-const characters: Character[] = ["worm", "firefly", "ladybug", "caterpillar"];
-const quirkyNames: Record<Character, string[]> = {
-  worm: ["Professor Wiggles", "Noodle McDoodle", "Sir Squiggle"],
-  firefly: ["Captain Glimmer", "Flicker Pickles", "Doctor Twinkle"],
-  ladybug: ["Dot Comet", "Lady Doodle", "Polka Biscuit"],
-  caterpillar: ["Count Fuzzington", "Munch Sprout", "Fuzzy Waffles"],
-};
+const characters = AGENT_CHARACTERS;
+const quirkyNames = CHARACTER_NAMES;
 function generatedName(character: Character, existing: string[]) {
   const choices = quirkyNames[character];
   const base = choices[Math.floor(Math.random() * choices.length)];
@@ -56,6 +51,7 @@ export function AgentsView({ onNotify, renderHomes }: Props) {
   const [accessLevel, setAccessLevel] = useState<AccessLevel>("Confidential");
   const [instructions, setInstructions] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [newlyCreatedId, setNewlyCreatedId] = useState<string | null>(null);
   const createdCard = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -105,7 +101,8 @@ export function AgentsView({ onNotify, renderHomes }: Props) {
     window.addEventListener("relay:open-agent", onOpenAgent);
     return () => window.removeEventListener("relay:open-agent", onOpenAgent);
   });
-  function saveAgent() {
+  async function saveAgent() {
+    if (saving) return;
     if (!name.trim()) {
       setError("Enter a name.");
       return;
@@ -142,6 +139,11 @@ export function AgentsView({ onNotify, renderHomes }: Props) {
       channels: previous?.channels || [],
       context: previous?.context || [],
       capabilities: previous?.capabilities || [],
+      goal: previous?.goal || "",
+      audiences: previous?.audiences || [],
+      accessPaths: previous?.accessPaths || [],
+      approvalGates: previous?.approvalGates || [],
+      examplePrompts: previous?.examplePrompts || [],
       character,
       homeId,
       accessLevel,
@@ -149,11 +151,15 @@ export function AgentsView({ onNotify, renderHomes }: Props) {
       isNew: previous?.isNew ?? true,
       paused: previous?.paused,
     };
-    upsertWorkspaceMember(next);
-    if (!editingId) setNewlyCreatedId(next.id);
-    setAgentAvatarIdentity(next.id, character);
-    setDialogOpen(false);
-    onNotify?.(editingId ? "Agent saved." : "Agent created.");
+    setSaving(true);
+    try {
+      await upsertWorkspaceMember(next);
+      if (!editingId) setNewlyCreatedId(next.id);
+      setAgentAvatarIdentity(next.id, character);
+      setDialogOpen(false);
+      onNotify?.(editingId ? "Agent saved." : "Agent created.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save agent."); }
+    finally { setSaving(false); }
   }
   const kindOf = (agent: Agent) => homes.find(home => home.id === agent.homeId)?.kind ?? agent.runtime;
   const local = agents.filter(agent => kindOf(agent) !== "cloud");
@@ -211,7 +217,7 @@ export function AgentsView({ onNotify, renderHomes }: Props) {
             className="agent-minimal-form"
             onSubmit={(event) => {
               event.preventDefault();
-              saveAgent();
+              void saveAgent();
             }}
           >
             <div className="agent-editor-identity">
@@ -317,9 +323,9 @@ export function AgentsView({ onNotify, renderHomes }: Props) {
               </p>
             )}
             <DialogFooter>
-              {editingId && <button type="button" className="agent-delete-button" onClick={() => { removeWorkspaceAgent(editingId); setDialogOpen(false); onNotify?.("Agent deleted."); }}>Delete</button>}
-              <button type="submit" className="btn btn-primary">
-                {editingId ? "Save" : "Create"}
+              {editingId && <button type="button" className="agent-delete-button" disabled={saving} onClick={async () => { setSaving(true); try { await removeWorkspaceAgent(editingId); setDialogOpen(false); onNotify?.("Agent deleted."); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not delete agent."); } finally { setSaving(false); } }}>Delete</button>}
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? "Saving…" : editingId ? "Save" : "Create"}
               </button>
             </DialogFooter>
           </form>

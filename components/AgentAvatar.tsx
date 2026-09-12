@@ -2,10 +2,10 @@
 
 import { useSyncExternalStore, type CSSProperties } from 'react';
 
-export type AgentCharacter = 'worm' | 'firefly' | 'ladybug' | 'caterpillar';
+import { type AgentCharacter } from '@/lib/agent-characters';
+export { AGENT_CHARACTERS, type AgentCharacter } from '@/lib/agent-characters';
 export type AgentState = 'idle' | 'sleep' | 'thinking' | 'stuck';
 export type AgentActivity = 'ready' | 'working' | 'blocked' | 'offline' | 'sleeping' | 'paused';
-export const AGENT_CHARACTERS: AgentCharacter[] = ['worm', 'firefly', 'ladybug', 'caterpillar'];
 export const AGENT_STATES: AgentState[] = ['idle', 'sleep', 'thinking', 'stuck'];
 
 type Identity = { character?: AgentCharacter; state?: AgentState; available?: boolean; paused?: boolean };

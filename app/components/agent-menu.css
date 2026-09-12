@@ -15,3 +15,10 @@
 .agent-card-portrait{position:relative;width:120px;max-width:100%;aspect-ratio:1}.agent-card-portrait>.agent-sprite{width:100%!important;height:100%!important}.agent-card-portrait>.agent-thinking-bubble{top:-5px;right:-16px}.agent-paper-worm{--agent-glow:rgb(234 163 105 / 16%)}.agent-paper-firefly{--agent-glow:rgb(224 195 80 / 15%)}.agent-paper-ladybug{--agent-glow:rgb(228 139 150 / 14%)}.agent-paper-caterpillar{--agent-glow:rgb(153 190 108 / 16%)}.buzz-agents-page .buzz-identity-card.agent-paper{background-image:radial-gradient(ellipse 100% 80% at 12px calc(100% - 12px),var(--agent-glow) 0%,transparent 78%)!important}.agent-paper:before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.18;mix-blend-mode:multiply;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='.45'/%3E%3C/svg%3E");mask-image:radial-gradient(ellipse at 0 100%,white 5%,transparent 85%);-webkit-mask-image:radial-gradient(ellipse at 0 100%,white 5%,transparent 85%)}
 
 @keyframes thought-disappear{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(3px) scale(.96)}}
+
+.agent-avatar-choices { flex-wrap:wrap; justify-content:center; width:fit-content; max-width:min(326px,100%); }
+.agent-paper-octopus { --agent-glow:rgb(191 167 215 / 15%); --bubble-background:#eae4f0; }
+.agent-paper-sea-turtle { --agent-glow:rgb(155 189 159 / 15%); --bubble-background:#e1eae2; }
+.agent-paper-seal { --agent-glow:rgb(180 200 207 / 15%); --bubble-background:#e3eaed; }
+.agent-paper-pufferfish { --agent-glow:rgb(236 205 131 / 15%); --bubble-background:#eee9da; }
+.agent-paper-seahorse { --agent-glow:rgb(231 173 137 / 15%); --bubble-background:#f0e3db; }

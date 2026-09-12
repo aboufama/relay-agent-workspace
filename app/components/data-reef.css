@@ -21,7 +21,7 @@
 .reef-intro { display:flex; justify-content:space-between; gap:12px; color:#738c8d; margin:0 3px 14px; font-size:12px; }
 .reef-intro > div { display:flex; align-items:center; gap:8px; }
 .reef-intro > span { white-space:nowrap; color:#8ba0a0; }
-.reef-world { container-type:inline-size; container-name:reef; border-radius:26px; overflow:hidden; background:#f2f7f5; box-shadow:0 0 0 1px #375b5812,0 6px 24px #375b5806; }
+.reef-world { display:flex; flex-direction:column; container-type:inline-size; container-name:reef; border-radius:26px; overflow:hidden; background:#f2f7f5; box-shadow:0 0 0 1px #375b5812,0 6px 24px #375b5806; }
 .reef-canvas { position:relative; width:100%; height:clamp(560px,49vw,680px); isolation:isolate; overflow:hidden; }
 .reef-map { position:absolute; inset:0; width:100%; height:100%; z-index:-2; }
 .reef-map-mobile { display:none; }
@@ -76,10 +76,11 @@
 .reef-document.is-connected .reef-connect-handle::before { background:#457d78; box-shadow:0 0 0 4px #ffffff8f; }
 .reef-connections { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; overflow:visible; }
 .reef-connections path { fill:none; stroke:#4f8e8475; stroke-width:1.8; stroke-dasharray:4 5; vector-effect:non-scaling-stroke; }
-.reef-agent-bank { position:relative; padding:0 28px 17px; background:#f2f7f5; box-shadow:0 -1px #ffffffbd; }
+.reef-agent-bank { order:-1; position:relative; padding:12px 28px 17px; background:#f2f7f5; box-shadow:0 1px #ffffffbd; }
 .reef-agent-context { display:flex; align-items:center; justify-content:center; gap:7px; height:47px; color:#8a9d95; font-size:11px; min-width:0; }
 .reef-agent-context > span { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80%; }
 .reef-agent-bank.is-editing .reef-agent-context { color:#4a7568; }
+.reef-agent-bank:not(.is-editing):not(.is-previewing) .reef-agent-context { display:none; }
 .reef-agent-dock { display:flex; justify-content:space-around; align-items:flex-start; gap:12px; flex-wrap:wrap; }
 .reef-agent { display:flex; flex-direction:column; align-items:center; width:calc((100% - 80px)/6); min-width:63px; max-width:105px; border:0; padding:4px 6px; border-radius:16px; background:transparent; color:#57796d; cursor:pointer; transition:opacity 160ms,background 160ms; }
 .reef-agent:disabled { cursor:default; }
@@ -116,7 +117,7 @@
   .reef-document { width:132px; }
   .reef-document-open > strong { font-size:12px; }
   .reef-connect-handle { right:14px; }
-  .reef-agent-bank { padding:0 13px 18px; }
+  .reef-agent-bank { padding:12px 13px 18px; }
   .reef-agent-dock { gap:10px 3px; }
   .reef-agent { width:calc((100% - 12px)/3); max-width:130px; }
   .reef-agent-context { font-size:10px; }
