@@ -144,3 +144,5 @@
   .shoal-reef-page button:active:not(:disabled) { scale:1; }
   .reef-document:hover .reef-paper,.reef-document:focus-within .reef-paper,.reef-document.is-connected .reef-paper { transform:rotate(0); }
 }
+
+.reef-agent-bank:not(.is-editing):not(.is-previewing) .reef-agent { opacity:1; }
