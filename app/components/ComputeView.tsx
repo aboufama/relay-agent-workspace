@@ -1,6 +1,6 @@
 import "./compute-setup.css";
 import { useEffect, useRef, useState } from "react";
-import { Check, Download, Server } from "lucide-react";
+import { Check, Download } from "lucide-react";
 import { PageHeader } from "@/components/buzz/PageHeader";
 
 const MODEL_LABEL = "Holo-3.1-35B-A3B · NVFP4";
@@ -165,7 +165,7 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
       <PageHeader className="page-heading" title="Compute" />
       <section className="compute-setup-card" aria-label="Dell GB10 setup">
         <header className="compute-setup-heading">
-          <Server size={24} />
+          <img className="compute-dell-icon" src="/compute/dell-icon.png" alt="Dell Pro Max GB10" width={72} height={52} />
           <h2>Dell GB10</h2>
           <output className="compute-setup-state" aria-live="polite">
             {ready && <Check size={14} />} {phaseLabel}
