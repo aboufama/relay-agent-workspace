@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEven
 import {
   ArrowDownToLine,
   ArrowUpRight,
+  Eye,
   Check,
   Cloud,
   File as FileIcon,
@@ -426,7 +427,7 @@ export function DataView({ onNotify }: Props) {
                 const highlighted = previewEligible ?? assigned;
                 const locked = previewEligible === false || (!accessPreviewLevel && !!connectedItem && !eligible);
                 return <button key={agent.id} className={`reef-agent ${highlighted ? "is-assigned" : ""} ${previewEligible === true ? "is-preview-eligible" : previewEligible === false ? "is-preview-blocked" : ""}`} disabled={patching || !!accessPreviewLevel || !eligible} aria-pressed={assigned} onClick={() => toggleConnection(agent)} title={accessPreviewLevel ? `${agent.name}: ${previewEligible ? "eligible" : "not eligible"} at ${accessPreviewLevel}` : connectedItem ? eligible ? `${assigned ? "Remove" : "Allow"} ${agent.name} for ${connectedItem.name}` : `${agent.name}: insufficient clearance or cloud runtime` : `${agent.name} · ${agent.accessLevel} · ${agent.runtime}`}>
-                  <span className="reef-agent-portrait"><AgentAvatar identityKey={agent.id} character={agent.character} label={agent.name} size={52}/>{highlighted ? <span className="reef-agent-check"><Check size={12}/></span> : locked ? <span className="reef-agent-lock"><LockKeyhole size={11}/></span> : null}</span><span>{agent.name}</span><small>{agent.runtime === "local" ? <HardDrive size={10}/> : <Cloud size={10}/>} {agent.runtime}</small>
+                  <span className="reef-agent-portrait"><AgentAvatar identityKey={agent.id} character={agent.character} label={agent.name} size={52}/>{highlighted ? <span className="reef-agent-check"><Eye size={12}/></span> : locked ? <span className="reef-agent-lock"><LockKeyhole size={11}/></span> : null}</span><span>{agent.name}</span><small>{agent.runtime === "local" ? <HardDrive size={10}/> : <Cloud size={10}/>} {agent.runtime}</small>
                 </button>;
               })}
               {!directoryAgents.length && <span className="reef-no-agents">Add members in Habitats to configure access.</span>}

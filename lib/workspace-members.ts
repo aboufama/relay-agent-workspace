@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { buzz, useBuzz } from "@/lib/buzz/store";
 import type { MemberRecord } from "@/lib/buzz/types";
 export type AccessLevel = "Public" | "Internal" | "Confidential" | "Restricted";
-import { AGENT_CHARACTERS, type AgentCharacter } from './agent-characters';
+import { normalizeAgentCharacter, type AgentCharacter } from './agent-characters';
 export type { AgentCharacter } from './agent-characters';
 type MemberBase = { id: string; name: string; initials: string; tone?: string };
 export type HumanMember = MemberBase & { kind: "human" };
@@ -34,7 +34,6 @@ export type AgentMember = MemberBase & {
   paused?: boolean;
 };
 export type WorkspaceMember = HumanMember | AgentMember;
-const characters = AGENT_CHARACTERS;
 const levels: AccessLevel[] = ["Public", "Internal", "Confidential", "Restricted"];
 function text(value: unknown, fallback = "", max = 20000): string {
   return typeof value === "string" ? value.slice(0, max) : fallback;
@@ -67,9 +66,7 @@ function normalize(value: unknown): WorkspaceMember | null {
     kind: "agent",
     runtime,
     homeId: ['studio', 'lab'].includes(String(v.homeId)) ? 'lab' : ['cloud-preview', 'openai-preview'].includes(String(v.homeId)) ? 'openai-preview' : text(v.homeId, '', 100),
-    character: characters.includes(v.character as AgentCharacter)
-      ? (v.character as AgentCharacter)
-      : "worm",
+    character: normalizeAgentCharacter(v.character),
     accessLevel: levels.includes(v.accessLevel as AccessLevel)
       ? (v.accessLevel as AccessLevel)
       : runtime === "cloud"

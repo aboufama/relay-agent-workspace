@@ -1816,7 +1816,7 @@ function Chat({
                 >
                   <AgentAvatar
                     identityKey="atlas"
-                    character="worm"
+                    character="octopus"
                     size={32}
                     label="Atlas"
                   />
@@ -1834,7 +1834,7 @@ function Chat({
                 >
                   <AgentAvatar
                     identityKey="nova"
-                    character="ladybug"
+                    character="seahorse"
                     size={32}
                     label="Nova"
                   />

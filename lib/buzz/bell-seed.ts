@@ -5,7 +5,7 @@ import { embed } from './context';
 export const BELL_COLLECTIONS = demo.collections.map(collection => collection.name);
 const stamp = '2026-09-12T13:00:00.000Z';
 const legacyProfiles = [{"name": "Atlas", "instructions": "You are the engineering specialist. Give precise technical answers, propose small concrete patches or prototypes, and name the files or systems involved."}, {"name": "Sage", "instructions": "You coordinate work. Break objectives into bounded subtasks with owners and acceptance criteria, surface blockers, and keep decisions and open questions explicit."}, {"name": "Nova", "instructions": "You are the product specialist. Write short design briefs: problem, evidence, proposal, open questions. Cite the sources you used."}, {"name": "Iris", "instructions": "You are the support specialist. Prepare sourced customer responses from policy and account evidence. Flag anything that needs human approval before it is sent."}, {"name": "Scout", "instructions": "You research. Compare sources, report findings with citations, and state confidence and gaps."}, {"name": "Ledger", "instructions": "You handle finance questions. Use only evidence at your access level, show the numbers you relied on, and never estimate figures you cannot source."}];
-const characters = ['worm', 'ladybug', 'firefly', 'caterpillar', 'firefly', 'worm'];
+const characters = ['octopus', 'sea-turtle', 'seahorse', 'seal', 'pufferfish', 'octopus'];
 const tones = ['mint', 'gold', 'lilac', 'coral', 'sky', 'slate'];
 const collectionName = (id: string) => demo.collections.find(collection => collection.id === id)!.name;
 const name = (id: string) => [...demo.members, ...demo.agents].find(member => member.id === id)!.name;

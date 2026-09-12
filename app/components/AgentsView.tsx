@@ -46,7 +46,7 @@ export function AgentsView({ onNotify, renderHomes }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [nameCustomized, setNameCustomized] = useState(false);
-  const [character, setCharacter] = useState<Character>("worm");
+  const [character, setCharacter] = useState<Character>("octopus");
   const [homeId, setHomeId] = useState("");
   const [accessLevel, setAccessLevel] = useState<AccessLevel>("Confidential");
   const [instructions, setInstructions] = useState("");
@@ -174,7 +174,7 @@ export function AgentsView({ onNotify, renderHomes }: Props) {
         </button>
         {group.map((agent) => (
           <div
-            className={`buzz-identity-card agent-paper agent-paper-${agent.character || "worm"}${agent.id === newlyCreatedId ? " agent-card-created" : ""}`}
+            className={`buzz-identity-card agent-paper agent-paper-${agent.character || "octopus"}${agent.id === newlyCreatedId ? " agent-card-created" : ""}`}
             ref={agent.id === newlyCreatedId ? createdCard : undefined}
             key={agent.id}
           >
@@ -185,7 +185,7 @@ export function AgentsView({ onNotify, renderHomes }: Props) {
             />
             <div className="buzz-identity-avatar">
               <div className="agent-card-portrait">
-                <AgentAvatar identityKey={agent.id} character={agent.character || "worm"} size={120} label={agent.name} />
+                <AgentAvatar identityKey={agent.id} character={agent.character || "octopus"} size={120} label={agent.name} />
                 <AgentThinkingBubble name={agent.name} agentId={agent.id} />
               </div>
             </div>
@@ -203,7 +203,7 @@ export function AgentsView({ onNotify, renderHomes }: Props) {
           </div>
         ))}
       </div>);
-  const preview = (group: readonly Agent[]) => group.slice(0,4).map(agent => <AgentAvatar key={agent.id} identityKey={agent.id} character={agent.character || "worm"} label={agent.name} size={24} />);
+  const preview = (group: readonly Agent[]) => group.slice(0,4).map(agent => <AgentAvatar key={agent.id} identityKey={agent.id} character={agent.character || "octopus"} label={agent.name} size={24} />);
   return (
     <div className={renderHomes ? "compute-agents-controller" : "page agents-page buzz-agents-page"}>
       {renderHomes ? renderHomes({localAgents: renderGrid(local, "local"), cloudAgents: renderGrid(cloud, "cloud"), localPreview: preview(local), cloudPreview: preview(cloud), localCount: local.length, cloudCount: cloud.length}) : <><PageHeader className="page-heading" title="Agents" />{renderGrid(agents, "local")}</>}

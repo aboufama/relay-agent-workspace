@@ -49,7 +49,7 @@ export function useAgentState(name: string): AgentState {
 
 /** Select a sheet quadrant, then inset its circular portrait without exposing its frame. */
 export function AgentAvatar({
-  character = 'worm', state = 'idle', size = 32, label, identityKey, className = '', preview = false,
+  character = 'octopus', state = 'idle', size = 32, label, identityKey, className = '', preview = false,
 }: {
   character?: AgentCharacter; state?: AgentState; size?: number; label?: string;
   identityKey?: string; className?: string; preview?: boolean;
