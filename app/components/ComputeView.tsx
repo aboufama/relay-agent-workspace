@@ -1,5 +1,5 @@
 import "./compute-setup.css";
-import Image from "next/image";
+import { ComputeIcon } from "@/components/ComputeIcon";
 import { useEffect, useRef, useState } from "react";
 import { Check, Download } from "lucide-react";
 import { PageHeader } from "@/components/buzz/PageHeader";
@@ -164,9 +164,9 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
   return (
     <div className="page compute-setup-page">
       <PageHeader className="page-heading" title="Compute" />
-      <section className="compute-setup-card" aria-label="Dell GB10 setup">
+      <section className="compute-setup-card compute-paper" aria-label="Dell GB10 setup">
         <header className="compute-setup-heading">
-          <Image unoptimized className="compute-dell-icon" src="/compute/dell-icon.png" alt="Dell Pro Max GB10" width={72} height={52} />
+          <ComputeIcon size={116} label="Dell Pro Max GB10" />
           <h2>Dell GB10</h2>
           <output className="compute-setup-state" aria-live="polite">
             {ready && <Check size={14} />} {phaseLabel}

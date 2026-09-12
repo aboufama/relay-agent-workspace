@@ -1,3 +1,4 @@
+import { ComputeIcon } from "@/components/ComputeIcon";
 import { AgentThinkingBubble } from "@/components/AgentThinkingBubble";
 import {
   useAgentMembers,
@@ -8,7 +9,7 @@ import {
 import { SelectField } from "@/components/SelectField";
 // Identity-card layout adapted from block/buzz; see third-party notices.
 import { useEffect, useRef, useState } from "react";
-import { Cloud, Database, Plus } from "lucide-react";
+import { Cloud, Plus } from "lucide-react";
 import { AgentAvatar, setAgentAvatarIdentity } from "@/components/AgentAvatar";
 import { useAgentHomes } from "@/lib/agent-homes";
 import { PageHeader } from "@/components/buzz/PageHeader";
@@ -188,7 +189,7 @@ export function AgentsView({ onNotify }: Props) {
                 {agent.runtime === "cloud" ? (
                   <Cloud size={16} aria-label="Cloud" />
                 ) : (
-                  <Database size={16} aria-label="Local" />
+                  <ComputeIcon size={21} label="Local compute" />
                 )}
               </strong>
             </div>

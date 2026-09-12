@@ -7,6 +7,7 @@ import { HuddlesView } from './components/HuddlesView';
 import { useWorkspaceMembers, type WorkspaceMember, type AgentMember } from '@/lib/workspace-members';
 import { LiveComposer, type ComposerHandle } from './LiveComposer';
 import './live-chat.css';
+import { ComputeIcon } from '@/components/ComputeIcon';
 import { MemberAvatar } from '@/components/MemberAvatar';
 import { useAgentHomes } from '@/lib/agent-homes';
 import './chat-quality.css';
@@ -25,7 +26,6 @@ import {
   ChevronDown,
   ChevronRight,
   CircleHelp,
-  Cpu,
   Database,
   FileText,
   Hash,
@@ -795,7 +795,7 @@ export function Workspace() {
             {nav(<Inbox size={17} />, 'Inbox', 'inbox')}
             {nav(<Bot size={17} />, 'Agents', 'agents')}
             {nav(<Database size={17} />, 'Data', 'data')}
-            {nav(<Cpu size={17} />, 'Compute', 'compute')}
+            {nav(<ComputeIcon size={24} />, 'Compute', 'compute')}
           </SidebarMenu>
           <div className="rail-section-label">
             <span>CHANNELS</span>
@@ -863,7 +863,7 @@ export function Workspace() {
         </NavigationContent>
         <SidebarFooter className="rail-footer">
           <button className="compute-mini" onClick={() => navigate('compute')}>
-            <Cpu size={17} className="compute-chip" />
+            <ComputeIcon size={32} className="compute-chip" />
             <span>
               <strong>Dell GB10</strong>
               <small>
