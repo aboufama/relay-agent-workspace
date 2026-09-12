@@ -1,0 +1,4 @@
+Tool: built-in image_gen, edit mode.
+Source: public/agents/octopus.png.
+
+Use case: background-extraction. Input image is the Shoal purple octopus avatar sprite sheet. Extract ONLY the cheerful awake octopus in the TOP LEFT quadrant as a single large centered isolated character on a genuinely transparent alpha PNG. Keep its cute oversized lavender head, glossy eyes, tiny smile, rosy cheek freckles, claymation texture and little curling tentacles unchanged in likeness. Show the complete cute character with all its top-left tentacles, no cut-off edges. Remove the blue background and ground shadow entirely. No circle, no frame, no border, no text, no other poses, no duplicates, no painted checkerboard. Clean antialiased edges, square slide-ready image, small transparent margin all around. Preserve reference colors and soft lighting.
