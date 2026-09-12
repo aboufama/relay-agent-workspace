@@ -81,8 +81,8 @@ function Home({ name, kind, count, preview, status, actions, setup, children, me
       <button type="button" className="compute-home-disclosure" aria-expanded={open} aria-controls={`${id}-agents`} onClick={() => setOpen(current => !current)}>
         <span className="compute-home-art" aria-hidden="true">
           {kind === 'local'
-            ? <Image src="/compute/dell-icon.png" alt="" width={112} height={112} unoptimized />
-            : <Image src="/compute/cloud-clay.png" alt="" width={112} height={112} unoptimized />}
+            ? <Image src="/compute/dell-shoal.png" alt="" width={112} height={112} unoptimized />
+            : <Image src="/compute/cloud-shoal.png" alt="" width={112} height={112} unoptimized />}
         </span>
         <span className="compute-home-identity">
           <span className="compute-home-name" id={`${id}-name`}>{name}</span>
