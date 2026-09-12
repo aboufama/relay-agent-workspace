@@ -14,7 +14,7 @@ npm run build
 
 ## Workspace
 
-Channels, DMs, threads, reactions, workspace search, room-specific notes, Inbox, Habitats for compute and editable agents, classified Data collections, Deep Dive, huddles and settings. People and agents share the member directory, profile controls and mention composer. Agent avatars reflect real runtime activity: idle, sleeping, thinking or stuck. The thinking bubble enters and exits with that activity.
+Channels, DMs, threads, reactions, workspace search, room-specific notes, Inbox, Habitats for compute and editable agents, classified Data collections, huddles and settings. People and agents share the member directory, profile controls and mention composer. Agent avatars reflect real runtime activity: idle, sleeping, thinking or stuck. The thinking bubble enters and exits with that activity.
 
 Habitats offers one fixed Holo setup with NemoClaw, OpenClaw and OpenShell. The Dell illustration appears only inside its card. Setup is idempotent and its status comes from the connected Dell.
 
@@ -40,4 +40,4 @@ Workspace messages, identities, notes and preferences persist in browser localSt
 
 Use the existing repository with the Next.js preset; `vercel.json` sets `npm run build:vercel`. The original Sites/Vinext build remains available as `npm run build`. `npm run dev:vercel` starts the Next.js preview. Vercel environment bindings are server-only and handled by the existing route contracts. Agent backend configuration is owned by the parallel backend workstation.
 
-The frontend includes Habitats (compute and agents together), draggable security layers, and Deep Dive. Workspace browser storage remains local; it is not shared team persistence. The Vercel anonymous deployment is temporary and must be claimed by an account for continued hosting. Never commit `.vercel/anonymous.json` or its claim URL.
+The frontend includes Habitats (compute and agents together), draggable security depths. Deep Dive code and generated assets are retained for later chat integration; it is not an active navigation tab. Workspace browser storage remains local; it is not shared team persistence. The Vercel anonymous deployment is temporary and must be claimed by an account for continued hosting. Never commit `.vercel/anonymous.json` or its claim URL.

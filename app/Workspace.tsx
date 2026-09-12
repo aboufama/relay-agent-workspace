@@ -67,7 +67,6 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataView } from './components/DataView';
 import { ComputeView } from './components/ComputeView';
-import { DeepDiveView } from './components/DeepDiveView';
 
 type View =
   | 'chat'
@@ -75,7 +74,6 @@ type View =
   | 'agents'
   | 'data'
   | 'compute'
-  | 'deep-dive'
   | 'huddles'
   | 'settings';
 type Message = {
@@ -563,7 +561,6 @@ export function Workspace() {
       'agents',
       'data',
       'compute',
-      'deep-dive',
       'huddles',
       'settings',
     ]);
@@ -592,7 +589,7 @@ export function Workspace() {
                 !allowed.has(next as View)
               )
                 throw new Error('Invalid workspace view');
-              setView((next === 'agents' ? 'compute' : next) as View);
+              setView((next === 'agents' ? 'compute' : next === 'deep-dive' ? 'chat' : next) as View);
               return result({ view: next, localOnly: true });
             },
           },
@@ -629,7 +626,7 @@ export function Workspace() {
   }, []);
   const notify = (message: string) => setToast(message);
   const navigate = (next: string) => {
-    setView((next === 'agents' ? 'compute' : next) as View);
+    setView((next === 'agents' ? 'compute' : next === 'deep-dive' ? 'chat' : next) as View);
   };
   const results = Object.entries(messagesByRoom).filter(([room]) => !room.startsWith('thread:')).flatMap(([room, items]) => items.map(message => ({...message, room}))).filter(message => !search.trim() || `${message.name} ${plainText(message.body)}`.toLowerCase().includes(search.toLowerCase())).slice(-100).reverse();
   function openRoom(name: string) {
@@ -817,7 +814,6 @@ export function Workspace() {
             <span>WORKSPACE</span>
           </div>
           <SidebarMenu>
-            {nav(<Search size={16} />, 'Deep Dive', 'deep-dive')}
             {nav(<Users size={16} />, 'Huddles', 'huddles')}
             {nav(<Settings size={16} />, 'Settings', 'settings')}
           </SidebarMenu>
@@ -887,7 +883,7 @@ export function Workspace() {
             <strong>
               {view === 'chat'
                 ? `${dm ? '@' : '#'} ${channel}`
-                : view === 'deep-dive' ? 'Deep Dive' : view === 'compute' ? 'Habitats' : view[0].toUpperCase() + view.slice(1)}
+                : view === 'compute' ? 'Habitats' : view[0].toUpperCase() + view.slice(1)}
             </strong>
             <span>/</span>
             <span>{workspaceName}</span>
@@ -1560,9 +1556,6 @@ function Chat({
                   <span>6 of 8 tasks</span>
                   <strong>72%</strong>
                 </div>
-                <button className="btn" onClick={() => navigate('deep-dive')}>
-                  Open Deep Dive <ChevronRight size={13} />
-                </button>
               </div>
               <div className="context-note">
                 <ShieldCheck size={14} />
@@ -1661,9 +1654,6 @@ function View({
       </div>
       <div {...hidden('compute')}>
         <ComputeView onNotify={notify} />
-      </div>
-      <div {...hidden('deep-dive')}>
-        <DeepDiveView />
       </div>
       <div {...hidden('huddles')}>
         <HuddlesView />

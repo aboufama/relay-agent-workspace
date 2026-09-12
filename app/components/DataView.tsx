@@ -20,8 +20,6 @@ import {
   Info,
   Link2,
   ArrowRight,
-  SlidersHorizontal,
-  Waves,
   LockKeyhole,
   Plus,
   Search,
@@ -247,13 +245,13 @@ export function DataView({ onNotify }: Props) {
   const resolveAgent = (value: string) => directoryAgents.find(member => member.id === value || member.name === value.split(" · ")[0]);
   const [items, setItems] = useState<DataItem[]>(seeds);
   const [collections, setCollections] = useState(initialCollections);
-  const [collection, setCollection] = useState("All data");
+  const collection = "All data";
   const [query, setQuery] = useState("");
   const [levelFilter, setLevelFilter] = useState("All classifications");
   const [connectedId, setConnectedId] = useState<string | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [levelPages, setLevelPages] = useState<Record<Level, number>>({ Public: 0, Internal: 0, Confidential: 0, Restricted: 0 });
-  const [sort, setSort] = useState("recent");
+  const [sort] = useState("recent");
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const [dropLevel, setDropLevel] = useState<Level | null>(null);
@@ -399,7 +397,6 @@ export function DataView({ onNotify }: Props) {
       path: file.webkitRelativePath,
     }));
     setItems((current) => [...newItems, ...current]);
-    setCollection(importCollection);
     setLevelFilter("All classifications");
     setQuery("");
     setImportOpen(false);
@@ -447,7 +444,6 @@ export function DataView({ onNotify }: Props) {
       return;
     }
     setCollections((current) => [...current, name]);
-    setCollection(name);
     setCollectionOpen(false);
     setNewCollection("");
     notify(`Created ${name}.`);
@@ -518,27 +514,10 @@ export function DataView({ onNotify }: Props) {
     >
       <PageHeader className="page-heading" title="Data" action={
         <div className="data-heading-actions">
-          <button className="btn btn-secondary reef-policy" onClick={() => setPolicyOpen(true)}><ShieldCheck size={16}/><span>Access policy</span></button>
-          <button className="btn btn-primary" onClick={startImport}><Plus size={17}/>Add data</button>
+          <button className="btn btn-secondary reef-policy" aria-label="Access policy" onClick={() => setPolicyOpen(true)}><ShieldCheck size={16}/><span>Access policy</span></button>
         </div>
       } />
       <section className="reef-workspace" aria-label="Security reef">
-        <div className="reef-toolbar">
-          <div className="reef-collection-control">
-            <Folder size={16} aria-hidden="true" />
-            <SelectField aria-label="Data collection" value={collection} onChange={event => setCollection(event.target.value)}>
-              <option>All data</option>
-              {collections.map(name => <option key={name}>{name}</option>)}
-            </SelectField>
-            <button className="reef-icon-button" aria-label="New collection" onClick={() => { setCollectionError(""); setCollectionOpen(true); }}><Plus size={16}/></button>
-          </div>
-          <label className="reef-search"><Search size={17}/><input aria-label="Search knowledge sources" placeholder="Find a file…" value={query} onChange={event => setQuery(event.target.value)}/>{query && <button className="reef-icon-button" aria-label="Clear search" onClick={() => setQuery("")}><X size={14}/></button>}</label>
-          <details className="reef-filters"><summary aria-label="Filter and sort"><SlidersHorizontal size={17}/><span>Refine</span></summary><div>
-            <SelectField aria-label="Filter classification" value={levelFilter} onChange={event => setLevelFilter(event.target.value)}><option>All classifications</option>{levels.map(level => <option key={level}>{level}</option>)}</SelectField>
-            <SelectField aria-label="Sort files" value={sort} onChange={event => setSort(event.target.value)}><option value="recent">Recently added</option><option value="name">Name A–Z</option><option value="size">Largest first</option></SelectField>
-          </div></details>
-        </div>
-        <div className="reef-intro"><div><Waves size={17}/><span>Security depths</span></div><span>{visible.length} files <span aria-hidden="true">·</span> {bytes(visible.reduce((sum, file) => sum + file.size, 0))}</span></div>
         <div className={`reef-world ${connectedItem ? "has-connection" : ""}`}>
           <div className="reef-canvas">
             <div className="reef-map-caption"><span>OPEN WATER</span><span>DEEPER = MORE PRIVATE <ArrowRight size={12}/></span></div>
