@@ -31,3 +31,9 @@ React packages were updated together to 19.2.8 for [the published server-functio
 Final sprite check: all 16 character/state combinations use the correct sheet and CSS quadrant. Agent creation with a selected sprite and team creation/editing were exercised in Chromium. The built production Worker was also served locally; all ten non-chat page destinations loaded without page errors. The monochrome application theme intentionally preserves the user-provided profile art in its original colors.
 
 Profile sprite changes were additionally verified to propagate from Agents into existing chat appearances without resetting user messages.
+
+## 12 September — simplified agents and custom dropdowns
+
+Production-worker browser checks pass for generated names, draft cancellation, create/edit persistence during navigation, local/cloud access defaults and freely editable overrides, dropdown keyboard selection, mobile dialog/popup fit, and all five other dropdown surfaces. Ten feature scenarios cover data import/preview/removal/reclassification, projects/tasks/comments, workflows, forum, and compute configuration; no production browser errors. Lint, TypeScript, and production build pass.
+
+All 16 sprite quadrants visually checked; original images unchanged. Runtime activity-to-sprite updates tested independently through the adapter export. Native visible select elements are absent from the app.

@@ -1,12 +1,14 @@
 # Agent profile sprites
 
-The four PNGs in public/agents are the user's original sheets. Each is a two-by-two grid, cropped in CSS by components/AgentAvatar.tsx without altering the original image.
+The original four PNGs in public/agents remain unchanged. AgentAvatar selects a quadrant, then scales that quadrant by 1.12 inside a circular clip to hide sheet borders while retaining the portrait.
 
-| State | Quadrant | CSS position |
+| Activity | State | Quadrant |
 |---|---|---|
-| idle | top left | 0% 0% |
-| sleep | top right | 100% 0% |
-| thinking | bottom left | 0% 100% |
-| stuck | bottom right | 100% 100% |
+| Ready | idle | Top left |
+| Sleeping, offline, paused | sleep | Top right |
+| Working | thinking | Bottom left |
+| Blocked | stuck | Bottom right |
 
-Characters: worm, firefly, ladybug, caterpillar. Supply character, state, size and an accessible label to AgentAvatar. Agent creation and capability editing expose all characters and states. Chat and room context use the same component. Preview states are frontend configuration; they are not live runtime telemetry. A backend adapter can map ready to idle, stopped to sleep, working to thinking, and blocked to stuck.
+Call setAgentActivity(name, activity) from the runtime adapter. All mounted avatars with that identity update through the same subscription, including chat, cards, and teams. There is no manual state picker. The backend connection determines when real activity events occur; idle fixtures are not runtime telemetry.
+
+Agent creation starts with a random character and a matching editable name. Character changes regenerate untouched names. Edits are applied on Save. Draft previews do not overwrite the saved identity.

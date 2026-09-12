@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/SelectField";
 import { PageHeader } from "@/components/buzz/PageHeader";
 import { useMemo, useState, type SyntheticEvent } from "react";
 import {
@@ -353,7 +354,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
             onChange={(e) => setSearch(e.target.value)}
           />
         </label>
-        <select
+        <SelectField
           className="select"
           aria-label="Filter task assignees"
           value={ownerFilter}
@@ -362,7 +363,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
           <option>Everyone</option>
           <option>People</option>
           <option>Agents</option>
-        </select>
+        </SelectField>
         <button className="btn btn-primary" onClick={() => openCreate()}>
           <Plus size={16} />
           New task
@@ -472,7 +473,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                     </button>
                   </td>
                   <td>
-                    <select
+                    <SelectField
                       className="work-inline-select"
                       aria-label={`Status of ${task.title}`}
                       value={task.status}
@@ -481,7 +482,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                       {statuses.map((item) => (
                         <option key={item}>{item}</option>
                       ))}
-                    </select>
+                    </SelectField>
                   </td>
                   <td>
                     <span className="work-assignee">
@@ -541,17 +542,17 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
             <div className="form-grid">
               <label className="field">
                 <span className="field-label">Assign to</span>
-                <select className="select" value={owner} onChange={(e) => setOwner(e.target.value)}>
+                <SelectField className="select" value={owner} onChange={(e) => setOwner(e.target.value)}>
                   {["You", "Maya Chen", "Alex Morgan", "Jordan Lee", "Atlas", "Scout", "Nova"].map(
                     (item) => (
                       <option key={item}>{item}</option>
                     ),
                   )}
-                </select>
+                </SelectField>
               </label>
               <label className="field">
                 <span className="field-label">Status</span>
-                <select
+                <SelectField
                   className="select"
                   value={status}
                   onChange={(e) => setStatus(e.target.value as Status)}
@@ -559,11 +560,11 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                   {statuses.map((item) => (
                     <option key={item}>{item}</option>
                   ))}
-                </select>
+                </SelectField>
               </label>
-              <label className="field">
+              <label className="field" htmlFor="new-task-priority">
                 <span className="field-label">Priority</span>
-                <select
+                <SelectField id="new-task-priority"
                   className="select"
                   value={priority}
                   onChange={(e) => setPriority(e.target.value)}
@@ -571,7 +572,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                   <option>Low</option>
                   <option>Medium</option>
                   <option>High</option>
-                </select>
+                </SelectField>
               </label>
             </div>
             {isAgent(owner) && (
@@ -660,7 +661,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
               <div className="work-task-properties">
                 <label>
                   <span>Status</span>
-                  <select
+                  <SelectField
                     className="select"
                     value={selected.status}
                     onChange={(e) => updateTask(selected.id, { status: e.target.value as Status })}
@@ -668,11 +669,11 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                     {statuses.map((item) => (
                       <option key={item}>{item}</option>
                     ))}
-                  </select>
+                  </SelectField>
                 </label>
                 <label>
                   <span>Assignee</span>
-                  <select
+                  <SelectField
                     className="select"
                     value={selected.owner}
                     onChange={(e) => updateTask(selected.id, { owner: e.target.value })}
@@ -688,11 +689,11 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                     ].map((item) => (
                       <option key={item}>{item}</option>
                     ))}
-                  </select>
+                  </SelectField>
                 </label>
-                <label>
+                <label htmlFor="task-detail-priority">
                   <span>Priority</span>
-                  <select
+                  <SelectField id="task-detail-priority"
                     className="select"
                     value={selected.priority}
                     onChange={(e) => updateTask(selected.id, { priority: e.target.value })}
@@ -700,7 +701,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                     <option>Low</option>
                     <option>Medium</option>
                     <option>High</option>
-                  </select>
+                  </SelectField>
                 </label>
               </div>
               {selected.deliverable && (

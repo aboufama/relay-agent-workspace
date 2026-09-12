@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/SelectField";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine,
@@ -557,7 +558,7 @@ export function DataView({ onNotify }: Props) {
                 </button>
               )}
             </label>
-            <select
+            <SelectField
               className="select data-filter"
               aria-label="Filter classification"
               value={levelFilter}
@@ -567,8 +568,8 @@ export function DataView({ onNotify }: Props) {
               {levels.map((level) => (
                 <option key={level}>{level}</option>
               ))}
-            </select>
-            <select
+            </SelectField>
+            <SelectField
               className="select data-sort"
               aria-label="Sort files"
               value={sort}
@@ -577,7 +578,7 @@ export function DataView({ onNotify }: Props) {
               <option value="recent">Recently added</option>
               <option value="name">Name A–Z</option>
               <option value="size">Largest first</option>
-            </select>
+            </SelectField>
           </div>
           {!visible.length ? (
             <div className="empty-state data-empty">
@@ -747,7 +748,7 @@ export function DataView({ onNotify }: Props) {
             <label className="field-label" htmlFor="data-import-collection">
               Collection
             </label>
-            <select
+            <SelectField
               id="data-import-collection"
               className="select"
               value={importCollection}
@@ -756,7 +757,7 @@ export function DataView({ onNotify }: Props) {
               {collections.map((name) => (
                 <option key={name}>{name}</option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <fieldset className="data-security-fieldset">
             <legend className="field-label">Classification</legend>
@@ -903,7 +904,7 @@ export function DataView({ onNotify }: Props) {
                   <label className="field-label" htmlFor="data-detail-collection">
                     Collection
                   </label>
-                  <select
+                  <SelectField
                     className="select"
                     id="data-detail-collection"
                     value={selected.collection}
@@ -915,13 +916,13 @@ export function DataView({ onNotify }: Props) {
                     {collections.map((name) => (
                       <option key={name}>{name}</option>
                     ))}
-                  </select>
+                  </SelectField>
                 </div>
                 <div className="field">
                   <label className="field-label" htmlFor="data-detail-level">
                     Classification
                   </label>
-                  <select
+                  <SelectField
                     className="select"
                     id="data-detail-level"
                     value={selected.level}
@@ -930,7 +931,7 @@ export function DataView({ onNotify }: Props) {
                     {levels.map((level) => (
                       <option key={level}>{level}</option>
                     ))}
-                  </select>
+                  </SelectField>
                 </div>
               </div>
               <div className={`data-routing-note ${localOnly(selected.level) ? "local" : ""}`}>

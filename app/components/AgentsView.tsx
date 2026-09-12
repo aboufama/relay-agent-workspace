@@ -1,86 +1,27 @@
-// Layout adapted from Buzz AgentsView, UnifiedAgentsSection, AgentIdentityCard and CreateIdentityCard. See repository third-party notices.
-import { AgentAvatar, setAgentAvatarIdentity } from "@/components/AgentAvatar";
-import { PageHeader } from "@/components/buzz/PageHeader";
+import { SelectField } from "@/components/SelectField";
+// Identity-card layout adapted from block/buzz; see third-party notices.
 import { useState } from "react";
-import {
-  Cloud,
-  Cpu,
-  Database,
-  GitBranch,
-  LockKeyhole,
-  Plus,
-  Search,
-  Settings2,
-  ShieldCheck,
-  X,
-} from "lucide-react";
+import { Cloud, Database, Plus, Search, X } from "lucide-react";
+import { AgentAvatar, setAgentAvatarIdentity } from "@/components/AgentAvatar";
+import { useAgentHomes } from "@/lib/agent-homes";
+import { PageHeader } from "@/components/buzz/PageHeader";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
-
+type AccessLevel = "Public" | "Internal" | "Confidential" | "Restricted";
+const accessLevels: AccessLevel[] = ["Public", "Internal", "Confidential", "Restricted"];
 type Character = "worm" | "firefly" | "ladybug" | "caterpillar";
-type SpriteState = "idle" | "sleep" | "thinking" | "stuck";
-const characters: Character[] = ["worm", "firefly", "ladybug", "caterpillar"];
-const spriteStates: SpriteState[] = ["idle", "sleep", "thinking", "stuck"];
-function SpritePicker({
-  character,
-  state,
-  onCharacter,
-  onState,
-}: {
-  character: Character;
-  state: SpriteState;
-  onCharacter: (value: Character) => void;
-  onState: (value: SpriteState) => void;
-}) {
-  return (
-    <div className="buzz-sprite-picker">
-      <fieldset>
-        <legend>Avatar</legend>
-        <div>
-          {characters.map((value) => (
-            <button
-              type="button"
-              key={value}
-              aria-label={`${value} avatar`}
-              aria-pressed={character === value}
-              onClick={() => onCharacter(value)}
-            >
-              <AgentAvatar character={value} state={state} size={48} label={value} />
-            </button>
-          ))}
-        </div>
-      </fieldset>
-      <label className="field">
-        <span className="field-label">Preview state</span>
-        <select
-          aria-label="Preview state"
-          className="select"
-          value={state}
-          onChange={(event) => onState(event.target.value as SpriteState)}
-        >
-          {spriteStates.map((value) => (
-            <option key={value}>{value}</option>
-          ))}
-        </select>
-      </label>
-    </div>
-  );
-}
-type Runtime = "local" | "cloud";
 type Agent = {
   id: string;
-  character?: Character;
-  spriteState?: SpriteState;
   name: string;
   role: string;
   description: string;
-  runtime: Runtime;
+  runtime: "local" | "cloud";
   model: string;
   device: string;
   initials: string;
@@ -89,38 +30,37 @@ type Agent = {
   channels: string[];
   context: string[];
   capabilities: string[];
+  character?: Character;
+  homeId?: string;
+  accessLevel?: AccessLevel;
+  nameCustomized?: boolean;
   isNew?: boolean;
   paused?: boolean;
 };
 type Props = { onNotify?: (message: string) => void; onNavigate?: (view: string) => void };
-const contextOptions = [
-  {
-    name: "Company handbook",
-    level: "Internal",
-    detail: "Policies, people, and how Meridian works",
-  },
-  {
-    name: "Product & engineering",
-    level: "Internal",
-    detail: "Roadmaps, architecture, and release notes",
-  },
-  {
-    name: "Customer knowledge",
-    level: "Confidential",
-    detail: "Account context and customer research",
-  },
-  {
-    name: "Financial planning",
-    level: "Restricted",
-    detail: "Budgets, forecasts, and board materials",
-  },
-];
+const characters: Character[] = ["worm", "firefly", "ladybug", "caterpillar"];
 const capabilityOptions = [
   "Search company knowledge",
   "Draft messages & documents",
   "Create work items",
   "Use connected tools",
 ];
+const quirkyNames: Record<Character, string[]> = {
+  worm: ["Professor Wiggles", "Noodle McDoodle", "Sir Squiggle"],
+  firefly: ["Captain Glimmer", "Flicker Pickles", "Doctor Twinkle"],
+  ladybug: ["Dot Comet", "Lady Doodle", "Polka Biscuit"],
+  caterpillar: ["Count Fuzzington", "Munch Sprout", "Fuzzy Waffles"],
+};
+function generatedName(character: Character, existing: string[]) {
+  const choices = quirkyNames[character];
+  const base = choices[Math.floor(Math.random() * choices.length)];
+  let candidate = base;
+  let suffix = 2;
+  while (existing.some((name) => name.toLocaleLowerCase() === candidate.toLocaleLowerCase())) {
+    candidate = `${base} ${suffix++}`;
+  }
+  return candidate;
+}
 const seedAgents: Agent[] = [
   {
     id: "atlas",
@@ -219,136 +159,113 @@ const seedAgents: Agent[] = [
     capabilities: capabilityOptions.slice(0, 2),
   },
 ];
-const localModels = ["Holo-3.1-35B-A3B · NVFP4 · ~24 GB weights", "Custom model"];
-const providers: Record<string, string[]> = {
-  Anthropic: ["Claude Sonnet", "Claude Opus"],
-  OpenAI: ["GPT", "Reasoning model"],
-  Google: ["Gemini Pro", "Gemini Flash"],
-  "Custom OpenAI-compatible provider": ["Configured model"],
-};
 
 export function AgentsView({ onNotify }: Props) {
+  const homes = useAgentHomes();
   const [agents, setAgents] = useState<Agent[]>(
     seedAgents.map((agent, index) => ({
       ...agent,
       character: characters[index % characters.length],
-      spriteState: "idle",
+      nameCustomized: true,
     })),
   );
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
-  const [selected, setSelected] = useState<Agent | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [nameCustomized, setNameCustomized] = useState(false);
   const [character, setCharacter] = useState<Character>("worm");
-  const [spriteState, setSpriteState] = useState<SpriteState>("idle");
-  const [defaultsOpen, setDefaultsOpen] = useState(false);
-  const [defaultRuntime, setDefaultRuntime] = useState<Runtime>("local");
+  const [homeId, setHomeId] = useState("");
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>("Confidential");
+  const [instructions, setInstructions] = useState("");
+  const [avatarChoices, setAvatarChoices] = useState(false);
+  const [error, setError] = useState("");
   const [teams, setTeams] = useState<{ id: string; name: string; members: string[] }[]>([]);
   const [teamOpen, setTeamOpen] = useState(false);
+  const [teamId, setTeamId] = useState<string | null>(null);
   const [teamName, setTeamName] = useState("");
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
-  const [teamId, setTeamId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [name, setName] = useState("");
-  const [role, setRole] = useState("");
-  const defaultInstructions =
-    "Use company context to support your answers, cite your sources, and ask for a human review before taking an external action.";
-  const [instructions, setInstructions] = useState(defaultInstructions);
-  const [runtime, setRuntime] = useState<Runtime>("local");
-  const [device, setDevice] = useState("Meridian Lab · GB10");
-  const [pairing, setPairing] = useState("");
-  const [model, setModel] = useState(localModels[0]);
-  const [provider, setProvider] = useState("Anthropic");
-  const [cloudModel, setCloudModel] = useState("Claude Sonnet");
-  const [context, setContext] = useState(["Company handbook"]);
-  const [capabilities, setCapabilities] = useState(capabilityOptions.slice(0, 2));
-  const [error, setError] = useState("");
-  const [editing, setEditing] = useState(false);
   const visible = agents.filter(
-    (a) =>
-      (filter === "all" || a.runtime === filter) &&
-      `${a.name} ${a.role} ${a.description}`.toLowerCase().includes(search.toLowerCase()),
+    (agent) =>
+      (filter === "all" || agent.runtime === filter) &&
+      `${agent.name} ${agent.description}`.toLowerCase().includes(search.toLowerCase()),
   );
-  const toggle = (values: string[], value: string, setter: (v: string[]) => void) =>
-    setter(values.includes(value) ? values.filter((x) => x !== value) : [...values, value]);
-  function startCreate() {
-    setCharacter("worm");
-    setSpriteState("idle");
-    setName("");
-    setRole("");
-    setInstructions(defaultInstructions);
-    setRuntime(defaultRuntime);
-    setProvider("Anthropic");
-    setCloudModel("Claude Sonnet");
-    setDevice("Meridian Lab · GB10");
-    setPairing("");
-    setModel(localModels[0]);
-    setContext(["Company handbook"]);
-    setCapabilities(capabilityOptions.slice(0, 2));
+  function openAgent(agent?: Agent) {
+    const nextCharacter =
+      agent?.character || characters[Math.floor(Math.random() * characters.length)];
+    setEditingId(agent?.id || null);
+    setCharacter(nextCharacter);
+    setName(agent?.name || generatedName(nextCharacter, agents.map((item) => item.name)));
+    setNameCustomized(agent?.nameCustomized ?? false);
+    const initialHome =
+      homes.find((home) => home.id === agent?.homeId) ||
+      homes.find((home) => agent && agent.device.startsWith(home.name) && home.kind === agent.runtime) ||
+      homes.find((home) => home.kind === (agent?.runtime || "local") && home.status !== "pending");
+    setHomeId(initialHome?.id || "");
+    setAccessLevel(
+      agent?.accessLevel || (initialHome?.kind === "cloud" ? "Public" : "Confidential"),
+    );
+    setInstructions(agent?.description || "");
+    setAvatarChoices(false);
     setError("");
-    setCreating(true);
+    setDialogOpen(true);
   }
-  function createAgent() {
-    if (!name.trim() || !role.trim()) {
-      setError("Enter a name and role.");
+  function saveAgent() {
+    if (!name.trim()) {
+      setError("Enter a name.");
       return;
     }
-    if (runtime === "local" && device === "new" && !/^[a-zA-Z0-9-]{6,20}$/.test(pairing.trim())) {
-      setError("Enter the 6–20 character GB10 pairing code.");
+    if (agents.some((agent) => agent.id !== editingId && agent.name.toLocaleLowerCase() === name.trim().toLocaleLowerCase())) {
+      setError("An agent with this name already exists.");
       return;
     }
-    const agent: Agent = {
-      id: `agent-${Date.now()}`,
-      character,
-      spriteState,
+    const home = homes.find((item) => item.id === homeId);
+    if (!home || home.status === "pending") {
+      setError("Choose an agent home.");
+      return;
+    }
+    const previous = agents.find((agent) => agent.id === editingId);
+    const next: Agent = {
+      id: editingId || crypto.randomUUID(),
       name: name.trim(),
-      role: role.trim(),
-      description: instructions,
-      runtime,
-      model: runtime === "local" ? model.split(" · ")[0] : cloudModel,
-      device:
-        runtime === "local"
-          ? device === "new"
-            ? "New GB10 · pairing required"
-            : device
-          : provider,
+      role: previous?.role || "",
+      description: instructions.trim(),
+      runtime: home?.kind || previous?.runtime || "local",
+      model: previous?.model || "",
+      device: home?.name || "",
       initials: name.trim().slice(0, 2),
-      color: runtime === "local" ? "green" : "blue",
-      owner: "You",
-      channels: [],
-      context,
-      capabilities,
-      isNew: true,
+      color: previous?.color || "slate",
+      owner: previous?.owner || "You",
+      channels: previous?.channels || [],
+      context: previous?.context || [],
+      capabilities: previous?.capabilities || [],
+      character,
+      homeId,
+      accessLevel,
+      nameCustomized,
+      isNew: previous?.isNew ?? true,
+      paused: previous?.paused,
     };
-    setAgents([...agents, agent]);
-    setCreating(false);
-    setSelected(null);
-    onNotify?.(`${agent.name} configured for this session. Connect a runtime to activate it.`);
-  }
-  function updateAgent(updated: Agent) {
-    setAgentAvatarIdentity(updated.name, updated.character || "worm", updated.spriteState || "idle");
-    setAgents(agents.map((a) => (a.id === updated.id ? updated : a)));
-    setSelected(updated);
+    setAgents((current) =>
+      editingId
+        ? current.map((agent) => (agent.id === editingId ? next : agent))
+        : [...current, next],
+    );
+    setAgentAvatarIdentity(next.name, character);
+    setDialogOpen(false);
+    onNotify?.(editingId ? "Agent saved." : "Agent created.");
   }
   return (
     <div className="page agents-page buzz-agents-page">
-      <PageHeader
-        className="page-heading"
-        title="Agents"
-        description="Set up and manage your agents."
-        action={
-          <button className="btn btn-secondary" onClick={() => setDefaultsOpen(true)}>
-            <Settings2 size={16} />
-            Agent defaults
-          </button>
-        }
-      />
+      <PageHeader className="page-heading" title="Agents" />
       <details className="buzz-agent-filters">
         <summary>Search & filter</summary>
         <div className="agents-directory-heading">
           <div className="tabs" aria-label="Agent runtime filter">
             {[
               ["all", "All agents"],
-              ["local", "Local · GB10"],
+              ["local", "Local"],
               ["cloud", "Cloud"],
             ].map(([value, label]) => (
               <button
@@ -358,11 +275,6 @@ export function AgentsView({ onNotify }: Props) {
                 onClick={() => setFilter(value)}
               >
                 {label}
-                <span className="agents-tab-count">
-                  {value === "all"
-                    ? agents.length
-                    : agents.filter((a) => a.runtime === value).length}
-                </span>
               </button>
             ))}
           </div>
@@ -371,8 +283,8 @@ export function AgentsView({ onNotify }: Props) {
             <input
               aria-label="Search agents"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search your agents…"
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search agents"
             />
             {search && (
               <button className="icon-btn" aria-label="Clear search" onClick={() => setSearch("")}>
@@ -386,63 +298,39 @@ export function AgentsView({ onNotify }: Props) {
         <button
           className="buzz-identity-card buzz-create-identity"
           aria-label="New agent"
-          data-testid="new-agent-card"
-          onClick={startCreate}
+          onClick={() => openAgent()}
         >
           <Plus size={28} />
         </button>
         {visible.map((agent) => (
           <div
-            className="buzz-identity-card"
+            className={`buzz-identity-card agent-paper agent-paper-${agent.character || "worm"}`}
             key={agent.id}
-            data-testid={`persona-agent-row-${agent.id}`}
           >
             <button
               className="buzz-identity-hit"
               aria-label={`${agent.name} agent profile`}
-              onClick={() => {
-                setSelected(agent);
-                setEditing(false);
-              }}
+              onClick={() => openAgent(agent)}
             />
             <div className="buzz-identity-avatar">
-              <AgentAvatar
-                character={agent.character || "worm"}
-                state={agent.spriteState || "idle"}
-                size={96}
-                label={agent.name}
-              />
+              <AgentAvatar character={agent.character || "worm"} size={120} label={agent.name} />
             </div>
             <div className="buzz-identity-footer">
-              <strong>{agent.name}</strong>
-              <span>{agent.role}</span>
-              <small>
-                {agent.runtime === "local" ? "Local · GB10" : "Cloud"} ·{" "}
-                {agent.paused ? "Paused in demo" : "Needs connection"}
-              </small>
+              <strong className="agent-card-name">
+                <span title={agent.name}>{agent.name}</span>
+                {agent.runtime === "cloud" ? (
+                  <Cloud size={16} aria-label="Cloud" />
+                ) : (
+                  <Database size={16} aria-label="Local" />
+                )}
+              </strong>
             </div>
           </div>
         ))}
       </div>
-      {visible.length === 0 && (
-        <div className="empty-state">
-          <Search size={26} />
-          <h3>No agents found</h3>
-          <p>Try another name or switch your runtime filter.</p>
-          <button
-            className="btn btn-secondary"
-            onClick={() => {
-              setSearch("");
-              setFilter("all");
-            }}
-          >
-            Clear filters
-          </button>
-        </div>
-      )}
+      {visible.length === 0 && <p className="small muted">No matching agents.</p>}
       <section className="buzz-agent-teams">
         <h2>Agent teams</h2>
-        <p>Group agents that work together.</p>
         <div className="buzz-identity-grid">
           <button
             className="buzz-identity-card buzz-create-identity"
@@ -469,12 +357,11 @@ export function AgentsView({ onNotify }: Props) {
             >
               <div className="buzz-team-avatars">
                 {team.members.slice(0, 4).map((id) => {
-                  const agent = agents.find((a) => a.id === id);
+                  const agent = agents.find((item) => item.id === id);
                   return agent ? (
                     <AgentAvatar
                       key={id}
                       character={agent.character || "worm"}
-                      state={agent.spriteState || "idle"}
                       size={48}
                       label={agent.name}
                     />
@@ -489,35 +376,133 @@ export function AgentsView({ onNotify }: Props) {
           ))}
         </div>
       </section>
-      <Dialog open={defaultsOpen} onOpenChange={setDefaultsOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Agent defaults</DialogTitle>
-            <DialogDescription>Defaults for new configurations in this session.</DialogDescription>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="agent-minimal-dialog">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{editingId ? "Edit agent" : "Create agent"}</DialogTitle>
+            <DialogDescription>Agent configuration</DialogDescription>
           </DialogHeader>
-          <label className="field">
-            <span className="field-label">Runtime</span>
-            <select
-              className="select"
-              value={defaultRuntime}
-              onChange={(event) => setDefaultRuntime(event.target.value as Runtime)}
-            >
-              <option value="local">Local · GB10</option>
-              <option value="cloud">Cloud</option>
-            </select>
-          </label>
-          <DialogFooter>
-            <button className="btn btn-primary" onClick={() => setDefaultsOpen(false)}>
-              Done
-            </button>
-          </DialogFooter>
+          <form
+            className="agent-minimal-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveAgent();
+            }}
+          >
+            <div className="agent-editor-identity">
+              <button
+                type="button"
+                className="agent-editor-avatar"
+                aria-label="Choose agent avatar"
+                aria-expanded={avatarChoices}
+                onClick={() => setAvatarChoices((value) => !value)}
+              >
+                <AgentAvatar character={character} size={128} label={name || "Agent"} preview />
+              </button>
+              {avatarChoices && (
+                <div className="agent-avatar-choices" aria-label="Avatar choices">
+                  {characters.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-label={`${value} avatar`}
+                      aria-pressed={character === value}
+                      onClick={() => {
+                        setCharacter(value);
+                        if (!nameCustomized) setName(generatedName(value, agents.filter((item) => item.id !== editingId).map((item) => item.name)));
+                        setAvatarChoices(false);
+                      }}
+                    >
+                      <AgentAvatar character={value} size={48} label={value} preview />
+                    </button>
+                  ))}
+                </div>
+              )}
+              <input
+                className="agent-editor-name"
+                aria-label="Agent name"
+                value={name}
+                maxLength={60}
+                required
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setNameCustomized(true);
+                }}
+              />
+            </div>
+            <label className="field">
+              <span className="field-label">Agent home</span>
+              <SelectField
+                className="select"
+                aria-label="Agent home"
+                value={homeId}
+                onChange={(event) => {
+                  setHomeId(event.target.value);
+                  setAccessLevel(
+                    homes.find((home) => home.id === event.target.value)?.kind === "cloud"
+                      ? "Public"
+                      : "Confidential",
+                  );
+                  setError("");
+                }}
+              >
+                <option value="" disabled>
+                  Choose a home
+                </option>
+                {homes.map((home) => (
+                  <option key={home.id} value={home.id} disabled={home.status === "pending"}>
+                    {home.name}
+                    {home.status === "preview"
+                      ? " · Demo"
+                      : home.status === "pending"
+                        ? " · Pending"
+                        : ""}
+                  </option>
+                ))}
+              </SelectField>
+            </label>
+            <label className="field">
+              <span className="field-label">Access level</span>
+              <SelectField
+                className="select"
+                aria-label="Access level"
+                value={accessLevel}
+                onChange={(event) => setAccessLevel(event.target.value as AccessLevel)}
+              >
+                {accessLevels.map((level) => (
+                  <option key={level}>{level}</option>
+                ))}
+              </SelectField>
+            </label>
+            <label className="field">
+              <span className="field-label">Instructions</span>
+              <textarea
+                className="textarea"
+                aria-label="Agent instructions"
+                rows={4}
+                value={instructions}
+                onChange={(event) => setInstructions(event.target.value)}
+                placeholder="What should this agent do?"
+              />
+            </label>
+            {error && (
+              <p role="alert" className="agents-form-error">
+                {error}
+              </p>
+            )}
+            <DialogFooter>
+              <button type="submit" className="btn btn-primary">
+                {editingId ? "Save" : "Create"}
+              </button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
       <Dialog open={teamOpen} onOpenChange={setTeamOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{teamId ? "Edit team" : "Create team"}</DialogTitle>
-            <DialogDescription>Session configuration</DialogDescription>
+            <DialogDescription className="sr-only">Choose a name and members.</DialogDescription>
           </DialogHeader>
           <form
             className="work-form"
@@ -530,7 +515,9 @@ export function AgentsView({ onNotify }: Props) {
                 members: teamMembers,
               };
               setTeams((current) =>
-                teamId ? current.map((t) => (t.id === teamId ? team : t)) : [...current, team],
+                teamId
+                  ? current.map((value) => (value.id === teamId ? team : value))
+                  : [...current, team],
               );
               setTeamOpen(false);
             }}
@@ -550,16 +537,16 @@ export function AgentsView({ onNotify }: Props) {
                 <label className="buzz-team-member" key={agent.id}>
                   <input
                     type="checkbox"
-                    aria-label={agent.name}
                     checked={teamMembers.includes(agent.id)}
-                    onChange={() => toggle(teamMembers, agent.id, setTeamMembers)}
+                    onChange={() =>
+                      setTeamMembers((current) =>
+                        current.includes(agent.id)
+                          ? current.filter((id) => id !== agent.id)
+                          : [...current, agent.id],
+                      )
+                    }
                   />
-                  <AgentAvatar
-                    character={agent.character || "worm"}
-                    state={agent.spriteState || "idle"}
-                    size={32}
-                    label={agent.name}
-                  />
+                  <AgentAvatar character={agent.character || "worm"} size={32} label={agent.name} />
                   <span>{agent.name}</span>
                 </label>
               ))}
@@ -579,343 +566,6 @@ export function AgentsView({ onNotify }: Props) {
               )}
               <button type="submit" className="btn btn-primary">
                 {teamId ? "Save" : "Create"}
-              </button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={!!selected}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelected(null);
-            setEditing(false);
-          }
-        }}
-      >
-        <DialogContent className="agents-profile-dialog">
-          <DialogHeader>
-            <div className="agents-profile-top">
-              <AgentAvatar
-                character={selected?.character || "worm"}
-                state={selected?.spriteState || "idle"}
-                size={96}
-                label={selected?.name || "Agent"}
-              />
-              <span
-                className={`badge ${selected?.runtime === "local" ? "badge-green" : "badge-blue"}`}
-              >
-                {selected?.runtime === "local" ? <Cpu size={13} /> : <Cloud size={13} />}{" "}
-                {selected?.runtime === "local" ? "Local · GB10" : "Cloud"}
-              </span>
-            </div>
-            <DialogTitle>{selected?.name}</DialogTitle>
-            <DialogDescription>
-              {selected?.role} · Managed by {selected?.owner}
-            </DialogDescription>
-          </DialogHeader>
-          {selected && (
-            <div className="agents-profile-body">
-              {editing && (
-                <SpritePicker
-                  character={selected.character || "worm"}
-                  state={selected.spriteState || "idle"}
-                  onCharacter={(value) => updateAgent({ ...selected, character: value })}
-                  onState={(value) => updateAgent({ ...selected, spriteState: value })}
-                />
-              )}
-              <p className="agents-profile-description">{selected.description}</p>
-              <div className="agents-profile-runtime">
-                <div>
-                  <span className="field-label">RUNTIME</span>
-                  <strong>{selected.model}</strong>
-                  <span className="muted small">{selected.device}</span>
-                </div>
-                <div>
-                  <span className={`badge ${selected.isNew ? "badge-amber" : "badge-muted"}`}>
-                    {selected.isNew ? "Connection required" : "Sample configuration"}
-                  </span>
-                </div>
-              </div>
-              <div className="section-heading">
-                <h3>Company context</h3>
-                <Database size={16} />
-              </div>
-              <div className="agents-context-pills">
-                {selected.context.length ? (
-                  selected.context.map((item) => (
-                    <span key={item}>
-                      <Database size={13} />
-                      {item}
-                    </span>
-                  ))
-                ) : (
-                  <span>No collections selected</span>
-                )}
-              </div>
-              <div className="section-heading">
-                <h3>Capabilities</h3>
-                <ShieldCheck size={16} />
-              </div>
-              <div className="agents-permissions">
-                {capabilityOptions.map((cap) => (
-                  <label key={cap}>
-                    <input
-                      type="checkbox"
-                      checked={selected.capabilities.includes(cap)}
-                      disabled={!editing}
-                      onChange={() =>
-                        updateAgent({
-                          ...selected,
-                          capabilities: selected.capabilities.includes(cap)
-                            ? selected.capabilities.filter((c) => c !== cap)
-                            : [...selected.capabilities, cap],
-                        })
-                      }
-                    />
-                    <span>{cap}</span>
-                    {cap === "Use connected tools" && (
-                      <span className="badge badge-muted">Review required</span>
-                    )}
-                  </label>
-                ))}
-              </div>
-              <div className="section-heading">
-                <h3>Workspace presence</h3>
-                <GitBranch size={16} />
-              </div>
-              <div className="agents-context-pills">
-                {selected.channels.length ? (
-                  selected.channels.map((channel) => <span key={channel}># {channel}</span>)
-                ) : (
-                  <span className="muted">Invite this agent to a channel after activation.</span>
-                )}
-              </div>
-              <div className="agents-policy-note">
-                <LockKeyhole size={16} />
-                <span>
-                  {selected.runtime === "local"
-                    ? "Configured to keep inference and attached context on a local runtime."
-                    : "Configured for approved internal context. Confidential and restricted collections are excluded."}{" "}
-                  Policies require a connected enforcement service.
-                </span>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <button
-              className="btn btn-secondary"
-              onClick={() => {
-                if (!selected) return;
-                updateAgent({ ...selected, paused: !selected.paused });
-                onNotify?.(
-                  `${selected.name} ${selected.paused ? "resumed" : "paused"} in this preview.`,
-                );
-              }}
-            >
-              {selected?.paused ? "Resume in demo" : "Pause in demo"}
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                setEditing(!editing);
-                if (editing) onNotify?.("Capability configuration saved for this session.");
-              }}
-            >
-              <Settings2 size={15} />
-              {editing ? "Save configuration" : "Edit capabilities"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={creating} onOpenChange={setCreating}>
-        <DialogContent className="agents-create-dialog">
-          <DialogHeader>
-            <DialogTitle>Create agent</DialogTitle>
-            <DialogDescription>Session configuration · needs connection</DialogDescription>
-          </DialogHeader>
-          <form
-            className="work-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              createAgent();
-            }}
-          >
-            <SpritePicker
-              character={character}
-              state={spriteState}
-              onCharacter={setCharacter}
-              onState={setSpriteState}
-            />
-            <div className="form-grid">
-              <label className="field">
-                <span className="field-label">Name</span>
-                <input
-                  className="input"
-                  value={name}
-                  maxLength={40}
-                  onChange={(event) => setName(event.target.value)}
-                  required
-                />
-              </label>
-              <label className="field">
-                <span className="field-label">Role</span>
-                <input
-                  className="input"
-                  value={role}
-                  maxLength={80}
-                  onChange={(event) => setRole(event.target.value)}
-                  required
-                />
-              </label>
-            </div>
-            <label className="field">
-              <span className="field-label">Instructions</span>
-              <textarea
-                className="textarea"
-                rows={2}
-                value={instructions}
-                onChange={(event) => setInstructions(event.target.value)}
-              />
-            </label>
-            <div className="form-grid">
-              <label className="field">
-                <span className="field-label">Runtime</span>
-                <select
-                  className="select"
-                  value={runtime}
-                  onChange={(event) => {
-                    const value = event.target.value as Runtime;
-                    setRuntime(value);
-                    if (value === "cloud")
-                      setContext((current) =>
-                        current.filter((name) =>
-                          contextOptions.some(
-                            (collection) =>
-                              collection.name === name &&
-                              !["Confidential", "Restricted"].includes(collection.level),
-                          ),
-                        ),
-                      );
-                  }}
-                >
-                  <option value="local">Local · GB10</option>
-                  <option value="cloud">Cloud</option>
-                </select>
-              </label>
-              {runtime === "local" ? (
-                <label className="field">
-                  <span className="field-label">Device</span>
-                  <select
-                    className="select"
-                    value={device}
-                    onChange={(event) => setDevice(event.target.value)}
-                  >
-                    <option>Meridian Lab · GB10</option>
-                    <option>Studio · GB10</option>
-                    <option value="new">Pair new GB10</option>
-                  </select>
-                </label>
-              ) : (
-                <label className="field">
-                  <span className="field-label">Provider</span>
-                  <select
-                    className="select"
-                    value={provider}
-                    onChange={(event) => {
-                      setProvider(event.target.value);
-                      setCloudModel(providers[event.target.value][0]);
-                    }}
-                  >
-                    {Object.keys(providers).map((value) => (
-                      <option key={value}>{value}</option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </div>
-            {runtime === "local" && device === "new" && (
-              <label className="field">
-                <span className="field-label">Pairing code</span>
-                <input
-                  className="input"
-                  value={pairing}
-                  onChange={(event) => setPairing(event.target.value.toUpperCase())}
-                  placeholder="GB10-XXXX"
-                  maxLength={20}
-                  required
-                />
-              </label>
-            )}
-            <label className="field">
-              <span className="field-label">Model</span>
-              <select
-                className="select"
-                value={runtime === "local" ? model : cloudModel}
-                onChange={(event) =>
-                  runtime === "local"
-                    ? setModel(event.target.value)
-                    : setCloudModel(event.target.value)
-                }
-              >
-                {(runtime === "local" ? localModels : providers[provider]).map((value) => (
-                  <option key={value}>{value}</option>
-                ))}
-              </select>
-            </label>
-            <fieldset>
-              <legend className="field-label">Collections</legend>
-              <div className="agents-collection-options">
-                {contextOptions.map((collection) => {
-                  const blocked =
-                    runtime === "cloud" &&
-                    ["Confidential", "Restricted"].includes(collection.level);
-                  return (
-                    <label key={collection.name} className={blocked ? "agents-blocked" : ""}>
-                      <input
-                        type="checkbox"
-                        checked={context.includes(collection.name)}
-                        disabled={blocked}
-                        onChange={() => toggle(context, collection.name, setContext)}
-                      />
-                      <span>{collection.name}</span>
-                      <span className="badge badge-muted">
-                        {collection.level}
-                        {blocked ? " · Local only" : ""}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
-            <fieldset>
-              <legend className="field-label">Capabilities</legend>
-              <div className="agents-permissions">
-                {capabilityOptions.map((cap) => (
-                  <label key={cap}>
-                    <input
-                      type="checkbox"
-                      checked={capabilities.includes(cap)}
-                      onChange={() => toggle(capabilities, cap, setCapabilities)}
-                    />
-                    <span>{cap}</span>
-                    {cap === "Use connected tools" && (
-                      <span className="badge badge-muted">Human review</span>
-                    )}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            {error && (
-              <p role="alert" className="agents-form-error">
-                {error}
-              </p>
-            )}
-            <DialogFooter>
-              <button className="btn btn-primary" type="submit">
-                Create
               </button>
             </DialogFooter>
           </form>

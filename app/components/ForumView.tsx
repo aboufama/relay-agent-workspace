@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/SelectField";
 import { PageHeader } from "@/components/buzz/PageHeader";
 import { useMemo, useState, type SyntheticEvent } from "react";
 import {
@@ -391,7 +392,7 @@ export function ForumView({ onNotify }: { onNotify?: (message: string) => void }
             <>
               <div className="work-forum-heading">
                 <h2>{subscribedOnly ? "Following" : category}</h2>
-                <select
+                <SelectField
                   aria-label="Sort discussions"
                   className="select"
                   value={sort}
@@ -400,7 +401,7 @@ export function ForumView({ onNotify }: { onNotify?: (message: string) => void }
                   <option>Latest</option>
                   <option>Most appreciated</option>
                   <option>Most discussed</option>
-                </select>
+                </SelectField>
               </div>
               <label className="work-search work-forum-search">
                 <Search size={17} />
@@ -520,7 +521,7 @@ export function ForumView({ onNotify }: { onNotify?: (message: string) => void }
             </label>
             <label className="field">
               <span className="field-label">Category</span>
-              <select
+              <SelectField
                 className="select"
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
@@ -528,7 +529,7 @@ export function ForumView({ onNotify }: { onNotify?: (message: string) => void }
                 {categories.slice(1).map((item) => (
                   <option key={item}>{item}</option>
                 ))}
-              </select>
+              </SelectField>
             </label>
             <label className="field">
               <span className="field-label">Your post</span>

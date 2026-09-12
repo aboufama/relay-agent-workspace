@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/SelectField";
 import { PageHeader } from "@/components/buzz/PageHeader";
 import { useMemo, useState, type SyntheticEvent } from "react";
 import {
@@ -241,7 +242,7 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
                 onChange={(e) => setSearch(e.target.value)}
               />
             </label>
-            <select
+            <SelectField
               aria-label="Workflow status"
               className="select"
               value={filter}
@@ -250,7 +251,7 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
               <option>All workflows</option>
               <option>Active</option>
               <option>Paused</option>
-            </select>
+            </SelectField>
           </div>
           <div className="work-flow-grid">
             {visible.map((workflow) => (
@@ -395,9 +396,9 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
               />
             </label>
             <div className="form-grid">
-              <label className="field">
+              <label className="field" htmlFor="workflow-trigger">
                 <span className="field-label">Trigger</span>
-                <select
+                <SelectField id="workflow-trigger"
                   className="select"
                   value={trigger}
                   onChange={(e) => setTrigger(e.target.value)}
@@ -407,15 +408,15 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
                   <option>Every weekday at 9:00 AM</option>
                   <option>New workspace member</option>
                   <option>Manual start</option>
-                </select>
+                </SelectField>
               </label>
-              <label className="field">
+              <label className="field" htmlFor="workflow-agent">
                 <span className="field-label">Assigned agent</span>
-                <select className="select" value={agent} onChange={(e) => setAgent(e.target.value)}>
+                <SelectField id="workflow-agent" className="select" value={agent} onChange={(e) => setAgent(e.target.value)}>
                   <option>Atlas</option>
                   <option>Scout</option>
                   <option>Nova</option>
-                </select>
+                </SelectField>
               </label>
             </div>
             <label className="work-checkbox">
