@@ -1,0 +1,3 @@
+Method: built-in imagegen. User-supplied architecture diagram, edited only for the video.
+
+Change only “Local Gemma model” to “Local Holo-3.1 model” and “vLLM · DGX Spark GPU” to “vLLM · Dell GB10 GPU”. Preserve all other text, geometry, typography, colors, margins, and aspect ratio; no clipping.

@@ -1,0 +1,1179 @@
+{
+  "members": [
+    {
+      "id": "atlas",
+      "kind": "agent",
+      "name": "Atlas",
+      "initials": "At",
+      "tone": "mint",
+      "data": {
+        "demo": true,
+        "role": "Firmware Safety Engineer",
+        "description": "Make Compass 3.4 safe to promote by checking compatibility, rollback behavior, and unresolved firmware security findings.",
+        "goal": "Produce an evidence-linked go/no-go recommendation for Compass 3.4.2; all applicable release blockers must have an owner and closure evidence before the 250-system pilot.",
+        "instructions": "Synthetic demonstration workspace. People, products, measurements, incidents, prices, and policies are fictional. Agent responses use the configured local runtime; collection paths describe demo context access and do not imply live integrations.\nYour purpose: Make Compass 3.4 safe to promote by checking compatibility, rollback behavior, and unresolved firmware security findings.\nGoal: Produce an evidence-linked go/no-go recommendation for Compass 3.4.2; all applicable release blockers must have an owner and closure evidence before the 250-system pilot.\nDraft change proposals, risk assessments, and task updates in Firmware Engineering. Cannot alter signed images, keys, production fleets, or security-vault source evidence.\nHuman review: Olivia approves firmware changes and rollout. Orion must approve any export or downgrade of Restricted findings. These are demonstration policies, not claimed external integrations.\nExcluded: BOM & Supplier Vault, Raw customer data, Signing keys. Cite evidence as [source §n]. Distinguish measured results, proposed tests, and approved decisions. Logical access paths describe source scopes; they are not connected external tools.",
+        "character": "worm",
+        "color": "mint",
+        "owner": "Olivia Chen",
+        "channels": ["firmware-gate"],
+        "context": [
+          "Engineering Release Office",
+          "Server Platform Design",
+          "Firmware Engineering",
+          "Firmware Security Vault"
+        ],
+        "audiences": [
+          "Platform Software",
+          "Release Approvers",
+          "Server Platform",
+          "Firmware Security",
+          "Bell Engineering"
+        ],
+        "accessLevel": "Restricted",
+        "accessPaths": [
+          "Bell / Engineering / Compass / Firmware → release manifests and rollback plans",
+          "Bell / Restricted / Firmware Security → finding status and remediation criteria",
+          "Bell / Engineering / Summit R8 / Design → platform compatibility"
+        ],
+        "approvalGates": [
+          "Olivia approves firmware changes and rollout. Orion must approve any export or downgrade of Restricted findings. These are demonstration policies, not claimed external integrations."
+        ],
+        "examplePrompts": [
+          "Is Compass 3.4.2 ready for the 250-system pilot? Cite every blocking criterion.",
+          "Draft the recovery path for a Summit R8 that loses power after the inactive bank is written.",
+          "Summarize FW-27 for Olivia without copying Restricted details into the release channel."
+        ],
+        "capabilities": [
+          "Retrieve scoped evidence",
+          "Draft analysis",
+          "Prepare review"
+        ],
+        "allowedTaskIds": [
+          "bell-SUM-101",
+          "bell-CMP-301",
+          "bell-CMP-302",
+          "bell-CMP-304"
+        ],
+        "runtime": "local",
+        "homeId": "lab",
+        "model": "",
+        "device": "Local GB10"
+      }
+    },
+    {
+      "id": "iris",
+      "kind": "agent",
+      "name": "Iris",
+      "initials": "Ir",
+      "tone": "coral",
+      "data": {
+        "demo": true,
+        "role": "Field Quality Investigator",
+        "description": "Connect repeat failure signatures to reproducible tests and keep fleet impact separate from root-cause hypotheses.",
+        "goal": "Resolve Horizon 14 dock-resume incidents by linking the observed signature to a reproducible sequence, validating the mitigation, and producing an approved support summary.",
+        "instructions": "Synthetic demonstration workspace. People, products, measurements, incidents, prices, and policies are fictional. Agent responses use the configured local runtime; collection paths describe demo context access and do not imply live integrations.\nYour purpose: Connect repeat failure signatures to reproducible tests and keep fleet impact separate from root-cause hypotheses.\nGoal: Resolve Horizon 14 dock-resume incidents by linking the observed signature to a reproducible sequence, validating the mitigation, and producing an approved support summary.\nDraft incident clusters, reproduction steps, and support summaries. Cannot contact customers, close support cases, export case evidence, or claim a causal link without validation.\nHuman review: Marcus approves root-cause conclusions and incident closure; Olivia approves mitigation language tied to a firmware release.\nExcluded: Firmware Security Vault, BOM & Supplier Vault, Customer identities. Cite evidence as [source §n]. Distinguish measured results, proposed tests, and approved decisions. Logical access paths describe source scopes; they are not connected external tools.",
+        "character": "caterpillar",
+        "color": "coral",
+        "owner": "Marcus Reed",
+        "channels": ["horizon-validation"],
+        "context": [
+          "Public Product Reference",
+          "Engineering Release Office",
+          "Field Quality Evidence",
+          "Firmware Engineering"
+        ],
+        "audiences": [
+          "Product Reliability",
+          "Platform Software",
+          "Bell Engineering"
+        ],
+        "accessLevel": "Confidential",
+        "accessPaths": [
+          "Bell / Engineering / Quality / Sanitized Cases → failure signatures and cohort evidence",
+          "Bell / Engineering / Compass / Firmware → compatibility and recovery notes",
+          "Bell / Engineering / Release Office → approved qualification summaries"
+        ],
+        "approvalGates": [
+          "Marcus approves root-cause conclusions and incident closure; Olivia approves mitigation language tied to a firmware release."
+        ],
+        "examplePrompts": [
+          "What is the dock-resume failure rate, and which cohort is affected?",
+          "Separate confirmed observations from hypotheses in H14-Q18.",
+          "Draft a support-safe summary of the validated dock firmware mitigation."
+        ],
+        "capabilities": [
+          "Retrieve scoped evidence",
+          "Draft analysis",
+          "Prepare review"
+        ],
+        "allowedTaskIds": ["bell-HOR-202", "bell-HOR-204"],
+        "runtime": "local",
+        "homeId": "lab",
+        "model": "",
+        "device": "Local GB10"
+      }
+    },
+    {
+      "id": "ledger",
+      "kind": "agent",
+      "name": "Ledger",
+      "initials": "Le",
+      "tone": "slate",
+      "data": {
+        "demo": true,
+        "role": "BOM & Supply Risk Planner",
+        "description": "Make sourcing decisions traceable to cost, capacity, qualification status, and engineering tradeoffs.",
+        "goal": "Recommend a Cedar PSU allocation for the 4,000-server build that meets the 2,600-server launch commitment and quantifies cost and shortage exposure.",
+        "instructions": "Synthetic demonstration workspace. People, products, measurements, incidents, prices, and policies are fictional. Agent responses use the configured local runtime; collection paths describe demo context access and do not imply live integrations.\nYour purpose: Make sourcing decisions traceable to cost, capacity, qualification status, and engineering tradeoffs.\nGoal: Recommend a Cedar PSU allocation for the 4,000-server build that meets the 2,600-server launch commitment and quantifies cost and shortage exposure.\nDraft allocation scenarios and sourcing decision notes. Cannot issue purchase orders, change vendor commitments, approve spend, or publish pricing to engineering channels.\nHuman review: Orion approves sourcing and spend. Marcus must approve PSU qualification before any alternate is recommended as production-ready.\nExcluded: Firmware Security Vault, Signing keys, Customer evidence. Cite evidence as [source §n]. Distinguish measured results, proposed tests, and approved decisions. Logical access paths describe source scopes; they are not connected external tools.",
+        "character": "worm",
+        "color": "slate",
+        "owner": "Orion",
+        "channels": ["cedar-sourcing"],
+        "context": [
+          "Public Product Reference",
+          "Engineering Release Office",
+          "Server Platform Design",
+          "Thermal & Power Lab",
+          "BOM & Supplier Vault"
+        ],
+        "audiences": [
+          "Engineering Leadership",
+          "Sourcing Review",
+          "Server Platform",
+          "Thermal Engineering",
+          "Bell Engineering"
+        ],
+        "accessLevel": "Restricted",
+        "accessPaths": [
+          "Bell / Restricted / Sourcing / Cedar → supplier quotes and allocation model",
+          "Bell / Engineering / Validation / Thermal Lab → PSU qualification evidence",
+          "Bell / Engineering / Summit R8 / Design → required PSU configuration"
+        ],
+        "approvalGates": [
+          "Orion approves sourcing and spend. Marcus must approve PSU qualification before any alternate is recommended as production-ready."
+        ],
+        "examplePrompts": [
+          "How many Summit R8 systems can launch with the currently qualified PSU?",
+          "Compare all-A and mixed-source Cedar allocations, including the shortage and cost delta.",
+          "Draft an Internal supply update with supplier pricing and capacity terms removed."
+        ],
+        "capabilities": [
+          "Retrieve scoped evidence",
+          "Draft analysis",
+          "Prepare review"
+        ],
+        "allowedTaskIds": ["bell-SUM-104", "bell-CED-401", "bell-CED-404"],
+        "runtime": "local",
+        "homeId": "lab",
+        "model": "",
+        "device": "Local GB10"
+      }
+    },
+    {
+      "id": "nova",
+      "kind": "agent",
+      "name": "Nova",
+      "initials": "No",
+      "tone": "lilac",
+      "data": {
+        "demo": true,
+        "role": "Thermal & Power Analyst",
+        "description": "Find the smallest hardware or firmware adjustment that meets thermal, acoustic, and efficiency targets.",
+        "goal": "Recommend a Horizon 14 fan curve that keeps sustained package power at 28 W, peak skin temperature at or below 43°C, and acoustics at or below 35 dBA under the defined lab conditions.",
+        "instructions": "Synthetic demonstration workspace. People, products, measurements, incidents, prices, and policies are fictional. Agent responses use the configured local runtime; collection paths describe demo context access and do not imply live integrations.\nYour purpose: Find the smallest hardware or firmware adjustment that meets thermal, acoustic, and efficiency targets.\nGoal: Recommend a Horizon 14 fan curve that keeps sustained package power at 28 W, peak skin temperature at or below 43°C, and acoustics at or below 35 dBA under the defined lab conditions.\nDraft analysis, proposed lab runs, and thermal recommendations. Cannot mark an unperformed test as complete, change physical lab equipment, or apply a fan curve to hardware.\nHuman review: Marcus approves the test plan and any qualification waiver; Olivia approves fan-curve firmware changes.\nExcluded: Firmware Security Vault, BOM & Supplier Vault, Field case narratives. Cite evidence as [source §n]. Distinguish measured results, proposed tests, and approved decisions. Logical access paths describe source scopes; they are not connected external tools.",
+        "character": "firefly",
+        "color": "lilac",
+        "owner": "Marcus Reed",
+        "channels": ["horizon-validation"],
+        "context": [
+          "Public Product Reference",
+          "Engineering Release Office",
+          "Server Platform Design",
+          "Thermal & Power Lab"
+        ],
+        "audiences": [
+          "Thermal Engineering",
+          "Product Reliability",
+          "Server Platform",
+          "Bell Engineering"
+        ],
+        "accessLevel": "Confidential",
+        "accessPaths": [
+          "Bell / Engineering / Validation / Thermal Lab → chamber datasets and comparison reports",
+          "Bell / Engineering / Summit R8 / Design → power and airflow budgets"
+        ],
+        "approvalGates": [
+          "Marcus approves the test plan and any qualification waiver; Olivia approves fan-curve firmware changes."
+        ],
+        "examplePrompts": [
+          "Compare Horizon 14 curves A and B against every thermal and acoustic limit.",
+          "What evidence is missing before Cedar PSU-B can pass qualification?",
+          "Draft a three-run chamber plan to resolve the 0.3°C skin-temperature miss."
+        ],
+        "capabilities": [
+          "Retrieve scoped evidence",
+          "Draft analysis",
+          "Prepare review"
+        ],
+        "allowedTaskIds": ["bell-HOR-201", "bell-CED-402"],
+        "runtime": "local",
+        "homeId": "lab",
+        "model": "",
+        "device": "Local GB10"
+      }
+    },
+    {
+      "id": "sage",
+      "kind": "agent",
+      "name": "Sage",
+      "initials": "Sa",
+      "tone": "gold",
+      "data": {
+        "demo": true,
+        "role": "Engineering Release Coordinator",
+        "description": "Turn approved engineering updates into a clear release picture across the division.",
+        "goal": "Keep each of the four programs' next gate, owner, due date, and blocking dependencies current; prepare the weekly engineering readout from approved Internal sources.",
+        "instructions": "Synthetic demonstration workspace. People, products, measurements, incidents, prices, and policies are fictional. Agent responses use the configured local runtime; collection paths describe demo context access and do not imply live integrations.\nYour purpose: Turn approved engineering updates into a clear release picture across the division.\nGoal: Keep each of the four programs' next gate, owner, due date, and blocking dependencies current; prepare the weekly engineering readout from approved Internal sources.\nDraft release notes, meeting briefs, and milestone updates. Cannot read lab raw data, supplier costs, security findings, or change a release approval.\nHuman review: Olivia approves release status; Orion approves division-wide or external publication. If a source is inaccessible, request an approved summary from its owner.\nExcluded: All Confidential collections, All Restricted collections. Cite evidence as [source §n]. Distinguish measured results, proposed tests, and approved decisions. Logical access paths describe source scopes; they are not connected external tools.",
+        "character": "ladybug",
+        "color": "gold",
+        "owner": "Olivia Chen",
+        "channels": ["engineering-release"],
+        "context": ["Public Product Reference", "Engineering Release Office"],
+        "audiences": ["Bell Engineering"],
+        "accessLevel": "Internal",
+        "accessPaths": [
+          "Bell / Engineering / Release Office → milestone board and qualification summaries",
+          "Bell / Public / Product Reference → approved product descriptions"
+        ],
+        "approvalGates": [
+          "Olivia approves release status; Orion approves division-wide or external publication. If a source is inaccessible, request an approved summary from its owner."
+        ],
+        "examplePrompts": [
+          "Prepare Friday's engineering readout with one next decision per program.",
+          "Which September gates are blocked, and who owns the next action?",
+          "Draft an Internal release note for the completed Horizon 14 sleep-resume qualification."
+        ],
+        "capabilities": [
+          "Retrieve scoped evidence",
+          "Draft analysis",
+          "Prepare review"
+        ],
+        "allowedTaskIds": ["bell-SUM-102", "bell-HOR-203", "bell-CMP-303"],
+        "runtime": "local",
+        "homeId": "lab",
+        "model": "",
+        "device": "Local GB10"
+      }
+    },
+    {
+      "id": "scout",
+      "kind": "agent",
+      "name": "Scout",
+      "initials": "Sc",
+      "tone": "sky",
+      "data": {
+        "demo": true,
+        "role": "Public Product Researcher",
+        "description": "Answer product questions and build comparison criteria using only material cleared for public sharing.",
+        "goal": "Produce a public-safe evaluation brief for Summit R8 and Cedar power options; identify unanswered questions without exposing internal architecture, lab results, or commercial terms.",
+        "instructions": "Synthetic demonstration workspace. People, products, measurements, incidents, prices, and policies are fictional. Agent responses use the configured local runtime; collection paths describe demo context access and do not imply live integrations.\nYour purpose: Answer product questions and build comparison criteria using only material cleared for public sharing.\nGoal: Produce a public-safe evaluation brief for Summit R8 and Cedar power options; identify unanswered questions without exposing internal architecture, lab results, or commercial terms.\nRead-only context. May draft a response in the current conversation; cannot modify source material or infer unpublished specs from inaccessible collections.\nHuman review: Orion reviews any new public product claim. No live web crawling or connected research service is implied by this demo.\nExcluded: All Internal collections, All Confidential collections, All Restricted collections. Cite evidence as [source §n]. Distinguish measured results, proposed tests, and approved decisions. Logical access paths describe source scopes; they are not connected external tools.",
+        "character": "firefly",
+        "color": "sky",
+        "owner": "Orion",
+        "channels": ["public-product-questions"],
+        "context": ["Public Product Reference"],
+        "audiences": ["Everyone"],
+        "accessLevel": "Public",
+        "accessPaths": [
+          "Bell / Public / Product Reference → fictional public product briefs only"
+        ],
+        "approvalGates": [
+          "Orion reviews any new public product claim. No live web crawling or connected research service is implied by this demo."
+        ],
+        "examplePrompts": [
+          "Explain Summit R8's intended workloads using only public reference material.",
+          "Build a buyer-question checklist for redundant power and serviceability.",
+          "Can you confirm Cedar's supplier price? If the public sources do not contain it, say so."
+        ],
+        "capabilities": [
+          "Retrieve scoped evidence",
+          "Draft analysis",
+          "Prepare review"
+        ],
+        "allowedTaskIds": ["bell-SUM-103", "bell-CED-403"],
+        "runtime": "local",
+        "homeId": "lab",
+        "model": "",
+        "device": "Local GB10"
+      }
+    },
+    {
+      "id": "marcus",
+      "kind": "human",
+      "name": "Marcus Reed",
+      "initials": "MA",
+      "tone": "sky",
+      "data": {
+        "role": "Validation & Field Quality Lead",
+        "team": "Product Reliability"
+      }
+    },
+    {
+      "id": "olivia",
+      "kind": "human",
+      "name": "Olivia Chen",
+      "initials": "OL",
+      "tone": "sky",
+      "data": {
+        "role": "Firmware & Release Lead",
+        "team": "Platform Software"
+      }
+    },
+    {
+      "id": "you",
+      "kind": "human",
+      "name": "Orion",
+      "initials": "OR",
+      "tone": "sky",
+      "data": {
+        "role": "Engineering Division Director",
+        "team": "Engineering Leadership"
+      }
+    }
+  ],
+  "channels": [
+    "cedar-sourcing",
+    "engineering-release",
+    "horizon-validation",
+    "firmware-gate",
+    "public-product-questions"
+  ],
+  "messages": [
+    {
+      "id": "bell-message-0",
+      "room": "engineering-release",
+      "memberId": "olivia",
+      "name": "Olivia Chen",
+      "body": "Friday gate review: Compass is still blocked, Horizon has two validation actions, and Cedar's alternate is awaiting qualification. Keep the September 18–24 decision dates visible.",
+      "createdAt": "2026-09-12T13:00:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-1",
+      "room": "engineering-release",
+      "memberId": "sage",
+      "name": "Sage",
+      "body": "Updated the approved gate board: Compass · Sep 18 · Olivia; Horizon · Sep 19 · Marcus; Cedar · Sep 22 · Orion; Summit DVT · Sep 24 · Olivia. Summit depends on the Compass recovery decision and the Cedar power configuration.",
+      "createdAt": "2026-09-12T13:03:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-2",
+      "room": "engineering-release",
+      "memberId": "marcus",
+      "name": "Marcus Reed",
+      "body": "Undocked Horizon sleep/resume passed all 500 cycles. Please keep docked validation listed as open; that is a different scenario.",
+      "createdAt": "2026-09-12T13:06:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-3",
+      "room": "engineering-release",
+      "memberId": "sage",
+      "name": "Sage",
+      "body": "The qualification summary now makes that distinction. I can report the approved validation status, but I need an owner-approved summary to describe any Confidential lab result.",
+      "createdAt": "2026-09-12T13:09:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-4",
+      "room": "horizon-validation",
+      "memberId": "marcus",
+      "name": "Marcus Reed",
+      "body": "Nova, can we approve curve B? It meets the acoustic target and holds 28 W.",
+      "createdAt": "2026-09-12T13:12:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-5",
+      "room": "horizon-validation",
+      "memberId": "nova",
+      "name": "Nova",
+      "body": "Not yet. Curve B reaches 43.3°C against a 43.0°C skin limit. Curve A stays cooler but measures 36.2 dBA against 35.0. I drafted a curve C run with a small duty increase above 88°C; it has no measured result yet.",
+      "createdAt": "2026-09-12T13:15:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-6",
+      "room": "horizon-validation",
+      "memberId": "iris",
+      "name": "Iris",
+      "body": "The separate dock issue affects 18 of 600 evaluated devices: 3.0% overall incidence. We do not know the size of the exact dual-4K/dock-2.6 cohort. Candidate dock 2.7 passed 100 cycles, so the 1,000-cycle confirmation is the next useful evidence.",
+      "createdAt": "2026-09-12T13:18:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-7",
+      "room": "horizon-validation",
+      "memberId": "marcus",
+      "name": "Marcus Reed",
+      "body": "Proceed with the proposed lab plan in the demo queue. Leave thermal signoff and incident closure pending until the results are reviewed.",
+      "createdAt": "2026-09-12T13:21:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-8",
+      "room": "firmware-gate",
+      "memberId": "olivia",
+      "name": "Olivia Chen",
+      "body": "Atlas, give me the remaining evidence before Compass 3.4.2 can enter the 250-system pilot.",
+      "createdAt": "2026-09-12T13:24:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-9",
+      "room": "firmware-gate",
+      "memberId": "atlas",
+      "name": "Atlas",
+      "body": "Three items remain: six FW-27 negative compatibility cases, 50 first-boot interruption cycles to reach 200/200 recovery checks, and another 36 hours to complete the 72-hour lab soak. The 40 successful installations do not close these gates.",
+      "createdAt": "2026-09-12T13:27:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-10",
+      "room": "firmware-gate",
+      "memberId": "you",
+      "name": "Orion",
+      "body": "Keep the technical finding in this channel. The engineering-release update should say security validation remains open and identify Olivia as the decision owner.",
+      "createdAt": "2026-09-12T13:30:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-11",
+      "room": "firmware-gate",
+      "memberId": "atlas",
+      "name": "Atlas",
+      "body": "Drafted that Internal-safe status for Olivia's review. Pilot promotion remains blocked; no rollout or source-policy change has been performed.",
+      "createdAt": "2026-09-12T13:33:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-12",
+      "room": "cedar-sourcing",
+      "memberId": "you",
+      "name": "Orion",
+      "body": "Ledger, can the qualified supply cover the first launch commitment, and what remains exposed?",
+      "createdAt": "2026-09-12T13:36:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-13",
+      "room": "cedar-sourcing",
+      "memberId": "ledger",
+      "name": "Ledger",
+      "body": "Yes. The 5,200 qualified A modules cover 2,600 complete servers, exactly the first commitment. The remaining 1,400 systems in the 4,000-system build depend on more A supply or B qualification. Each server requires a matched pair.",
+      "createdAt": "2026-09-12T13:39:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-14",
+      "room": "cedar-sourcing",
+      "memberId": "ledger",
+      "name": "Ledger",
+      "body": "The conditional 5,200 A + 2,800 B plan costs $918,800, versus $944,000 for an all-A full build: $25,200 lower. B's 11.2 ms hold-up result is below the 12 ms requirement, so I have kept that allocation conditional.",
+      "createdAt": "2026-09-12T13:42:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-15",
+      "room": "cedar-sourcing",
+      "memberId": "you",
+      "name": "Orion",
+      "body": "Keep the scenario in review. Prepare an engineering update that describes the qualification dependency without the supplier terms; I will approve it before it moves to the release office.",
+      "createdAt": "2026-09-12T13:45:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-16",
+      "room": "public-product-questions",
+      "memberId": "you",
+      "name": "Orion",
+      "body": "Scout, what can you tell a buyer about Summit R8 and the Cedar power option?",
+      "createdAt": "2026-09-12T13:48:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-17",
+      "room": "public-product-questions",
+      "memberId": "scout",
+      "name": "Scout",
+      "body": "Summit R8 is planned as a 2U enterprise platform with redundant hot-swap power and serviceable components. Cedar targets 1,200 W modules and at least 94% efficiency at half load on 230 V input. These are public design targets; shipping specifications and certification are not confirmed in my sources.",
+      "createdAt": "2026-09-12T13:51:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-18",
+      "room": "public-product-questions",
+      "memberId": "you",
+      "name": "Orion",
+      "body": "Which supplier is cheaper, and is the alternate qualified?",
+      "createdAt": "2026-09-12T13:54:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    },
+    {
+      "id": "bell-message-19",
+      "room": "public-product-questions",
+      "memberId": "scout",
+      "name": "Scout",
+      "body": "My Public Product Reference collection contains neither supplier pricing nor qualification results. I can explain the published evaluation criteria; an authorized engineering owner would need to provide an approved answer about sourcing or qualification.",
+      "createdAt": "2026-09-12T13:57:00.000Z",
+      "runId": null,
+      "state": "complete",
+      "error": null,
+      "attachment": null
+    }
+  ],
+  "projects": [
+    {
+      "id": "cedar-power",
+      "name": "Cedar Efficient Power Program",
+      "description": "Qualify a fictional 1,200 W redundant PSU option and balance launch availability, efficiency, acoustics, and sourcing cost.",
+      "color": "amber"
+    },
+    {
+      "id": "compass-34",
+      "name": "Compass 3.4 Fleet Firmware",
+      "description": "Prepare a fictional unified firmware release with guarded promotion, dual-bank recovery, and auditable compatibility checks.",
+      "color": "green"
+    },
+    {
+      "id": "horizon-14",
+      "name": "Horizon 14 Mobile Workstation",
+      "description": "Validate a fictional 14-inch engineering notebook for sustained CAD workloads, docking reliability, and quiet operation.",
+      "color": "violet"
+    },
+    {
+      "id": "summit-r8",
+      "name": "Summit R8 Server Platform",
+      "description": "Qualify a fictional 2U enterprise rack server for virtualization, private AI inference, and branch infrastructure.",
+      "color": "blue"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "bell-SUM-101",
+      "project": "summit-r8",
+      "title": "Freeze the EVT-3 power budget",
+      "description": "Fictional demo task. Reviewer: Olivia Chen.\nSources: Summit R8 EVT-3 — Power & Airflow Budget.",
+      "status": "Done",
+      "owner": "Atlas",
+      "priority": "High",
+      "due": "2026-09-11",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Olivia Chen: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": "Illustrative completed deliverable — Reference configuration sums to 966 W; 10% margin yields 1,062.6 W; single-PSU capacity and configuration exclusions are recorded.",
+      "parentId": null,
+      "criteria": "Reference configuration sums to 966 W; 10% margin yields 1,062.6 W; single-PSU capacity and configuration exclusions are recorded.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-SUM-102",
+      "project": "summit-r8",
+      "title": "Prepare the Summit DVT gate brief",
+      "description": "Fictional demo task. Reviewer: Olivia Chen.\nSources: Division Gate Board — Week of September 14.",
+      "status": "In progress",
+      "owner": "Sage",
+      "priority": "High",
+      "due": "2026-09-23",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Olivia Chen: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": null,
+      "parentId": null,
+      "criteria": "Brief lists Compass and Cedar dependencies, one accountable owner per gate, and links only approved Internal source summaries.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-SUM-103",
+      "project": "summit-r8",
+      "title": "Explain public Summit serviceability claims",
+      "description": "Fictional demo task. Reviewer: Orion.\nSources: Summit R8 — Public Product Brief.",
+      "status": "In review",
+      "owner": "Scout",
+      "priority": "Medium",
+      "due": "2026-09-15",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Orion: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": null,
+      "parentId": null,
+      "criteria": "Draft uses only the public brief, labels unqualified specifications as targets, and contains no internal architecture or supplier details.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-SUM-104",
+      "project": "summit-r8",
+      "title": "Confirm launch power coverage",
+      "description": "Fictional demo task. Reviewer: Orion.\nSources: Cedar — Launch Allocation & Cost Scenarios; Cedar PSU-A / PSU-B — Bench Qualification.\nBlocked: Alternate PSU qualification is pending.",
+      "status": "Blocked",
+      "owner": "Ledger",
+      "priority": "High",
+      "due": "2026-09-22",
+      "label": "Blocked",
+      "comments": [
+        "Demo snapshot · Orion: Alternate PSU qualification is pending."
+      ],
+      "deliverable": null,
+      "parentId": null,
+      "criteria": "Decision identifies coverage for 4,000 systems, distinguishes qualified supply from the conditional alternate, and has Orion's sourcing approval.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-HOR-201",
+      "project": "horizon-14",
+      "title": "Propose and evaluate fan curve C",
+      "description": "Fictional demo task. Reviewer: Marcus Reed.\nSources: Horizon 14 — Fan Curve A/B Chamber Results.",
+      "status": "In progress",
+      "owner": "Nova",
+      "priority": "High",
+      "due": "2026-09-16",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Marcus Reed: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": null,
+      "parentId": null,
+      "criteria": "Marcus approves a three-unit, 30-minute chamber run; observed results meet ≥28 W, ≤43.0°C skin, ≤35.0 dBA at 0.5 m, and ≤95°C junction.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-HOR-202",
+      "project": "horizon-14",
+      "title": "Extend dock 2.7 resume confirmation",
+      "description": "Fictional demo task. Reviewer: Marcus Reed.\nSources: H14-Q18 — Dock Resume Failure Cluster.",
+      "status": "Backlog",
+      "owner": "Iris",
+      "priority": "High",
+      "due": "2026-09-17",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Marcus Reed: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": null,
+      "parentId": null,
+      "criteria": "Run 1,000 cycles across 10 devices with dual 4K displays; record failures, firmware versions, hot-plug coverage, and observed recovery behavior.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-HOR-203",
+      "project": "horizon-14",
+      "title": "Publish approved undocked qualification summary",
+      "description": "Fictional demo task. Reviewer: Marcus Reed.\nSources: Horizon 14 — Qualification Coverage Summary.",
+      "status": "Done",
+      "owner": "Sage",
+      "priority": "Medium",
+      "due": "2026-09-12",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Marcus Reed: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": "Illustrative completed deliverable — Internal summary states 500/500 undocked cycles passed and explicitly leaves docked validation open; Marcus approves wording.",
+      "parentId": null,
+      "criteria": "Internal summary states 500/500 undocked cycles passed and explicitly leaves docked validation open; Marcus approves wording.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-HOR-204",
+      "project": "horizon-14",
+      "title": "Verify the affected docking denominator",
+      "description": "Fictional demo task. Reviewer: Marcus Reed.\nSources: H14-Q18 — Dock Resume Failure Cluster.",
+      "status": "In review",
+      "owner": "Iris",
+      "priority": "Medium",
+      "due": "2026-09-15",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Marcus Reed: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": null,
+      "parentId": null,
+      "criteria": "Report the known 18/600 device incidence as 3.0%; mark the exact dock/display cohort denominator unknown until verified; do not claim a causal defect rate.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-CMP-301",
+      "project": "compass-34",
+      "title": "Close FW-27 regression evidence",
+      "description": "Fictional demo task. Reviewer: Olivia Chen.\nSources: FW-27 — Pre-Promotion Security Finding; Compass — Dual-Bank Recovery Acceptance Plan.\nBlocked: Six negative compatibility cases and the final recovery phase remain outstanding.",
+      "status": "Blocked",
+      "owner": "Atlas",
+      "priority": "Critical",
+      "due": "2026-09-16",
+      "label": "Blocked",
+      "comments": [
+        "Demo snapshot · Olivia Chen: Six negative compatibility cases and the final recovery phase remain outstanding."
+      ],
+      "deliverable": null,
+      "parentId": null,
+      "criteria": "All 24 negative compatibility cases and required recovery evidence pass; Olivia records closure in the Restricted vault.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-CMP-302",
+      "project": "compass-34",
+      "title": "Finish interrupted-update recovery coverage",
+      "description": "Fictional demo task. Reviewer: Olivia Chen.\nSources: Compass — Dual-Bank Recovery Acceptance Plan.",
+      "status": "In progress",
+      "owner": "Atlas",
+      "priority": "Critical",
+      "due": "2026-09-15",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Olivia Chen: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": null,
+      "parentId": null,
+      "criteria": "Complete the final 50 first-boot interruptions for 200/200 recovered cycles; retain device identity and diagnostic reasons with no selector corruption.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-CMP-303",
+      "project": "compass-34",
+      "title": "Review the pilot promotion checklist",
+      "description": "Fictional demo task. Reviewer: Olivia Chen.\nSources: Division Gate Board — Week of September 14.",
+      "status": "Backlog",
+      "owner": "Sage",
+      "priority": "High",
+      "due": "2026-09-18",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Olivia Chen: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": null,
+      "parentId": null,
+      "criteria": "Use owner-approved Internal attestations for 72-hour soak, security closure, and recovery coverage; keep promotion blocked until Olivia signs.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-CMP-304",
+      "project": "compass-34",
+      "title": "Confirm the lab-ring installation cohort",
+      "description": "Fictional demo task. Reviewer: Olivia Chen.\nSources: Compass 3.4.2 — Compatibility & Promotion Matrix.",
+      "status": "Done",
+      "owner": "Atlas",
+      "priority": "Medium",
+      "due": "2026-09-11",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Olivia Chen: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": "Illustrative completed deliverable — Record 24 Summit and 16 Horizon installations, compatible board/EC baselines, 40 successful installs, and 0 boot failures; do not equate install success with promotion approval.",
+      "parentId": null,
+      "criteria": "Record 24 Summit and 16 Horizon installations, compatible board/EC baselines, 40 successful installs, and 0 boot failures; do not equate install success with promotion approval.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-CED-401",
+      "project": "cedar-power",
+      "title": "Quantify qualified and conditional PSU allocations",
+      "description": "Fictional demo task. Reviewer: Orion.\nSources: Cedar — Launch Allocation & Cost Scenarios.",
+      "status": "In review",
+      "owner": "Ledger",
+      "priority": "High",
+      "due": "2026-09-16",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Orion: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": null,
+      "parentId": null,
+      "criteria": "Show 8,000 modules required, 2,600 systems covered by qualified A supply, 1,400 conditional B systems, $918,800 mixed cost, and $25,200 nominal savings.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-CED-402",
+      "project": "cedar-power",
+      "title": "Qualify PSU-B2 hold-up behavior",
+      "description": "Fictional demo task. Reviewer: Marcus Reed.\nSources: Cedar PSU-A / PSU-B — Bench Qualification.\nBlocked: Revised capacitor samples have not reached the fictional lab.",
+      "status": "Blocked",
+      "owner": "Nova",
+      "priority": "High",
+      "due": "2026-09-20",
+      "label": "Blocked",
+      "comments": [
+        "Demo snapshot · Marcus Reed: Revised capacitor samples have not reached the fictional lab."
+      ],
+      "deliverable": null,
+      "parentId": null,
+      "criteria": "Five revised units achieve ≥12 ms hold-up at full rated load and 40°C; inrush and redundancy checks also pass; Marcus approves qualification.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-CED-403",
+      "project": "cedar-power",
+      "title": "Draft the public power evaluation checklist",
+      "description": "Fictional demo task. Reviewer: Orion.\nSources: Cedar — Public Power Design Goals.",
+      "status": "Done",
+      "owner": "Scout",
+      "priority": "Low",
+      "due": "2026-09-10",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Orion: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": "Illustrative completed deliverable — Checklist covers matched load/input conditions, redundancy, serviceability, and acoustics; makes no certification, availability, or pricing claim.",
+      "parentId": null,
+      "criteria": "Checklist covers matched load/input conditions, redundancy, serviceability, and acoustics; makes no certification, availability, or pricing claim.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-CED-404",
+      "project": "cedar-power",
+      "title": "Prepare a sanitized supply dependency update",
+      "description": "Fictional demo task. Reviewer: Orion.\nSources: Cedar — Launch Allocation & Cost Scenarios; Division Gate Board — Week of September 14.",
+      "status": "Backlog",
+      "owner": "Ledger",
+      "priority": "Medium",
+      "due": "2026-09-18",
+      "label": "Demo",
+      "comments": [
+        "Demo snapshot · Orion: Review against the acceptance criteria and cited source evidence."
+      ],
+      "deliverable": null,
+      "parentId": null,
+      "criteria": "Draft states alternate qualification is the build-completion dependency and gives the owner/date; excludes supplier identities, unit prices, and capacity commitments; Orion approves transfer to the Internal release office.",
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    }
+  ],
+  "runs": [],
+  "documents": [
+    {
+      "id": "bell-doc-horizon-qual",
+      "name": "horizon14-qualification.md",
+      "type": "text/markdown",
+      "size": 959,
+      "collection": "Engineering Release Office",
+      "level": "Public",
+      "owner": "Marcus Reed",
+      "audiences": ["Bell Engineering"],
+      "agents": ["atlas", "sage", "nova", "iris", "ledger"],
+      "status": "ready",
+      "textChars": 956,
+      "chunkCount": 1,
+      "updatedAt": "2026-09-12T21:21:20.501Z",
+      "error": "Keyword search only: Bell demo embeddings have not been generated."
+    },
+    {
+      "id": "bell-doc-release-board",
+      "name": "2026-09-14-gate-board.md",
+      "type": "text/markdown",
+      "size": 982,
+      "collection": "Engineering Release Office",
+      "level": "Internal",
+      "owner": "Olivia Chen",
+      "audiences": ["Bell Engineering"],
+      "agents": ["atlas", "sage", "nova", "iris", "ledger"],
+      "status": "ready",
+      "textChars": 979,
+      "chunkCount": 1,
+      "updatedAt": "2026-09-12T12:00:00.000Z",
+      "error": "Keyword search only: Bell demo embeddings have not been generated."
+    },
+    {
+      "id": "bell-doc-horizon-field",
+      "name": "h14-q18.md",
+      "type": "text/markdown",
+      "size": 999,
+      "collection": "Field Quality Evidence",
+      "level": "Confidential",
+      "owner": "Marcus Reed",
+      "audiences": ["Product Reliability", "Platform Software"],
+      "agents": ["iris"],
+      "status": "ready",
+      "textChars": 996,
+      "chunkCount": 1,
+      "updatedAt": "2026-09-12T12:00:00.000Z",
+      "error": "Keyword search only: Bell demo embeddings have not been generated."
+    },
+    {
+      "id": "bell-doc-compass-matrix",
+      "name": "3.4.2-promotion.md",
+      "type": "text/markdown",
+      "size": 980,
+      "collection": "Firmware Engineering",
+      "level": "Confidential",
+      "owner": "Olivia Chen",
+      "audiences": ["Platform Software", "Release Approvers"],
+      "agents": ["atlas", "iris"],
+      "status": "ready",
+      "textChars": 977,
+      "chunkCount": 1,
+      "updatedAt": "2026-09-12T12:00:00.000Z",
+      "error": "Keyword search only: Bell demo embeddings have not been generated."
+    },
+    {
+      "id": "bell-doc-fw27",
+      "name": "fw-27.md",
+      "type": "text/markdown",
+      "size": 1012,
+      "collection": "Firmware Security Vault",
+      "level": "Restricted",
+      "owner": "Olivia Chen",
+      "audiences": ["Firmware Security"],
+      "agents": ["atlas"],
+      "status": "ready",
+      "textChars": 1009,
+      "chunkCount": 1,
+      "updatedAt": "2026-09-12T12:00:00.000Z",
+      "error": "Keyword search only: Bell demo embeddings have not been generated."
+    },
+    {
+      "id": "bell-doc-cedar-sourcing",
+      "name": "launch-allocation.md",
+      "type": "text/markdown",
+      "size": 1142,
+      "collection": "BOM & Supplier Vault",
+      "level": "Restricted",
+      "owner": "Orion",
+      "audiences": ["Sourcing Review"],
+      "agents": ["ledger"],
+      "status": "ready",
+      "textChars": 1138,
+      "chunkCount": 1,
+      "updatedAt": "2026-09-12T12:00:00.000Z",
+      "error": "Keyword search only: Bell demo embeddings have not been generated."
+    },
+    {
+      "id": "bell-doc-summit-design",
+      "name": "evt3-power-airflow.md",
+      "type": "text/markdown",
+      "size": 861,
+      "collection": "Server Platform Design",
+      "level": "Confidential",
+      "owner": "Olivia Chen",
+      "audiences": ["Server Platform", "Engineering Leadership"],
+      "agents": ["atlas", "nova", "ledger"],
+      "status": "ready",
+      "textChars": 851,
+      "chunkCount": 1,
+      "updatedAt": "2026-09-11T12:00:00.000Z",
+      "error": "Keyword search only: Bell demo embeddings have not been generated."
+    },
+    {
+      "id": "bell-doc-horizon-thermal",
+      "name": "horizon14-fan-ab.csv.md",
+      "type": "text/markdown",
+      "size": 857,
+      "collection": "Thermal & Power Lab",
+      "level": "Confidential",
+      "owner": "Marcus Reed",
+      "audiences": ["Thermal Engineering", "Product Reliability"],
+      "agents": ["nova", "ledger"],
+      "status": "ready",
+      "textChars": 837,
+      "chunkCount": 1,
+      "updatedAt": "2026-09-11T12:00:00.000Z",
+      "error": "Keyword search only: Bell demo embeddings have not been generated."
+    },
+    {
+      "id": "bell-doc-compass-recovery",
+      "name": "dual-bank-recovery.md",
+      "type": "text/markdown",
+      "size": 1049,
+      "collection": "Firmware Engineering",
+      "level": "Confidential",
+      "owner": "Olivia Chen",
+      "audiences": ["Platform Software", "Release Approvers"],
+      "agents": ["atlas", "iris"],
+      "status": "ready",
+      "textChars": 1046,
+      "chunkCount": 1,
+      "updatedAt": "2026-09-11T12:00:00.000Z",
+      "error": "Keyword search only: Bell demo embeddings have not been generated."
+    },
+    {
+      "id": "bell-doc-cedar-bench",
+      "name": "cedar-psu-qualification.md",
+      "type": "text/markdown",
+      "size": 919,
+      "collection": "Thermal & Power Lab",
+      "level": "Confidential",
+      "owner": "Marcus Reed",
+      "audiences": ["Thermal Engineering", "Product Reliability"],
+      "agents": ["nova", "ledger"],
+      "status": "ready",
+      "textChars": 912,
+      "chunkCount": 1,
+      "updatedAt": "2026-09-11T12:00:00.000Z",
+      "error": "Keyword search only: Bell demo embeddings have not been generated."
+    },
+    {
+      "id": "bell-doc-summit-brief",
+      "name": "summit-r8-brief.md",
+      "type": "text/markdown",
+      "size": 720,
+      "collection": "Public Product Reference",
+      "level": "Public",
+      "owner": "Orion",
+      "audiences": [],
+      "agents": ["sage", "nova", "iris", "scout", "ledger"],
+      "status": "ready",
+      "textChars": 717,
+      "chunkCount": 1,
+      "updatedAt": "2026-09-10T12:00:00.000Z",
+      "error": "Keyword search only: Bell demo embeddings have not been generated."
+    },
+    {
+      "id": "bell-doc-cedar-public",
+      "name": "cedar-power-goals.md",
+      "type": "text/markdown",
+      "size": 868,
+      "collection": "Public Product Reference",
+      "level": "Public",
+      "owner": "Orion",
+      "audiences": [],
+      "agents": ["sage", "nova", "iris", "scout", "ledger"],
+      "status": "ready",
+      "textChars": 865,
+      "chunkCount": 1,
+      "updatedAt": "2026-09-09T12:00:00.000Z",
+      "error": "Keyword search only: Bell demo embeddings have not been generated."
+    }
+  ],
+  "approvals": [
+    {
+      "id": "bell-review-SUM-103",
+      "runId": null,
+      "title": "Demo review · Explain public Summit serviceability claims",
+      "agent": "Scout",
+      "body": "Synthetic review request. Draft uses only the public brief, labels unqualified specifications as targets, and contains no internal architecture or supplier details.\n\nApproving records a demo decision only. No publication, purchase, hardware change, or command is executed.",
+      "action": "{\"type\":\"demo_review\",\"taskId\":\"bell-SUM-103\",\"effect\":\"Record a review decision only\"}",
+      "source": "bell-demo",
+      "externalId": null,
+      "sessionKey": null,
+      "expiresAt": null,
+      "receipt": null,
+      "status": "Pending",
+      "level": "Public",
+      "recipient": "Orion",
+      "workflow": "Bell engineering review",
+      "decidedBy": null,
+      "decidedAt": null,
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-review-HOR-204",
+      "runId": null,
+      "title": "Demo review · Verify the affected docking denominator",
+      "agent": "Iris",
+      "body": "Synthetic review request. Report the known 18/600 device incidence as 3.0%; mark the exact dock/display cohort denominator unknown until verified; do not claim a causal defect rate.\n\nApproving records a demo decision only. No publication, purchase, hardware change, or command is executed.",
+      "action": "{\"type\":\"demo_review\",\"taskId\":\"bell-HOR-204\",\"effect\":\"Record a review decision only\"}",
+      "source": "bell-demo",
+      "externalId": null,
+      "sessionKey": null,
+      "expiresAt": null,
+      "receipt": null,
+      "status": "Pending",
+      "level": "Confidential",
+      "recipient": "Marcus Reed",
+      "workflow": "Bell engineering review",
+      "decidedBy": null,
+      "decidedAt": null,
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    },
+    {
+      "id": "bell-review-CED-401",
+      "runId": null,
+      "title": "Demo review · Quantify qualified and conditional PSU allocations",
+      "agent": "Ledger",
+      "body": "Synthetic review request. Show 8,000 modules required, 2,600 systems covered by qualified A supply, 1,400 conditional B systems, $918,800 mixed cost, and $25,200 nominal savings.\n\nApproving records a demo decision only. No publication, purchase, hardware change, or command is executed.",
+      "action": "{\"type\":\"demo_review\",\"taskId\":\"bell-CED-401\",\"effect\":\"Record a review decision only\"}",
+      "source": "bell-demo",
+      "externalId": null,
+      "sessionKey": null,
+      "expiresAt": null,
+      "receipt": null,
+      "status": "Pending",
+      "level": "Restricted",
+      "recipient": "Orion",
+      "workflow": "Bell engineering review",
+      "decidedBy": null,
+      "decidedAt": null,
+      "createdAt": "2026-09-12T13:00:00.000Z"
+    }
+  ],
+  "nodes": [],
+  "collections": [
+    "Public Product Reference",
+    "Engineering Release Office",
+    "Server Platform Design",
+    "Thermal & Power Lab",
+    "Field Quality Evidence",
+    "Firmware Engineering",
+    "Firmware Security Vault",
+    "BOM & Supplier Vault"
+  ],
+  "rules": "Synthetic demonstration workspace. People, products, measurements, incidents, prices, and policies are fictional. Agent responses use the configured local runtime; collection paths describe demo context access and do not imply live integrations. Cite source evidence. Keep proposed tests separate from observed results. Do not claim an external action occurred without a real receipt.",
+  "cursor": 0
+}

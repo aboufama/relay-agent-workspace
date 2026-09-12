@@ -41,3 +41,7 @@ next-env.d.ts
 
 # Local runtime secrets
 .dev.vars*
+
+# Generated local demo downloads
+/public/demo-downloads
+/output/shoal-demo/
