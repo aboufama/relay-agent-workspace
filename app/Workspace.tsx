@@ -2,6 +2,8 @@
 
 import { ChatDeepDiveActivity, ChatDeepDiveControl } from './components/ChatDeepDiveControl';
 import './components/chat-deep-dive.css';
+import { DeepDiveAvatar } from '@/components/DeepDiveAvatar';
+import './components/deep-dive-avatar.css';
 import type { RunMode } from '@/lib/buzz/types';
 import { buzz, useBuzz } from '@/lib/buzz/store';
 import {
@@ -946,8 +948,9 @@ export function Workspace() {
               <>
                 <div className="detail-pane-scroll">
                   <div className="thread-message">
-                    <MemberAvatar
-                      member={resolveMember(
+                    <DeepDiveAvatar
+                      runId={thread.runId}
+                      author={resolveMember(
                         members,
                         thread.memberId,
                         thread.name,
@@ -1031,8 +1034,9 @@ export function Workspace() {
                   ))}
                   {threadMessages.map((reply) => (
                     <div className="thread-message" key={reply.id}>
-                      <MemberAvatar
-                        member={members.find((m) => m.id === reply.memberId)}
+                      <DeepDiveAvatar
+                        runId={reply.runId}
+                        author={members.find((m) => m.id === reply.memberId)}
                         name={reply.name}
                         initials={reply.initials}
                         size={36}
@@ -1586,8 +1590,9 @@ function Chat({
                       if (person) openMember(person);
                     }}
                   >
-                    <MemberAvatar
-                      member={resolveMember(members, m.memberId, m.name)}
+                    <DeepDiveAvatar
+                      runId={m.runId}
+                      author={resolveMember(members, m.memberId, m.name)}
                       name={m.name}
                       initials={m.initials}
                       size={36}
