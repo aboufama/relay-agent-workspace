@@ -1,5 +1,8 @@
 "use client";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+// Workspace directory, read from the shared Buzz store. Agent fields live in MemberRecord.data.
+import { useMemo } from "react";
+import { buzz, useBuzz } from "@/lib/buzz/store";
+import type { MemberRecord } from "@/lib/buzz/types";
 export type AccessLevel = "Public" | "Internal" | "Confidential" | "Restricted";
 export type AgentCharacter = "worm" | "firefly" | "ladybug" | "caterpillar";
 type MemberBase = { id: string; name: string; initials: string; tone?: string };
@@ -25,142 +28,8 @@ export type AgentMember = MemberBase & {
   paused?: boolean;
 };
 export type WorkspaceMember = HumanMember | AgentMember;
-const storageKey = "relay.workspace-members.v1";
 const characters: AgentCharacter[] = ["worm", "firefly", "ladybug", "caterpillar"];
 const levels: AccessLevel[] = ["Public", "Internal", "Confidential", "Restricted"];
-const capabilityOptions = [
-  "Search company knowledge",
-  "Draft messages & documents",
-  "Create work items",
-  "Use connected tools",
-];
-const seedAgents: Omit<
-  AgentMember,
-  "kind" | "homeId" | "character" | "instructions" | "accessLevel"
->[] = [
-  {
-    id: "atlas",
-    name: "Atlas",
-    role: "Engineering partner",
-    description:
-      "Turns technical questions into clear answers and helps the team ship with confidence.",
-    runtime: "local",
-    model: "Holo-3.1-35B-A3B",
-    device: "Meridian Lab · GB10",
-    initials: "At",
-    color: "green",
-    owner: "Alex Morgan",
-    channels: ["engineering", "product"],
-    context: ["Company handbook", "Product & engineering"],
-    capabilities: capabilityOptions.slice(0, 3),
-  },
-  {
-    id: "sage",
-    name: "Sage",
-    role: "Operations partner",
-    description:
-      "Connects the dots across projects, finds blockers, and keeps every handoff moving.",
-    runtime: "local",
-    model: "Holo-3.1-35B-A3B",
-    device: "Meridian Lab · GB10",
-    initials: "Sa",
-    color: "amber",
-    owner: "Jamie Chen",
-    channels: ["operations", "team"],
-    context: ["Company handbook", "Customer knowledge"],
-    capabilities: capabilityOptions.slice(0, 3),
-  },
-  {
-    id: "nova",
-    name: "Nova",
-    role: "Creative partner",
-    description:
-      "A thoughtful collaborator for campaign ideas, launch stories, and your next first draft.",
-    runtime: "cloud",
-    model: "Claude Sonnet",
-    device: "Anthropic",
-    initials: "No",
-    color: "purple",
-    owner: "Sam Rivera",
-    channels: ["marketing", "product"],
-    context: ["Company handbook"],
-    capabilities: capabilityOptions.slice(0, 2),
-  },
-  {
-    id: "iris",
-    name: "Iris",
-    role: "Customer partner",
-    description:
-      "Brings the customer perspective to every conversation, with the right account context.",
-    runtime: "local",
-    model: "Holo-3.1-35B-A3B",
-    device: "Studio · GB10",
-    initials: "Ir",
-    color: "rose",
-    owner: "Jordan Lee",
-    channels: ["customer-success"],
-    context: ["Company handbook", "Customer knowledge"],
-    capabilities: capabilityOptions.slice(0, 3),
-  },
-  {
-    id: "scout",
-    name: "Scout",
-    role: "Research partner",
-    description:
-      "Explores new questions, compares sources, and brings useful findings back to the team.",
-    runtime: "cloud",
-    model: "GPT",
-    device: "OpenAI",
-    initials: "Sc",
-    color: "blue",
-    owner: "Alex Morgan",
-    channels: ["research", "product"],
-    context: ["Company handbook", "Product & engineering"],
-    capabilities: capabilityOptions,
-  },
-  {
-    id: "ledger",
-    name: "Ledger",
-    role: "Finance partner",
-    description:
-      "Makes financial context easier to understand while keeping sensitive work close to home.",
-    runtime: "local",
-    model: "Holo-3.1-35B-A3B",
-    device: "Studio · GB10",
-    initials: "Le",
-    color: "slate",
-    owner: "Taylor Kim",
-    channels: ["finance"],
-    context: ["Company handbook", "Financial planning"],
-    capabilities: capabilityOptions.slice(0, 2),
-  },
-];
-const initialMembers: readonly WorkspaceMember[] = [
-  { id: "olivia", kind: "human", name: "Olivia Chen", initials: "OC", tone: "peach" },
-  { id: "marcus", kind: "human", name: "Marcus Reed", initials: "MR", tone: "lavender" },
-  { id: "you", kind: "human", name: "You", initials: "YO", tone: "you-avatar" },
-  ...seedAgents.map(
-    (agent, index): AgentMember => ({
-      ...agent,
-      kind: "agent",
-      character: characters[index % characters.length],
-      instructions: agent.description,
-      homeId:
-        agent.runtime === "cloud"
-          ? agent.device === "OpenAI"
-            ? "openai-preview"
-            : "cloud-preview"
-          : agent.device.startsWith("Studio")
-            ? "studio"
-            : "lab",
-      accessLevel: agent.runtime === "cloud" ? "Public" : "Confidential",
-      nameCustomized: true,
-    }),
-  ),
-];
-let members = initialMembers;
-let hydrated = false;
-const listeners = new Set<() => void>();
 function text(value: unknown, fallback = "", max = 20000): string {
   return typeof value === "string" ? value.slice(0, max) : fallback;
 }
@@ -215,70 +84,21 @@ function normalize(value: unknown): WorkspaceMember | null {
     paused: v.paused === true,
   };
 }
-function decode(raw: string | null): readonly WorkspaceMember[] | null {
-  if (!raw || raw.length > 2000000) return null;
-  try {
-    const data = JSON.parse(raw);
-    if (!data || data.version !== 1 || !Array.isArray(data.members)) return null;
-    const next = new Map<string, WorkspaceMember>(
-      initialMembers.map((member) => [member.id, member]),
-    );
-    for (const value of data.members.slice(0, 1000)) {
-      const member = normalize(value);
-      if (member) {
-        const seed = initialMembers.find((item) => item.id === member.id);
-        if (!seed || seed.kind === member.kind) next.set(member.id, member);
-      }
-    }
-    return [...next.values()];
-  } catch {
-    return null;
-  }
+function fromRecord(record: MemberRecord): WorkspaceMember | null {
+  const { data, ...rest } = record;
+  return normalize({ ...data, ...rest });
 }
-function emit() {
-  listeners.forEach((listener) => listener());
-}
-function hydrate() {
-  if (hydrated || typeof window === "undefined") return;
-  hydrated = true;
-  try {
-    const saved = decode(window.localStorage.getItem(storageKey));
-    if (saved) {
-      members = saved;
-      emit();
-    }
-  } catch {
-    /* Storage may be disabled; session editing still works. */
-  }
-}
-function onStorage(event: StorageEvent) {
-  if (event.key !== storageKey) return;
-  const next = event.newValue === null ? initialMembers : decode(event.newValue);
-  if (next) {
-    members = next;
-    emit();
-  }
-}
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  if (listeners.size === 1 && typeof window !== "undefined")
-    window.addEventListener("storage", onStorage);
-  return () => {
-    listeners.delete(listener);
-    if (!listeners.size && typeof window !== "undefined")
-      window.removeEventListener("storage", onStorage);
-  };
-}
+// ponytail: last rendered snapshot; the store has no non-hook getter and no consumer needs one yet.
+let latest: readonly WorkspaceMember[] = [];
 export function getWorkspaceMembers(): readonly WorkspaceMember[] {
-  return members;
-}
-function getServerSnapshot() {
-  return initialMembers;
+  return latest;
 }
 export function useWorkspaceMembers(): readonly WorkspaceMember[] {
-  const snapshot = useSyncExternalStore(subscribe, getWorkspaceMembers, getServerSnapshot);
-  useEffect(hydrate, []);
-  return snapshot;
+  const { members } = useBuzz();
+  return (latest = useMemo(
+    () => members.map(fromRecord).filter((member): member is WorkspaceMember => !!member),
+    [members],
+  ));
 }
 export function useAgentMembers(): readonly AgentMember[] {
   const snapshot = useWorkspaceMembers();
@@ -287,20 +107,10 @@ export function useAgentMembers(): readonly AgentMember[] {
     [snapshot],
   );
 }
-export function upsertWorkspaceMember(value: WorkspaceMember): void {
-  hydrate();
+/** Saves an agent to the workspace; the event stream brings the stored record back. */
+export async function upsertWorkspaceMember(value: WorkspaceMember): Promise<void> {
   const member = normalize(value);
-  if (!member) return;
-  const previous = members.find((item) => item.id === member.id);
-  if (previous && previous.kind !== member.kind) return;
-  members = previous
-    ? members.map((item) => (item.id === member.id ? member : item))
-    : [...members, member];
-  try {
-    if (typeof window !== "undefined")
-      window.localStorage.setItem(storageKey, JSON.stringify({ version: 1, members }));
-  } catch {
-    /* Quota or private mode: keep the in-memory directory usable. */
-  }
-  emit();
+  if (!member || member.kind !== "agent") return;
+  const { kind: _kind, ...flat } = member;
+  await buzz.saveAgent(flat);
 }

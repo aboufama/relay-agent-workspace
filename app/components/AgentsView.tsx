@@ -55,6 +55,7 @@ export function AgentsView({ onNotify }: Props) {
   const [instructions, setInstructions] = useState("");
   const [avatarChoices, setAvatarChoices] = useState(false);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [newlyCreatedId, setNewlyCreatedId] = useState<string | null>(null);
   const createdCard = useRef<HTMLDivElement>(null);
   const [bubblePreviewIds, setBubblePreviewIds] = useState<string[]>(['sage', 'nova']);
@@ -163,11 +164,16 @@ export function AgentsView({ onNotify }: Props) {
       isNew: previous?.isNew ?? true,
       paused: previous?.paused,
     };
-    upsertWorkspaceMember(next);
-    if (!editingId) setNewlyCreatedId(next.id);
-    setAgentAvatarIdentity(next.name, character);
-    setDialogOpen(false);
-    onNotify?.(editingId ? "Agent saved." : "Agent created.");
+    setSaving(true);
+    upsertWorkspaceMember(next)
+      .then(() => {
+        if (!editingId) setNewlyCreatedId(next.id);
+        setAgentAvatarIdentity(next.name, character);
+        setDialogOpen(false);
+        onNotify?.(editingId ? "Agent saved." : "Agent created.");
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not save the agent."))
+      .finally(() => setSaving(false));
   }
   return (
     <div className="page agents-page buzz-agents-page">
@@ -333,8 +339,8 @@ export function AgentsView({ onNotify }: Props) {
               </p>
             )}
             <DialogFooter>
-              <button type="submit" className="btn btn-primary">
-                {editingId ? "Save" : "Create"}
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? "Saving…" : editingId ? "Save" : "Create"}
               </button>
             </DialogFooter>
           </form>

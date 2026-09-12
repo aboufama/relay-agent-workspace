@@ -1,5 +1,7 @@
 import { SelectField } from "@/components/SelectField";
 import { PageHeader } from "@/components/buzz/PageHeader";
+import { buzz, useBuzz } from "@/lib/buzz/store";
+import type { Packet, RunMode, RunRecord, TaskRecord } from "@/lib/buzz/types";
 import { useMemo, useState, type SyntheticEvent } from "react";
 import {
   ArrowRight,
@@ -10,6 +12,7 @@ import {
   LayoutGrid,
   List,
   MessageSquare,
+  Play,
   Plus,
   Search,
   Sparkles,
@@ -22,270 +25,134 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type Status = "Backlog" | "In progress" | "In review" | "Done";
-type Project = { id: string; name: string; description: string; color: string };
-type Task = {
-  id: string;
-  project: string;
-  title: string;
-  description: string;
-  status: Status;
-  owner: string;
-  priority: string;
-  due: string;
-  label: string;
-  comments: string[];
-  deliverable?: string;
-};
-const statuses: Status[] = ["Backlog", "In progress", "In review", "Done"];
-const initialProjects: Project[] = [
-  {
-    id: "launch",
-    name: "Acme customer launch",
-    description: "Everything we need to give Acme a great first day.",
-    color: "blue",
-  },
-  {
-    id: "platform",
-    name: "Platform reliability",
-    description: "A calmer, more reliable foundation for our customers.",
-    color: "violet",
-  },
-  {
-    id: "people",
-    name: "Team onboarding",
-    description: "Help new teammates do their best work, sooner.",
-    color: "green",
-  },
-];
-const initialTasks: Task[] = [
-  {
-    id: "MRD-108",
-    project: "launch",
-    title: "Confirm the customer handoff call",
-    description:
-      "Coordinate the final handoff with Acme’s operations lead and share the confirmed time in #customer-launches.",
-    status: "Backlog",
-    owner: "Maya Chen",
-    priority: "High",
-    due: "Sep 16",
-    label: "Operations",
-    comments: ["Engineering is available Monday morning."],
-  },
-  {
-    id: "MRD-109",
-    project: "launch",
-    title: "Prepare customer onboarding guide",
-    description:
-      "Bring the product walkthrough, support channels, and launch checklist into one concise guide.",
-    status: "In progress",
-    owner: "Nova",
-    priority: "Medium",
-    due: "Sep 15",
-    label: "Customer success",
-    comments: [],
-  },
-  {
-    id: "MRD-110",
-    project: "launch",
-    title: "Review production readiness",
-    description:
-      "Review the launch checks with engineering. Call out any open dependency and its owner.",
-    status: "In progress",
-    owner: "Alex Morgan",
-    priority: "High",
-    due: "Sep 15",
-    label: "Engineering",
-    comments: ["The final integration test is scheduled for this afternoon."],
-  },
-  {
-    id: "MRD-111",
-    project: "launch",
-    title: "Draft the launch readiness brief",
-    description:
-      "Summarize launch readiness across Engineering, Operations, and Customer Success for Maya to review.",
-    status: "In review",
-    owner: "Atlas",
-    priority: "Medium",
-    due: "Sep 16",
-    label: "Agent task",
-    comments: ["Atlas has prepared a first draft for review."],
-    deliverable:
-      "Acme launch readiness\n\nEngineering: production checklist completed.\nOperations: onboarding coverage confirmed.\nCustomer success: launch owner assigned.\n\nOpen decision: confirm the customer handoff call before Friday afternoon.",
-  },
-  {
-    id: "MRD-112",
-    project: "launch",
-    title: "Create the shared customer workspace",
-    description: "Set up the internal launch channel and add the project team.",
-    status: "Done",
-    owner: "Jordan Lee",
-    priority: "Low",
-    due: "Sep 12",
-    label: "Operations",
-    comments: [],
-  },
-  {
-    id: "MRD-113",
-    project: "launch",
-    title: "Gather account context",
-    description: "Collect the customer goals, signed scope, and notes from the discovery call.",
-    status: "Done",
-    owner: "Atlas",
-    priority: "Medium",
-    due: "Sep 12",
-    label: "Agent task",
-    comments: [],
-    deliverable:
-      "Customer goal: reduce manual onboarding work.\nPrimary team: Operations.\nLaunch scope: workspace setup, shared knowledge, and an initial onboarding workflow.",
-  },
-  {
-    id: "MRD-201",
-    project: "platform",
-    title: "Audit retry behavior in agent jobs",
-    description: "Document how jobs recover from interrupted inference.",
-    status: "In progress",
-    owner: "Scout",
-    priority: "High",
-    due: "Sep 18",
-    label: "Engineering",
-    comments: [],
-  },
-  {
-    id: "MRD-202",
-    project: "platform",
-    title: "Define incident handoff checklist",
-    description: "A clear handoff when an on-call shift ends.",
-    status: "Backlog",
-    owner: "Alex Morgan",
-    priority: "Medium",
-    due: "Sep 20",
-    label: "Operations",
-    comments: [],
-  },
-  {
-    id: "MRD-301",
-    project: "people",
-    title: "Update the first-week checklist",
-    description: "Make the first week welcoming and easy to navigate.",
-    status: "In review",
-    owner: "Nova",
-    priority: "Medium",
-    due: "Sep 17",
-    label: "People",
-    comments: [],
-  },
-];
-const isAgent = (name: string) => ["Atlas", "Nova", "Scout"].includes(name);
+const statuses = ["Backlog", "In progress", "In review", "Done"];
 const initials = (name: string) =>
   name
     .split(" ")
     .map((n) => n[0])
     .join("")
     .slice(0, 2);
+const runBadge = (status: RunRecord["status"]) =>
+  status === "completed" ? "badge-green" : status === "failed" || status === "cancelled" ? "badge-red" : "badge-amber";
 
 export function ProjectsView({ onNotify }: { onNotify?: (message: string) => void }) {
-  const [projects, setProjects] = useState(initialProjects);
+  const { projects, tasks, members, runs, loaded } = useBuzz();
+  const agents = members.filter((m) => m.kind === "agent");
+  const agentNames = new Set(agents.map((m) => m.name));
+  const isAgent = (name: string) => agentNames.has(name);
   const [projectId, setProjectId] = useState("launch");
-  const [tasks, setTasks] = useState(initialTasks);
   const [view, setView] = useState<"board" | "list">("board");
   const [search, setSearch] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("Everyone");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [projectOpen, setProjectOpen] = useState(false);
-  const [newProject, setNewProject] = useState("");
-  const [projectDescription, setProjectDescription] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [criteria, setCriteria] = useState("");
   const [owner, setOwner] = useState("You");
-  const [status, setStatus] = useState<Status>("Backlog");
+  const [status, setStatus] = useState("Backlog");
   const [priority, setPriority] = useState("Medium");
   const [comment, setComment] = useState("");
-  const project = projects.find((item) => item.id === projectId)!;
-  const allTasks = tasks.filter((task) => task.project === projectId);
+  const [runAgent, setRunAgent] = useState("");
+  const [runMode, setRunMode] = useState<RunMode>("deep");
+  const [runError, setRunError] = useState("");
+  const [packet, setPacket] = useState<{ runId: string; packet: Packet | null } | null>(null);
+  const project = projects.find((item) => item.id === projectId) ?? projects[0];
+  const allTasks = tasks.filter((task) => task.project === project?.id);
   const filtered = useMemo(
     () =>
       tasks.filter(
         (task) =>
-          task.project === projectId &&
+          task.project === project?.id &&
           `${task.title} ${task.id} ${task.label}`.toLowerCase().includes(search.toLowerCase()) &&
           (ownerFilter === "Everyone" ||
-            (ownerFilter === "Agents" ? isAgent(task.owner) : !isAgent(task.owner))),
+            (ownerFilter === "Agents" ? agentNames.has(task.owner) : !agentNames.has(task.owner))),
       ),
-    [tasks, projectId, search, ownerFilter],
+    [tasks, project?.id, search, ownerFilter, members],
   );
   const selected = tasks.find((task) => task.id === selectedId);
+  const selectedRuns = runs
+    .filter((r) => r.taskId === selectedId)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   const completed = allTasks.filter((task) => task.status === "Done").length;
-  function updateTask(id: string, changes: Partial<Task>) {
-    setTasks((items) => items.map((task) => (task.id === id ? { ...task, ...changes } : task)));
+  const fail = (err: Error) => onNotify?.(err.message);
+  function updateTask(id: string, changes: Partial<TaskRecord> & { comment?: string }) {
+    buzz.updateTask(id, changes).catch(fail);
   }
-  function openCreate(nextStatus: Status = "Backlog") {
+  function openCreate(nextStatus = "Backlog") {
     setStatus(nextStatus);
     setCreateOpen(true);
   }
   function createTask(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!title.trim()) return;
-    setTasks((items) => [
-      ...items,
-      {
-        id: `MRD-${Date.now().toString().slice(-6)}`,
-        project: projectId,
+    if (!title.trim() || !project) return;
+    buzz
+      .createTask({
+        project: project.id,
         title: title.trim(),
         description: description.trim(),
         status,
         owner,
         priority,
-        due: "No due date",
         label: isAgent(owner) ? "Agent task" : "Team task",
-        comments: [],
-      },
-    ]);
-    setCreateOpen(false);
-    setTitle("");
-    setDescription("");
-    onNotify?.("Task added.");
-  }
-  function addProject(event: SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!newProject.trim()) return;
-    const id = crypto.randomUUID();
-    setProjects((items) => [
-      ...items,
-      {
-        id,
-        name: newProject.trim(),
-        description: projectDescription.trim() || "A shared place to move work forward.",
-        color: "blue",
-      },
-    ]);
-    setProjectId(id);
-    setNewProject("");
-    setProjectDescription("");
-    setProjectOpen(false);
-    setSearch("");
-    onNotify?.("Project created.");
+        criteria: criteria.trim() || null,
+      })
+      .then(() => {
+        setCreateOpen(false);
+        setTitle("");
+        setDescription("");
+        setCriteria("");
+        onNotify?.("Task added.");
+      })
+      .catch(fail);
   }
   function postComment(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected || !comment.trim()) return;
-    updateTask(selected.id, { comments: [...selected.comments, comment.trim()] });
+    updateTask(selected.id, { comment: comment.trim() });
     setComment("");
+  }
+  function startRun() {
+    if (!selected) return;
+    const agentId = runAgent || agents[0]?.id;
+    if (!agentId) return;
+    setRunError("");
+    buzz
+      .startRun(selected.id, agentId, runMode)
+      .then(() => onNotify?.("Run queued."))
+      .catch((err: Error) => setRunError(err.message));
+  }
+  function inspect(run: RunRecord) {
+    if (packet?.runId === run.id) {
+      setPacket(null);
+      return;
+    }
+    buzz
+      .inspectRun(run.id)
+      .then((r) => setPacket({ runId: run.id, packet: r.run.packet ?? null }))
+      .catch(fail);
+  }
+  function openTask(id: string) {
+    setSelectedId(id);
+    setComment("");
+    setRunError("");
+    setPacket(null);
+  }
+
+  if (!project) {
+    return (
+      <div className="page work-page work-projects-page">
+        <PageHeader className="page-heading" title="Projects" />
+        <div className="empty-state">
+          <h3>{loaded ? "No projects yet" : "Loading projects…"}</h3>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="page work-page work-projects-page">
-      <PageHeader
-        className="page-heading"
-        title="Projects"
-        action={
-          <button className="btn btn-secondary" onClick={() => setProjectOpen(true)}>
-            <Plus size={17} />
-            New project
-          </button>
-        }
-      />
+      <PageHeader className="page-heading" title="Projects" />
       <div className="work-project-selector">
         {projects.map((item) => (
           <button
@@ -294,7 +161,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
               setProjectId(item.id);
               setSearch("");
             }}
-            className={`work-project-chip ${projectId === item.id ? "active" : ""}`}
+            className={`work-project-chip ${project.id === item.id ? "active" : ""}`}
           >
             <span className={`work-project-marker work-marker-${item.color}`} />
             <span>{item.name}</span>
@@ -311,7 +178,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
               <FolderKanban size={23} />
             </span>
             <h2>{project.name}</h2>
-            <span className="badge badge-blue">In progress</span>
+            <span className="badge badge-blue">{allTasks.length - completed} open</span>
           </div>
           <p>{project.description}</p>
         </div>
@@ -402,10 +269,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                     <button
                       className="work-task-card"
                       key={task.id}
-                      onClick={() => {
-                        setSelectedId(task.id);
-                        setComment("");
-                      }}
+                      onClick={() => openTask(task.id)}
                     >
                       <span className="work-task-meta">
                         <span>{task.id}</span>
@@ -425,19 +289,19 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                       {task.deliverable && (
                         <span className="work-task-deliverable">
                           <FileText size={13} />
-                          Draft ready to review
+                          Deliverable ready to review
                         </span>
                       )}
                       <span className="work-task-footer">
                         <span>
                           <CalendarDays size={13} />
-                          {task.due}
+                          {task.due || "No due date"}
                         </span>
                         <span
                           className={`avatar ${isAgent(task.owner) ? "avatar-agent" : ""}`}
-                          title={task.owner}
+                          title={task.owner || "Unassigned"}
                         >
-                          {initials(task.owner)}
+                          {initials(task.owner || "Unassigned")}
                         </span>
                       </span>
                     </button>
@@ -469,10 +333,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                     <button
                       aria-label={`Open task: ${task.title}`}
                       className="work-table-task"
-                      onClick={() => {
-                        setSelectedId(task.id);
-                        setComment("");
-                      }}
+                      onClick={() => openTask(task.id)}
                     >
                       <span>{task.id}</span>
                       <strong>{task.title}</strong>
@@ -483,7 +344,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                       className="work-inline-select"
                       aria-label={`Status of ${task.title}`}
                       value={task.status}
-                      onChange={(e) => updateTask(task.id, { status: e.target.value as Status })}
+                      onChange={(e) => updateTask(task.id, { status: e.target.value })}
                     >
                       {statuses.map((item) => (
                         <option key={item}>{item}</option>
@@ -493,9 +354,9 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                   <td>
                     <span className="work-assignee">
                       <span className={`avatar ${isAgent(task.owner) ? "avatar-agent" : ""}`}>
-                        {initials(task.owner)}
+                        {initials(task.owner || "Unassigned")}
                       </span>
-                      {task.owner}
+                      {task.owner || "Unassigned"}
                     </span>
                   </td>
                   <td>
@@ -503,7 +364,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                       {task.priority}
                     </span>
                   </td>
-                  <td className="muted">{task.due}</td>
+                  <td className="muted">{task.due || "No due date"}</td>
                 </tr>
               ))}
             </tbody>
@@ -545,6 +406,16 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                 placeholder="Add context and what a good outcome looks like…"
               />
             </label>
+            <label className="field">
+              <span className="field-label">Acceptance criteria</span>
+              <textarea
+                className="textarea"
+                rows={2}
+                value={criteria}
+                onChange={(e) => setCriteria(e.target.value)}
+                placeholder="How will we know this is done?"
+              />
+            </label>
             <div className="form-grid">
               <label className="field">
                 <span className="field-label">Assign to</span>
@@ -553,11 +424,9 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                   value={owner}
                   onChange={(e) => setOwner(e.target.value)}
                 >
-                  {["You", "Maya Chen", "Alex Morgan", "Jordan Lee", "Atlas", "Scout", "Nova"].map(
-                    (item) => (
-                      <option key={item}>{item}</option>
-                    ),
-                  )}
+                  {members.map((item) => (
+                    <option key={item.id}>{item.name}</option>
+                  ))}
                 </SelectField>
               </label>
               <label className="field">
@@ -565,7 +434,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                 <SelectField
                   className="select"
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as Status)}
+                  onChange={(e) => setStatus(e.target.value)}
                 >
                   {statuses.map((item) => (
                     <option key={item}>{item}</option>
@@ -603,49 +472,6 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
           </form>
         </DialogContent>
       </Dialog>
-      <Dialog open={projectOpen} onOpenChange={setProjectOpen}>
-        <DialogContent className="work-dialog">
-          <DialogHeader>
-            <DialogTitle>Create a project</DialogTitle>
-            <DialogDescription>Give a shared outcome a home.</DialogDescription>
-          </DialogHeader>
-          <form className="work-form" onSubmit={addProject}>
-            <label className="field">
-              <span className="field-label">Project name</span>
-              <input
-                className="input"
-                required
-                maxLength={80}
-                value={newProject}
-                onChange={(e) => setNewProject(e.target.value)}
-                placeholder="e.g. Fall product launch"
-              />
-            </label>
-            <label className="field">
-              <span className="field-label">Outcome</span>
-              <textarea
-                className="textarea"
-                rows={3}
-                value={projectDescription}
-                onChange={(e) => setProjectDescription(e.target.value)}
-                placeholder="What are we working toward?"
-              />
-            </label>
-            <div className="dialog-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setProjectOpen(false)}
-              >
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-primary">
-                Create project
-              </button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
       <Dialog
         open={!!selected}
         onOpenChange={(open) => {
@@ -670,7 +496,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                   <SelectField
                     className="select"
                     value={selected.status}
-                    onChange={(e) => updateTask(selected.id, { status: e.target.value as Status })}
+                    onChange={(e) => updateTask(selected.id, { status: e.target.value })}
                   >
                     {statuses.map((item) => (
                       <option key={item}>{item}</option>
@@ -684,16 +510,11 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                     value={selected.owner}
                     onChange={(e) => updateTask(selected.id, { owner: e.target.value })}
                   >
-                    {[
-                      "You",
-                      "Maya Chen",
-                      "Alex Morgan",
-                      "Jordan Lee",
-                      "Atlas",
-                      "Scout",
-                      "Nova",
-                    ].map((item) => (
-                      <option key={item}>{item}</option>
+                    {!members.some((m) => m.name === selected.owner) && (
+                      <option value={selected.owner}>{selected.owner || "Unassigned"}</option>
+                    )}
+                    {members.map((item) => (
+                      <option key={item.id}>{item.name}</option>
                     ))}
                   </SelectField>
                 </label>
@@ -711,6 +532,14 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                   </SelectField>
                 </label>
               </div>
+              {selected.criteria && (
+                <div className="work-draft">
+                  <div className="work-draft-label">
+                    <CheckCircle2 size={15} /> ACCEPTANCE CRITERIA
+                  </div>
+                  <p>{selected.criteria}</p>
+                </div>
+              )}
               {selected.deliverable && (
                 <div className="work-draft">
                   <div className="work-draft-label">
@@ -719,6 +548,114 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                   <p>{selected.deliverable}</p>
                 </div>
               )}
+              <div className="work-draft">
+                <div className="work-draft-label">
+                  <Sparkles size={15} /> RUNS <span className="work-count">{selectedRuns.length}</span>
+                </div>
+                <div className="work-task-properties">
+                  <label>
+                    <span>Run with agent</span>
+                    <SelectField
+                      className="select"
+                      value={runAgent || agents[0]?.id || ""}
+                      onChange={(e) => setRunAgent(e.target.value)}
+                    >
+                      {agents.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </SelectField>
+                  </label>
+                  <label>
+                    <span>Mode</span>
+                    <SelectField className="select" aria-label="Task mode" value={runMode} onChange={(event) => setRunMode(event.target.value as RunMode)}>
+                      <option value="quick">Quick</option><option value="deep">Deep</option>
+                    </SelectField>
+                  </label>
+                  <label>
+                    <span>&nbsp;</span>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={!agents.length}
+                      onClick={startRun}
+                    >
+                      <Play size={15} /> Run with agent
+                    </button>
+                  </label>
+                </div>
+                {runError && (
+                  <p role="alert" className="agents-form-error">
+                    {runError}
+                  </p>
+                )}
+                {selectedRuns.map((run) => (
+                  <div className="work-comment" key={run.id}>
+                    <span className={`badge ${runBadge(run.status)}`}>{run.status}</span>
+                    <div>
+                      <strong>
+                        {members.find((m) => m.id === run.agentId)?.name ?? run.agentId}
+                        {run.mode ? ` · ${run.mode === "deep" ? "Deep" : "Quick"}` : ""}
+                        {run.model ? ` · ${run.model}` : ""}
+                        {run.inputTokens != null || run.outputTokens != null
+                          ? ` · ${run.inputTokens ?? 0} in / ${run.outputTokens ?? 0} out`
+                          : ""}
+                      </strong>
+                      <p className="muted small">
+                        {new Date(run.createdAt).toLocaleString()}
+                        {run.status === "failed" && run.error ? ` · ${run.error}` : ""}
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => inspect(run)}
+                      >
+                        {packet?.runId === run.id ? "Hide context" : "View context"}
+                      </button>
+                      {packet?.runId === run.id &&
+                        (packet.packet ? (
+                          <dl className="agents-review-details">
+                            <div>
+                              <dt>Tokens</dt>
+                              <dd>
+                                {packet.packet.estimatedTokens} of {packet.packet.budgetTokens}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Evidence</dt>
+                              <dd>
+                                {packet.packet.evidence.length
+                                  ? packet.packet.evidence
+                                      .map((p) => `${p.documentName} §${p.idx + 1}`)
+                                      .join(", ")
+                                  : "None"}
+                                {packet.packet.droppedEvidence
+                                  ? ` · ${packet.packet.droppedEvidence} dropped`
+                                  : ""}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>History</dt>
+                              <dd>
+                                {packet.packet.historyMessages} messages
+                                {packet.packet.droppedHistory
+                                  ? ` · ${packet.packet.droppedHistory} dropped`
+                                  : ""}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Rules</dt>
+                              <dd>{packet.packet.rulesVersion}</dd>
+                            </div>
+                          </dl>
+                        ) : (
+                          <p className="muted small">No context packet recorded for this run.</p>
+                        ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
               <div className="work-comments">
                 <h3>
                   <MessageSquare size={17} />
@@ -727,13 +664,11 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                 {selected.comments.length ? (
                   selected.comments.map((item, index) => (
                     <div className="work-comment" key={index}>
-                      <span className="avatar">{index === 0 ? "MC" : "YO"}</span>
+                      <span className="avatar">
+                        <MessageSquare size={13} />
+                      </span>
                       <div>
-                        <strong>
-                          {index === 0 && selected.id.startsWith("MRD-1")
-                            ? "Project team"
-                            : "Workspace member"}
-                        </strong>
+                        <strong>Update {index + 1}</strong>
                         <p>{item}</p>
                       </div>
                     </div>

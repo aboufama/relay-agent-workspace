@@ -1,6 +1,7 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
+import { buzz } from './buzz/store';
 
 export type AgentHome = {
   id: string;
@@ -43,15 +44,12 @@ async function refreshRuntimeHealth() {
   if (checkingHealth) return;
   checkingHealth = true;
   try {
-    const response = await fetch('/api/runtime', { signal: AbortSignal.timeout(7000) });
-    if (!response.ok) return;
-    const data: unknown = await response.json();
-    if (!data || typeof data !== 'object' || !('homes' in data) || !Array.isArray(data.homes)) return;
-    const verified = data.homes.find((home: unknown) => home && typeof home === 'object' && 'id' in home && home.id === 'lab');
-    if (!verified || typeof verified !== 'object' || !('connected' in verified)) return;
-    const connected = verified.connected === true;
-    const next = homes.map(home => home.id === 'lab' ? { ...home, name: 'Dell GB10', location: 'Dell Pro Max · NVIDIA GB10', status: connected ? 'connected' as const : 'preview' as const } : home);
-    if (next.some((home, index) => home.name !== homes[index].name || home.status !== homes[index].status)) publish(next);
+    // buzz.runtime() also stores the observed nodes in the shared store (useBuzz().nodes).
+    const data = await buzz.runtime();
+    const verified = data.homes.find((home) => home.id === 'lab');
+    if (!verified) return;
+    const next = homes.map(home => home.id === 'lab' ? { ...home, name: verified.name, location: `Inference · ${verified.model}`, status: verified.connected ? 'connected' as const : 'preview' as const } : home);
+    if (next.some((home, index) => home.name !== homes[index].name || home.status !== homes[index].status || home.location !== homes[index].location)) publish(next);
   } catch { /* Health is advisory; chat reports retryable connection failures. */ }
   finally { checkingHealth = false; }
 }

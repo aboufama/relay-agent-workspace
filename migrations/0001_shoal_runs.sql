@@ -1,0 +1,13 @@
+ALTER TABLE runs ADD COLUMN mode TEXT NOT NULL DEFAULT 'quick';
+ALTER TABLE runs ADD COLUMN trigger_message_id TEXT;
+ALTER TABLE runs ADD COLUMN attempt INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE runs ADD COLUMN runner_id TEXT;
+ALTER TABLE runs ADD COLUMN lease_until TEXT;
+ALTER TABLE runs ADD COLUMN last_seq INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE runs ADD COLUMN estimated_input_tokens INTEGER;
+ALTER TABLE approvals ADD COLUMN source TEXT;
+ALTER TABLE approvals ADD COLUMN external_id TEXT;
+ALTER TABLE approvals ADD COLUMN session_key TEXT;
+ALTER TABLE approvals ADD COLUMN expires_at TEXT;
+ALTER TABLE approvals ADD COLUMN receipt TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS approvals_external ON approvals(source, external_id) WHERE external_id IS NOT NULL;

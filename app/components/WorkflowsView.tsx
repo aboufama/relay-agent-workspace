@@ -1,11 +1,11 @@
 import { SelectField } from "@/components/SelectField";
 import { PageHeader } from "@/components/buzz/PageHeader";
-import { useMemo, useState, type SyntheticEvent } from "react";
+import { useEffect, useMemo, useState, type SyntheticEvent } from "react";
+import { buzz, useBuzz } from "@/lib/buzz/store";
 import {
   ArrowRight,
   ArrowUpRight,
   Check,
-  CheckCircle2,
   ChevronRight,
   FileText,
   GitBranch,
@@ -35,21 +35,11 @@ type Workflow = {
   agent: string;
   active: boolean;
   steps: string[];
-  runs: number;
   owner: string;
   color: string;
   approval: boolean;
 };
-type Approval = {
-  id: string;
-  title: string;
-  agent: string;
-  workflow: string;
-  body: string;
-  recipient: string;
-  status: "Pending" | "Approved" | "Rejected";
-  level: string;
-};
+// Automation definitions have no backend yet: local UI state only, nothing executes.
 const initialWorkflows: Workflow[] = [
   {
     id: "wf-1",
@@ -64,7 +54,6 @@ const initialWorkflows: Workflow[] = [
       "Request owner approval",
       "Share in channel",
     ],
-    runs: 24,
     owner: "Maya Chen",
     color: "blue",
     approval: true,
@@ -77,7 +66,6 @@ const initialWorkflows: Workflow[] = [
     agent: "Scout",
     active: true,
     steps: ["Read engineering updates", "Summarize progress", "Prepare channel draft"],
-    runs: 12,
     owner: "Alex Morgan",
     color: "violet",
     approval: false,
@@ -95,7 +83,6 @@ const initialWorkflows: Workflow[] = [
       "Request manager approval",
       "Create onboarding tasks",
     ],
-    runs: 8,
     owner: "Jordan Lee",
     color: "green",
     approval: true,
@@ -108,50 +95,42 @@ const initialWorkflows: Workflow[] = [
     agent: "Atlas",
     active: true,
     steps: ["Read document metadata", "Suggest access policy", "Request security approval"],
-    runs: 18,
     owner: "Maya Chen",
     color: "amber",
     approval: true,
   },
 ];
-const initialApprovals: Approval[] = [
-  {
-    id: "ap-1",
-    title: "Acme launch readiness brief",
-    agent: "Atlas",
-    workflow: "Customer launch briefing",
-    recipient: "#customer-launches",
-    status: "Pending",
-    level: "Internal",
-    body: "Acme is ready for the Monday launch. Engineering has completed the production checklist and Operations has confirmed onboarding coverage.\n\nOne item needs attention: the customer success owner should confirm the handoff call before 3:00 PM Friday.\n\nNext step: Maya to confirm the customer update and publish the launch brief.",
-  },
-  {
-    id: "ap-2",
-    title: "Welcome plan for Sam Rivera",
-    agent: "Nova",
-    workflow: "New teammate onboarding",
-    recipient: "#people-ops",
-    status: "Pending",
-    level: "Confidential",
-    body: "Welcome, Sam! Your first week is focused on meeting the team and understanding how we work.\n\nMonday: workspace orientation and a conversation with your manager.\nTuesday: product walkthrough and customer context.\nWednesday–Friday: pair with the Operations team on your first small project.\n\nYour manager will confirm calendar invitations before this plan is shared.",
-  },
-];
+const prettyAction = (action: string) => {
+  try {
+    return JSON.stringify(JSON.parse(action), null, 2);
+  } catch {
+    return action;
+  }
+};
 
-export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => void }) {
+export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message: string) => void; reviewRequest?: { id: string; version: number } | null }) {
+  const { approvals, members } = useBuzz();
+  const agents = members.filter((m) => m.kind === "agent");
   const [workflows, setWorkflows] = useState(initialWorkflows);
-  const [approvals, setApprovals] = useState(initialApprovals);
   const [tab, setTab] = useState<"workflows" | "approvals">("workflows");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All workflows");
   const [selected, setSelected] = useState<Workflow | null>(null);
-  const [approval, setApproval] = useState<Approval | null>(null);
-  const [previewStep, setPreviewStep] = useState(-1);
+  const [approvalId, setApprovalId] = useState<string | null>(null);
+  const [decideError, setDecideError] = useState("");
+  useEffect(() => {
+    if (!reviewRequest) return;
+    setTab("approvals");
+    setApprovalId(reviewRequest.id);
+    setDecideError("");
+  }, [reviewRequest]);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [trigger, setTrigger] = useState("When an agent is mentioned");
-  const [agent, setAgent] = useState("Atlas");
+  const [agent, setAgent] = useState("");
   const [needsApproval, setNeedsApproval] = useState(true);
+  const approval = approvals.find((a) => a.id === approvalId) ?? null;
   const pending = approvals.filter((a) => a.status === "Pending").length;
   const visible = useMemo(
     () =>
@@ -176,7 +155,7 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
       name: name.trim(),
       description: description.trim() || "A custom workflow for your team.",
       trigger,
-      agent,
+      agent: agent || agents[0]?.name || "",
       active: false,
       steps: [
         "Gather permitted context",
@@ -184,7 +163,6 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
         ...(needsApproval ? ["Request owner approval"] : []),
         "Prepare channel draft",
       ],
-      runs: 0,
       owner: "You",
       color: "blue",
       approval: needsApproval,
@@ -193,15 +171,16 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
     setCreateOpen(false);
     setName("");
     setDescription("");
-    setPreviewStep(-1);
-    onNotify?.("Workflow created.");
+    onNotify?.("Automation saved (preview only; nothing runs yet).");
   }
   function decide(status: "Approved" | "Rejected") {
     if (!approval) return;
-    const next = { ...approval, status };
-    setApprovals((items) => items.map((item) => (item.id === next.id ? next : item)));
-    setApproval(next);
-    onNotify?.(`Draft ${status.toLowerCase()}.`);
+    setDecideError("");
+    // The decision is bound to the exact action reviewed; the API rejects (409) if it changed.
+    buzz
+      .decide(approval.id, status, approval.action)
+      .then(() => onNotify?.(`Draft ${status.toLowerCase()}.`))
+      .catch((err: Error) => setDecideError(err.message));
   }
 
   return (
@@ -222,7 +201,7 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
             className={`tab ${tab === "workflows" ? "active" : ""}`}
             onClick={() => setTab("workflows")}
           >
-            All workflows <span className="work-count">{workflows.length}</span>
+            Automations (preview) <span className="work-count">{workflows.length}</span>
           </button>
           <button
             className={`tab ${tab === "approvals" ? "active" : ""}`}
@@ -275,13 +254,7 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
                     <span />
                   </button>
                 </div>
-                <button
-                  className="work-card-title"
-                  onClick={() => {
-                    setSelected(workflow);
-                    setPreviewStep(-1);
-                  }}
-                >
+                <button className="work-card-title" onClick={() => setSelected(workflow)}>
                   {workflow.name}
                   <ArrowUpRight size={17} />
                 </button>
@@ -306,16 +279,10 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
                     <span
                       className={`status-dot ${workflow.active ? "work-dot-green" : "work-dot-muted"}`}
                     />
-                    {workflow.active ? "Enabled" : "Paused"}
+                    {workflow.active ? "Enabled (preview)" : "Paused"}
                   </span>
-                  <button
-                    className="btn btn-ghost"
-                    onClick={() => {
-                      setSelected(workflow);
-                      setPreviewStep(-1);
-                    }}
-                  >
-                    View workflow <ArrowRight size={14} />
+                  <button className="btn btn-ghost" onClick={() => setSelected(workflow)}>
+                    View steps <ArrowRight size={14} />
                   </button>
                 </div>
               </article>
@@ -347,8 +314,18 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
             </div>
             <span className="badge badge-amber">{pending} awaiting review</span>
           </div>
+          {approvals.length === 0 && (
+            <p className="muted small">No approval requests yet.</p>
+          )}
           {approvals.map((item) => (
-            <button key={item.id} className="work-approval-row" onClick={() => setApproval(item)}>
+            <button
+              key={item.id}
+              className="work-approval-row"
+              onClick={() => {
+                setDecideError("");
+                setApprovalId(item.id);
+              }}
+            >
               <span className="work-approval-icon">
                 <FileText size={21} />
               </span>
@@ -424,9 +401,9 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
                   value={agent}
                   onChange={(e) => setAgent(e.target.value)}
                 >
-                  <option>Atlas</option>
-                  <option>Scout</option>
-                  <option>Nova</option>
+                  {agents.map((item) => (
+                    <option key={item.id}>{item.name}</option>
+                  ))}
                 </SelectField>
               </label>
             </div>
@@ -483,13 +460,8 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
               </div>
               <div className="work-step-list">
                 {selected.steps.map((step, index) => (
-                  <div
-                    className={`work-step ${previewStep >= index ? "work-step-done" : ""}`}
-                    key={`${step}-${index}`}
-                  >
-                    <span className="work-step-number">
-                      {previewStep >= index ? <Check size={16} /> : index + 1}
-                    </span>
+                  <div className="work-step" key={`${step}-${index}`}>
+                    <span className="work-step-number">{index + 1}</span>
                     <div>
                       <strong>{step}</strong>
                       <p>
@@ -510,32 +482,17 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
                   </div>
                 ))}
               </div>
-              {previewStep === selected.steps.length - 1 && (
-                <div className="work-inline-success">
-                  <CheckCircle2 size={18} />
-                  <span>End of steps.</span>
-                </div>
-              )}
+              <p className="muted small">
+                Preview only. Automations are not executed by the backend yet.
+              </p>
 
               <div className="dialog-actions">
                 <button className="btn btn-secondary" onClick={() => toggleWorkflow(selected)}>
                   {selected.active ? <Pause size={16} /> : <Play size={16} />}
                   {selected.active ? "Pause" : "Enable"}
                 </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={() =>
-                    setPreviewStep((current) =>
-                      current >= selected.steps.length - 1 ? -1 : current + 1,
-                    )
-                  }
-                >
-                  {previewStep >= selected.steps.length - 1
-                    ? "Reset steps"
-                    : previewStep < 0
-                      ? "View first step"
-                      : "View next step"}
-                  <ArrowRight size={16} />
+                <button className="btn btn-primary" onClick={() => setSelected(null)}>
+                  Close
                 </button>
               </div>
             </>
@@ -546,7 +503,7 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
       <Dialog
         open={!!approval}
         onOpenChange={(open) => {
-          if (!open) setApproval(null);
+          if (!open) setApprovalId(null);
         }}
       >
         <DialogContent className="work-dialog work-dialog-wide">
@@ -575,6 +532,25 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
                 </div>
                 <p>{approval.body}</p>
               </div>
+              <div className="work-draft">
+                <div className="work-draft-label">
+                  <ShieldCheck size={15} /> EXACT PROPOSED ACTION
+                </div>
+                <p>
+                  <code>{prettyAction(approval.action)}</code>
+                </p>
+              </div>
+              {approval.status !== "Pending" && (
+                <p className="muted small">
+                  {approval.status} by {approval.decidedBy || "unknown"}
+                  {approval.decidedAt ? ` · ${new Date(approval.decidedAt).toLocaleString()}` : ""}
+                </p>
+              )}
+              {decideError && (
+                <p role="alert" className="agents-form-error">
+                  {decideError}
+                </p>
+              )}
 
               <div className="dialog-actions">
                 {approval.status === "Pending" ? (
@@ -592,7 +568,7 @@ export function WorkflowsView({ onNotify }: { onNotify?: (message: string) => vo
                     </button>
                   </>
                 ) : (
-                  <button className="btn btn-secondary" onClick={() => setApproval(null)}>
+                  <button className="btn btn-secondary" onClick={() => setApprovalId(null)}>
                     Done
                   </button>
                 )}

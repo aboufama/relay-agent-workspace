@@ -1,20 +1,16 @@
-import { SelectField } from "@/components/SelectField";
 import { useAgentHomes, addPendingAgentHome, removePendingAgentHome } from "@/lib/agent-homes";
+import { useBuzz } from "@/lib/buzz/store";
+import type { NodeRecord } from "@/lib/buzz/types";
 import { PageHeader } from "@/components/buzz/PageHeader";
 import { useState } from "react";
 import {
-  ArrowDownToLine,
   ArrowRight,
-  Check,
   Clock3,
   Cloud,
   Cpu,
-  HardDrive,
-  Laptop,
   Plus,
   Server,
   ShieldCheck,
-  Wifi,
 } from "lucide-react";
 import {
   Dialog,
@@ -24,58 +20,35 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { SelectField } from "@/components/SelectField";
 
-type Device = {
-  id: string;
-  name: string;
-  location: string;
-  pending?: boolean;
-  code?: string;
+const list = (node: NodeRecord, key: "models" | "agents"): string[] => {
+  const value = node.data[key];
+  return Array.isArray(value) ? value.map(String) : [];
 };
-type Model = {
-  name: string;
-  family: string;
-  size: number;
-  tag: string;
-  description: string;
+const healthy = (status: string) => status === "inference-healthy" || status === "accepting-work";
+const seen = (iso: string) => {
+  const t = new Date(iso);
+  return Number.isNaN(t.getTime()) ? iso : t.toLocaleString();
 };
-const models: Model[] = [
-  {
-    name: "Holo-3.1-35B-A3B",
-    family: "NVFP4 · Mixture of experts",
-    size: 23.724,
-    tag: "Planning only",
-    description: "Hcompany/Holo-3.1-35B-A3B-NVFP4 · approximately 24 GB of repository files. ",
-  },
-];
+
 export function ComputeView({ onNotify }: { onNotify?: (message: string) => void }) {
+  // useAgentHomes keeps the 30 s /api/runtime poll alive while this view is mounted; nodes land in the buzz store.
   const homes = useAgentHomes();
-  const devices: Device[] = homes
-    .filter((home) => home.kind === "local")
-    .map((home) => ({
-      id: home.id,
-      name: home.name,
-      location: home.location || "Awaiting device verification",
-      pending: home.status === "pending",
-    }));
+  const { nodes } = useBuzz();
+  const pendingDevices = homes.filter((home) => home.kind === "local" && home.status === "pending");
+  const inference = nodes.find((node) => node.kind === "inference");
+  const models = inference ? list(inference, "models") : [];
   const [pairOpen, setPairOpen] = useState(false);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
-  const [deviceDetail, setDeviceDetail] = useState<Device | null>(null);
-  const [chosenModel, setChosenModel] = useState<Model | null>(null);
-  const [target, setTarget] = useState("lab");
-  const [speed, setSpeed] = useState(16);
-  const [requests, setRequests] = useState<{ model: string; device: string; size: number }[]>([]);
+  const [nodeDetail, setNodeDetail] = useState<NodeRecord | null>(null);
   const [filter, setFilter] = useState("all");
   const [cloudOpen, setCloudOpen] = useState(false);
   const [provider, setProvider] = useState("Anthropic");
   const [connectionName, setConnectionName] = useState("");
   const clouds = homes.filter((home) => home.kind === "cloud");
-  const estimate = (gb: number) => {
-    const minutes = Math.ceil((gb * 1000) / Math.max(1, speed) / 60);
-    return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} min`;
-  };
   function pair() {
     if (!name.trim()) {
       setError("Give this device a name.");
@@ -88,29 +61,13 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
     addPendingAgentHome({
       kind: "local",
       name: name.trim(),
-      location: "Awaiting device verification",
+      location: "Not connected · pairing is not wired to the runtime yet",
     });
     setPairOpen(false);
     setName("");
     setCode("");
     setError("");
-    onNotify?.("Device saved. Waiting for verification.");
-  }
-  function queue() {
-    if (!chosenModel) return;
-    const device = devices.find((d) => d.id === target);
-    if (!device) return;
-    if (requests.some((r) => r.model === chosenModel.name && r.device === device.name)) {
-      onNotify?.("This model is already in your installation plan.");
-      setChosenModel(null);
-      return;
-    }
-    setRequests([
-      ...requests,
-      { model: chosenModel.name, device: device.name, size: chosenModel.size },
-    ]);
-    setChosenModel(null);
-    onNotify?.("Added to installation plan. No download starts until a runtime is connected.");
+    onNotify?.("Device saved locally. It is not connected; nothing was installed.");
   }
   return (
     <div className="page agents-compute-page">
@@ -125,7 +82,7 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
               setPairOpen(true);
             }}
           >
-            <Plus size={17} /> Connect a GB10
+            <Plus size={17} /> Add a device
           </button>
         }
       />
@@ -150,42 +107,67 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
       </div>
       {filter !== "cloud" && (
         <div className="agents-device-grid">
-          {devices.map((device) => (
+          {nodes.map((node) => {
+            const items = list(node, node.kind === "gateway" ? "agents" : "models");
+            return (
+              <article className="card agents-device-card" key={node.id}>
+                <div className="agents-device-top">
+                  <div className="agents-device-icon">
+                    <Server size={23} />
+                  </div>
+                  <span className={`badge ${healthy(node.status) ? "badge-green" : node.status === "unreachable" ? "badge-red" : "badge-amber"}`}>
+                    {node.status}
+                  </span>
+                </div>
+                <h3>{node.name}</h3>
+                <p className="muted small">{node.kind}</p>
+                <div className="agents-device-spec">
+                  <span>{node.kind === "gateway" ? "Agents" : "Models"}</span>
+                  <span>{items.length ? items.join(", ") : "None reported"}</span>
+                </div>
+                <div className="agents-device-metrics">
+                  <div>
+                    <span>Status</span>
+                    <strong>{node.status}</strong>
+                  </div>
+                  <div>
+                    <span>{node.kind === "gateway" ? "Agents" : "Models"}</span>
+                    <strong>{items.length}</strong>
+                  </div>
+                  <div>
+                    <span>Last seen</span>
+                    <strong>{seen(node.seenAt)}</strong>
+                  </div>
+                </div>
+                <button className="btn btn-secondary" onClick={() => setNodeDetail(node)}>
+                  Node details <ArrowRight size={15} />
+                </button>
+              </article>
+            );
+          })}
+          {pendingDevices.map((device) => (
             <article className="card agents-device-card" key={device.id}>
               <div className="agents-device-top">
                 <div className="agents-device-icon">
                   <Server size={23} />
                 </div>
-                <span className={`badge ${device.pending ? "badge-amber" : "badge-muted"}`}>
-                  {device.pending ? <Clock3 size={12} /> : <Laptop size={12} />}{" "}
-                  {device.pending ? "Waiting" : "Not connected"}
+                <span className="badge badge-amber">
+                  <Clock3 size={12} /> Not connected
                 </span>
               </div>
               <h3>{device.name}</h3>
-              <p className="muted small">{device.location?.replace(/ · Sample device/i, "")}</p>
-              <div className="agents-device-spec">
-                <span>NVIDIA GB10</span>
-                <span>128 GB unified</span>
-              </div>
-              <div className="agents-device-metrics">
-                <div>
-                  <span>Connection</span>
-                  <strong>{device.pending ? "Pending" : "Not connected"}</strong>
-                </div>
-                <div>
-                  <span>Model inventory</span>
-                  <strong>Not synced</strong>
-                </div>
-                <div>
-                  <span>GPU utilization</span>
-                  <strong>—</strong>
-                </div>
-              </div>
-              <button className="btn btn-secondary" onClick={() => setDeviceDetail(device)}>
-                Device details <ArrowRight size={15} />
+              <p className="muted small">{device.location}</p>
+              <button className="btn btn-secondary" onClick={() => { removePendingAgentHome(device.id); onNotify?.("Pending device removed."); }}>
+                Remove request
               </button>
             </article>
           ))}
+          {nodes.length === 0 && (
+            <div className="empty-state">
+              <h3>No nodes reported yet</h3>
+              <p>Runtime health is polled every 30 seconds.</p>
+            </div>
+          )}
           <button
             className="agents-add-device"
             onClick={() => {
@@ -196,14 +178,14 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
             <span>
               <Plus size={24} />
             </span>
-            <strong>Bring your own GB10</strong>
+            <strong>Add a device</strong>
             <p>
-              Pair a device with your workspace
+              Save a device request.
               <br />
-              and make it part of the team.
+              Pairing is not connected to the runtime yet.
             </p>
             <small>
-              Connect device <ArrowRight size={13} />
+              Add device <ArrowRight size={13} />
             </small>
           </button>
         </div>
@@ -216,7 +198,7 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
             </div>
             <div>
               <h3>Cloud connections</h3>
-              <p>Extend your team with a hosted model provider.</p>
+              <p>Extend your team with a hosted model provider. Not connected yet.</p>
             </div>
             <button className="btn btn-secondary" onClick={() => setCloudOpen(true)}>
               <Plus size={15} /> Add provider
@@ -228,9 +210,7 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
                 <div key={c.id}>
                   <Cloud size={15} />
                   <strong>{c.name}</strong>
-                  <span className="badge badge-amber">
-                    {c.status === "preview" ? "Not connected" : "Authentication required"}
-                  </span>
+                  <span className="badge badge-amber">Not connected</span>
                   {c.status === "pending" && (
                     <button className="btn btn-ghost" onClick={() => removePendingAgentHome(c.id)}>
                       Remove
@@ -253,86 +233,34 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
         <>
           <div className="agents-model-heading">
             <div>
-              <div className="eyebrow">CHOOSE YOUR INTELLIGENCE</div>
-              <h2>Model catalog</h2>
+              <div className="eyebrow">SERVED MODELS</div>
+              <h2>Models</h2>
             </div>
-            <label className="agents-speed-input">
-              <Wifi size={15} />
-              <span>Estimate at</span>
-              <input
-                aria-label="Download estimate speed in megabytes per second"
-                type="number"
-                min="1"
-                max="10000"
-                value={speed}
-                onChange={(e) =>
-                  setSpeed(Math.min(10000, Math.max(1, Number(e.target.value) || 1)))
-                }
-              />
-              <span>MB/s</span>
-            </label>
+            <span className="muted small">
+              {inference ? `${inference.name} · ${inference.status}` : "No inference node reported"}
+            </span>
           </div>
           <div className="agents-model-grid">
             {models.map((model) => (
-              <article className="card agents-model-card" key={model.name}>
+              <article className="card agents-model-card" key={model}>
                 <div className="agents-model-card-top">
-                  <div className="agents-model-symbol">Q</div>
-                  <span className="badge badge-muted">{model.tag}</span>
-                </div>
-                <h3>{model.name}</h3>
-                <span className="small muted">{model.family}</span>
-                <p>{model.description}</p>
-                <div className="agents-model-facts">
-                  <span>
-                    <HardDrive size={14} />
-                    <strong>~{model.size} GB</strong>
-                    <small>Package estimate</small>
-                  </span>
-                  <span>
-                    <Clock3 size={14} />
-                    <strong>~{estimate(model.size)}</strong>
-                    <small>Transfer estimate</small>
+                  <div className="agents-model-symbol">{model.slice(0, 1).toUpperCase()}</div>
+                  <span className={`badge ${inference && healthy(inference.status) ? "badge-green" : "badge-amber"}`}>
+                    {inference?.status}
                   </span>
                 </div>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setTarget(devices[0].id);
-                    setChosenModel(model);
-                  }}
-                >
-                  <ArrowDownToLine size={15} /> Plan installation
-                </button>
+                <h3>{model}</h3>
+                <span className="small muted">Reported by {inference?.name}</span>
               </article>
             ))}
+            {inference && models.length === 0 && (
+              <div className="empty-state">
+                <h3>No models reported</h3>
+                <p>The inference node reported no loaded models.</p>
+              </div>
+            )}
           </div>
         </>
-      )}
-      {requests.length > 0 && (
-        <section className="card agents-installation-plan">
-          <div className="card-header">
-            <h3>Installation plan</h3>
-            <span className="badge badge-amber">{requests.length} awaiting connection</span>
-          </div>
-          {requests.map((r, i) => (
-            <div className="agents-install-row" key={`${r.model}-${r.device}`}>
-              <ArrowDownToLine size={17} />
-              <div>
-                <strong>{r.model}</strong>
-                <span>
-                  {r.device} · ~{r.size} GB
-                </span>
-              </div>
-              <span className="badge badge-muted">Not started</span>
-              <button
-                className="btn btn-ghost"
-                onClick={() => setRequests(requests.filter((_, j) => i !== j))}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-        </section>
       )}
 
       <Dialog open={pairOpen} onOpenChange={setPairOpen}>
@@ -341,8 +269,10 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
             <div className="agents-dialog-icon">
               <Cpu size={23} />
             </div>
-            <DialogTitle>Connect your GB10</DialogTitle>
-            <DialogDescription>Device details</DialogDescription>
+            <DialogTitle>Add a device</DialogTitle>
+            <DialogDescription>
+              Saves a request only. Pairing is not connected to the runtime; nothing is installed.
+            </DialogDescription>
           </DialogHeader>
           <label className="field">
             <span className="field-label">Device name</span>
@@ -374,15 +304,15 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
               Cancel
             </button>
             <button className="btn btn-primary" onClick={pair}>
-              Save pairing request <ArrowRight size={15} />
+              Save request <ArrowRight size={15} />
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog
-        open={!!deviceDetail}
+        open={!!nodeDetail}
         onOpenChange={(open) => {
-          if (!open) setDeviceDetail(null);
+          if (!open) setNodeDetail(null);
         }}
       >
         <DialogContent className="agents-small-dialog">
@@ -390,107 +320,38 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
             <div className="agents-dialog-icon">
               <Server size={23} />
             </div>
-            <DialogTitle>{deviceDetail?.name}</DialogTitle>
-            <DialogDescription>
-              {deviceDetail?.location?.replace(/ · Sample device/i, "")}
-            </DialogDescription>
+            <DialogTitle>{nodeDetail?.name}</DialogTitle>
+            <DialogDescription>{nodeDetail?.kind}</DialogDescription>
           </DialogHeader>
-          <dl className="agents-review-details">
-            <div>
-              <dt>Architecture</dt>
-              <dd>NVIDIA GB10 · ARM64</dd>
-            </div>
-            <div>
-              <dt>Memory configuration</dt>
-              <dd>128 GB unified</dd>
-            </div>
-            <div>
-              <dt>Connection</dt>
-              <dd>{deviceDetail?.pending ? "Waiting" : "Not connected"}</dd>
-            </div>
-            <div>
-              <dt>Telemetry</dt>
-              <dd>Unavailable until connected</dd>
-            </div>
-            <div>
-              <dt>Trust status</dt>
-              <dd>Not verified</dd>
-            </div>
-          </dl>
-
+          {nodeDetail && (
+            <dl className="agents-review-details">
+              <div>
+                <dt>Status</dt>
+                <dd>{nodeDetail.status}</dd>
+              </div>
+              <div>
+                <dt>Models</dt>
+                <dd>{list(nodeDetail, "models").join(", ") || "None reported"}</dd>
+              </div>
+              <div>
+                <dt>Agents</dt>
+                <dd>{list(nodeDetail, "agents").join(", ") || "None reported"}</dd>
+              </div>
+              {typeof nodeDetail.data.url === "string" && (
+                <div>
+                  <dt>URL</dt>
+                  <dd>{nodeDetail.data.url}</dd>
+                </div>
+              )}
+              <div>
+                <dt>Last seen</dt>
+                <dd>{seen(nodeDetail.seenAt)}</dd>
+              </div>
+            </dl>
+          )}
           <DialogFooter>
-            <button className="btn btn-secondary" onClick={() => setDeviceDetail(null)}>
+            <button className="btn btn-secondary" onClick={() => setNodeDetail(null)}>
               Close
-            </button>
-            {deviceDetail?.pending && (
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  removePendingAgentHome(deviceDetail.id);
-                  setDeviceDetail(null);
-                  onNotify?.("Pending device removed.");
-                }}
-              >
-                Remove request
-              </button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={!!chosenModel}
-        onOpenChange={(open) => {
-          if (!open) setChosenModel(null);
-        }}
-      >
-        <DialogContent className="agents-small-dialog">
-          <DialogHeader>
-            <div className="agents-dialog-icon">
-              <ArrowDownToLine size={23} />
-            </div>
-            <DialogTitle>Plan model installation</DialogTitle>
-            <DialogDescription>
-              {chosenModel?.name} · {chosenModel?.family}
-            </DialogDescription>
-          </DialogHeader>
-          <label className="field">
-            <span className="field-label">Target GB10</span>
-            <SelectField
-              className="select"
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-            >
-              {devices.map((d) => (
-                <option value={d.id} key={d.id}>
-                  {d.name}
-                  {d.pending ? " · Waiting" : " · Not connected"}
-                </option>
-              ))}
-            </SelectField>
-          </label>
-          <dl className="agents-review-details">
-            <div>
-              <dt>Estimated package</dt>
-              <dd>~{chosenModel?.size} GB</dd>
-            </div>
-            <div>
-              <dt>Estimated transfer</dt>
-              <dd>
-                ~{estimate(chosenModel?.size || 0)} at {speed} MB/s
-              </dd>
-            </div>
-            <div>
-              <dt>Additional memory</dt>
-              <dd>Runtime and context overhead required</dd>
-            </div>
-          </dl>
-
-          <DialogFooter>
-            <button className="btn btn-secondary" onClick={() => setChosenModel(null)}>
-              Cancel
-            </button>
-            <button className="btn btn-primary" onClick={queue}>
-              <Check size={15} /> Add to plan
             </button>
           </DialogFooter>
         </DialogContent>
@@ -502,7 +363,9 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
               <Cloud size={23} />
             </div>
             <DialogTitle>Add a cloud provider</DialogTitle>
-            <DialogDescription className="sr-only">Provider connection</DialogDescription>
+            <DialogDescription>
+              Saves a label only. Provider authentication is not connected yet.
+            </DialogDescription>
           </DialogHeader>
           <label className="field" htmlFor="compute-provider">
             <span className="field-label">Provider</span>
@@ -543,10 +406,10 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
                 });
                 setCloudOpen(false);
                 setConnectionName("");
-                onNotify?.("Provider configuration saved. Authentication is still required.");
+                onNotify?.("Provider label saved. Not connected; authentication is not wired yet.");
               }}
             >
-              Save configuration
+              Save label
             </button>
           </DialogFooter>
         </DialogContent>

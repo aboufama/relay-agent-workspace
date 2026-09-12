@@ -1,12 +1,14 @@
 'use client';
-import { AgentAvatar, setAgentActivity } from '@/components/AgentAvatar';
+import { AgentAvatar, setAgentActivity, type AgentActivity } from '@/components/AgentAvatar';
 import { HuddlesView } from './components/HuddlesView';
 import { useWorkspaceMembers, type WorkspaceMember, type AgentMember } from '@/lib/workspace-members';
+import { buzz, useBuzz } from '@/lib/buzz/store';
+import type { MessageRecord, Packet, RunMode, RunRecord } from '@/lib/buzz/types';
 import { LiveComposer } from './LiveComposer';
 import './live-chat.css';
 import { ChatHeader } from '@/components/buzz/ChatHeader';
 
-import { isValidElement, useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode, SyntheticEvent, CSSProperties } from 'react';
 import {
   Activity,
@@ -89,237 +91,26 @@ type View =
   | 'huddles'
   | 'activity'
   | 'settings';
-type Message = {
-  id: string;
-  name: string;
+type Message = MessageRecord & {
   initials: string;
   tone: string;
   time: string;
-  body: ReactNode;
   agent?: 'local' | 'cloud';
-  reactions?: number;
-  replies?: number;
-  memberId?: string;
-  requestState?: 'pending' | 'error' | 'complete';
-  error?: string;
-  attachment?: { name: string; detail: string };
+  character?: AgentMember['character'];
 };
-function plainText(node: ReactNode): string {
-  if (typeof node === 'string' || typeof node === 'number') return String(node);
-  if (Array.isArray(node)) return node.map(plainText).join(' ');
-  if (isValidElement<{ children?: ReactNode }>(node))
-    return plainText(node.props.children);
-  return '';
+const ACTIVE_RUN = new Set<RunRecord['status']>(['queued', 'preparing', 'running']);
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
-const seed: Message[] = [
-  {
-    id: 'm1',
-    name: 'Olivia Chen',
-    initials: 'OC',
-    tone: 'peach',
-    time: '9:18 AM',
-    body: 'Morning. Moving the Monday launch handoff here so engineering and CS have the same plan.',
-    reactions: 3,
-  },
-  {
-    id: 'launch-2',
-    name: 'Olivia Chen',
-    initials: 'OC',
-    tone: 'peach',
-    time: '9:19 AM',
-    body: 'Latest checklist below. Owners are filled in; the only open question is the customer email timing.',
-    attachment: {
-      name: 'Launch checklist.md',
-      detail: 'Checklist · 8 tasks · updated today',
-    },
-  },
-  {
-    id: 'm3',
-    name: 'Marcus Reed',
-    initials: 'MR',
-    tone: 'lavender',
-    time: '9:22 AM',
-    body: (
-      <>
-        Can we hold the email until 10:30? I want a full hour between rollout
-        and the first customer session. <span className="mention">@Olivia</span>
-      </>
-    ),
-    reactions: 2,
-  },
-  {
-    id: 'launch-4',
-    name: 'You',
-    initials: 'YO',
-    tone: 'you-avatar',
-    time: '9:24 AM',
-    body: 'Works for me. Let’s make the rollback owner explicit too.',
-  },
-  {
-    id: 'm2',
-    name: 'Atlas',
-    initials: 'At',
-    tone: 'mint',
-    time: '9:26 AM',
-    agent: 'local',
-    body: (
-      <>
-        <span>Proposed runbook order:</span>
-        <ul>
-          <li>09:30 — engineering starts the rollout</li>
-          <li>10:00 — Marcus reviews the first sessions</li>
-          <li>10:30 — Olivia sends the customer note</li>
-        </ul>
-        <span>Still need a name beside rollback.</span>
-      </>
-    ),
-  },
-  {
-    id: 'launch-6',
-    name: 'Marcus Reed',
-    initials: 'MR',
-    tone: 'lavender',
-    time: '9:28 AM',
-    body: 'Put me down for rollback. Adding the feature flag command to the runbook:',
-  },
-  {
-    id: 'launch-7',
-    name: 'Marcus Reed',
-    initials: 'MR',
-    tone: 'lavender',
-    time: '9:28 AM',
-    body: (
-      <pre className="chat-code">
-        <code>
-          {
-            'FEATURE_CUSTOMER_PORTAL=false\n# Keep existing sessions on the current experience'
-          }
-        </code>
-      </pre>
-    ),
-    reactions: 2,
-  },
-  {
-    id: 'launch-8',
-    name: 'Olivia Chen',
-    initials: 'OC',
-    tone: 'peach',
-    time: '9:32 AM',
-    body: 'Perfect. CS can cover 10:30. I’ll keep the note focused on what customers can actually do on day one.',
-    reactions: 3,
-  },
-  {
-    id: 'launch-9',
-    name: 'You',
-    initials: 'YO',
-    tone: 'you-avatar',
-    time: '9:35 AM',
-    body: (
-      <>
-        {' '}
-        <span className="mention">@Nova</span> can you tighten the update? Two
-        sentences, with the support contact at the end.
-      </>
-    ),
-  },
-  {
-    id: 'm4',
-    name: 'Nova',
-    initials: 'No',
-    tone: 'lavender',
-    time: '9:38 AM',
-    agent: 'cloud',
-    body: 'Draft: “Your new workspace opens Monday at 10:30. Start with the launch guide, and reply to your account team if you need a hand.”',
-    reactions: 2,
-  },
-  {
-    id: 'launch-11',
-    name: 'Olivia Chen',
-    initials: 'OC',
-    tone: 'peach',
-    time: '9:40 AM',
-    body: 'That’s the right length. Linking the handoff notes so support has the same wording.',
-    attachment: {
-      name: 'Customer handoff.md',
-      detail: 'Notes · owners, timing, support contacts',
-    },
-  },
-  {
-    id: 'launch-12',
-    name: 'Marcus Reed',
-    initials: 'MR',
-    tone: 'lavender',
-    time: '9:42 AM',
-    body: 'All set on my side. Next check-in here at 09:15 Monday.',
-    reactions: 4,
-  },
-];
-const seedReplies: Record<
-  string,
-  { name: string; text: string; time: string }[]
-> = {
-  m1: [
-    {
-      name: 'Marcus Reed',
-      text: 'Thanks. Keeping rollout notes in this room too.',
-      time: '9:20 AM',
-    },
-    {
-      name: 'Olivia Chen',
-      text: 'Great — one place for the final decisions.',
-      time: '9:21 AM',
-    },
-  ],
-  m3: [
-    {
-      name: 'Olivia Chen',
-      text: '10:30 works for CS. I’ll update the calendar.',
-      time: '9:25 AM',
-    },
-  ],
-  m4: [
-    {
-      name: 'You',
-      text: 'Use “account team” instead of a general inbox. Otherwise looks good.',
-      time: '9:39 AM',
-    },
-  ],
-};
-const initialRooms: Record<string, Message[]> = {
-  'launch-room': seed,
-  engineering: [
-    seed[5],
-    seed[6],
-    {
-      ...seed[3],
-      id: 'eng-3',
-      body: 'Can we add that flag to the release checklist before Monday?',
-    },
-  ],
-  'customer-success': [
-    seed[7],
-    seed[10],
-    {
-      ...seed[0],
-      id: 'cs-3',
-      body: 'I’ll send the final customer list after the account review.',
-    },
-  ],
-  'Olivia Chen': [
-    {
-      ...seed[0],
-      id: 'dm-olivia',
-      body: 'Hey — can you give the customer note a quick read when you have a minute?',
-    },
-  ],
-  'Marcus Reed': [
-    {
-      ...seed[2],
-      id: 'dm-marcus',
-      body: 'I’m covering the rollout Monday. Send any last-minute checks my way.',
-    },
-  ],
-};
+/** Activity for an agent, derived from its most recent run. */
+function agentActivity(agent: AgentMember, runs: readonly RunRecord[]): AgentActivity {
+  if (agent.paused) return 'paused';
+  const last = runs
+    .filter((run) => run.agentId === agent.id)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  if (!last) return 'ready';
+  return ACTIVE_RUN.has(last.status) ? 'working' : last.status === 'failed' ? 'blocked' : 'ready';
+}
 function messageText(text: string): ReactNode {
   return text.split(/(\*\*[^*]+\*\*|@[\w-]+)/g).map((part, index) =>
     part.startsWith('**') ? (
@@ -353,22 +144,42 @@ function NavigationContent({ children }: { children: ReactNode }) {
 }
 export function Workspace() {
   const members = useWorkspaceMembers();
+  const { messages: allMessages, channels: storeChannels, runs, online } = useBuzz();
   const [, setMentionedIds] = useState<string[]>([]);
-  const requests = useRef(new Map<string, {controller: AbortController; agent: AgentMember; room: string; history: {role: string;content: string}[]}>());
-  const retries = useRef(new Map<string, {agent: AgentMember; room: string; history: {role: string;content: string}[]}>());
   const [memberProfile, setMemberProfile] = useState<WorkspaceMember | null>(null);
-  useEffect(() => () => { requests.current.forEach(request => request.controller.abort()); }, []);
   const [view, setView] = useState<View>('chat');
   const [channel, setChannel] = useState('launch-room');
-  const [channels, setChannels] = useState([
-    'launch-room',
-    'engineering',
-    'customer-success',
-  ]);
-  const [messagesByRoom, setMessagesByRoom] =
-    useState<Record<string, Message[]>>(initialRooms);
-  const messages = messagesByRoom[channel] || [];
+  // Channels exist server-side once they hold a message; new empty ones live here until then.
+  const [localChannels, setLocalChannels] = useState<string[]>([]);
+  const channels = useMemo(
+    () => [...storeChannels, ...localChannels.filter((name) => !storeChannels.includes(name))],
+    [storeChannels, localChannels],
+  );
+  const memberById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
+  const messages = useMemo(
+    () =>
+      allMessages
+        .filter((message) => message.room === channel)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        .map((message): Message => {
+          const member = memberById.get(message.memberId);
+          return {
+            ...message,
+            initials: member?.initials ?? message.name.slice(0, 2),
+            tone: member?.tone || 'mint',
+            time: formatTime(message.createdAt),
+            agent: member?.kind === 'agent' ? member.runtime : undefined,
+            character: member?.kind === 'agent' ? member.character : undefined,
+          };
+        }),
+    [allMessages, channel, memberById],
+  );
+  useEffect(() => {
+    for (const member of members)
+      if (member.kind === 'agent') setAgentActivity(member.name, agentActivity(member, runs));
+  }, [members, runs]);
   const [draft, setDraft] = useState('');
+  const [mode, setMode] = useState<RunMode>('quick');
   const [toast, setToast] = useState('');
   const [thread, setThread] = useState<Message | null>(null);
   const [starred, setStarred] = useState(false);
@@ -382,8 +193,11 @@ export function Workspace() {
     '# Launch room\n\nDecision log\n- Confirm handoff window\n- Review customer draft\n- Keep launch checklist current',
   );
   const [peopleOpen, setPeopleOpen] = useState(false);
-  const [approvalOpen, setApprovalOpen] = useState(false);
-  const [approval, setApproval] = useState('Needs review');
+  const [reviewRequest, setReviewRequest] = useState<{ id: string; version: number } | null>(null);
+  const reviewApproval = (id: string) => {
+    setReviewRequest((current) => ({ id, version: (current?.version ?? 0) + 1 }));
+    setView('workflows');
+  };
   const [replies, setReplies] = useState<Record<string, string[]>>({});
   const [preferences, setPreferences] = useState([true, false, true]);
   const [reactionCounts, setReactionCounts] = useState<Record<string, number>>(
@@ -396,97 +210,50 @@ export function Workspace() {
         const saved = localStorage.getItem('relay-workspace-v1');
         if (saved) {
           const data = JSON.parse(saved) as {
-            channels?: string[];
-            rooms?: Record<string, Message[]>;
             replies?: Record<string, string[]>;
             reactions?: Record<string, number>;
-            approval?: string;
             preferences?: boolean[];
             canvas?: string;
+            draft?: string;
           };
-          if (data.rooms) Object.values(data.rooms).forEach(room=>room.forEach(message=>{if(message.requestState==='pending'){message.requestState='error';message.error='Response interrupted by reload. Retry to continue.'}}));
-          if (Array.isArray(data.channels))
-            setChannels(
-              data.channels.filter((name) => typeof name === 'string'),
-            );
-          if (data.rooms && typeof data.rooms === 'object')
-            setMessagesByRoom(
-              Object.fromEntries(
-                Object.entries({ ...initialRooms, ...data.rooms }).map(
-                  ([room, saved]) => [
-                    room,
-                    initialRooms[room]
-                      ? [
-                          ...initialRooms[room],
-                          ...saved.filter(
-                            (message) =>
-                              !initialRooms[room].some(
-                                (fixture) => fixture.id === message.id,
-                              ) &&
-                              !seed.some(
-                                (fixture) => fixture.id === message.id,
-                              ),
-                          ),
-                        ]
-                      : saved,
-                  ],
-                ),
-              ),
-            );
           if (data.replies) setReplies(data.replies);
           if (data.reactions) setReactionCounts(data.reactions);
-          if (data.approval) setApproval(data.approval);
           if (data.preferences?.length === 3) setPreferences(data.preferences);
           if (typeof data.canvas === 'string') setCanvas(data.canvas);
+          if (typeof data.draft === 'string') setDraft(data.draft);
         }
       } catch {
-        /* Start from sample data if storage is unavailable. */
+        /* Preferences are optional if storage is unavailable. */
       }
       setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timeout);
   }, []);
   useEffect(() => {
+    try { setMode(localStorage.getItem(`shoal-mode:${channel}`) === 'deep' ? 'deep' : 'quick'); }
+    catch { setMode('quick'); }
+  }, [channel]);
+  useEffect(() => {
     if (!hydrated) return;
     try {
-      const rooms = Object.fromEntries(
-        Object.entries(messagesByRoom).map(([name, messages]) => [
-          name,
-          messages.map((message) => ({
-            ...message,
-            body: plainText(message.body),
-          })),
-        ]),
-      );
       localStorage.setItem(
         'relay-workspace-v1',
         JSON.stringify({
-          channels,
-          rooms,
           replies,
           reactions: reactionCounts,
-          approval,
           preferences,
           canvas,
+          draft,
         }),
       );
     } catch {
       /* Session state remains usable if browser storage is full. */
     }
-  }, [
-    hydrated,
-    channels,
-    messagesByRoom,
-    replies,
-    reactionCounts,
-    approval,
-    preferences,
-    canvas,
-  ]);
-  const currentRef = useRef({ channel, view });
+  }, [hydrated, replies, reactionCounts, preferences, canvas, draft]);
+  const currentRef = useRef({ channel, view, channels, online });
   useEffect(() => {
-    currentRef.current = { channel, view };
-  }, [channel, view]);
+    currentRef.current = { channel, view, channels, online };
+  }, [channel, view, channels, online]);
   const [dm, setDm] = useState<string | null>(null);
   const [threadReply, setThreadReply] = useState('');
   useEffect(() => {
@@ -539,7 +306,7 @@ export function Workspace() {
         context.registerTool(
           {
             name: 'navigate_workspace',
-            description: 'Navigate the local Relay demo workspace.',
+            description: 'Navigate the Shoal workspace.',
             inputSchema: {
               type: 'object',
               properties: { view: { type: 'string', enum: [...allowed] } },
@@ -557,7 +324,7 @@ export function Workspace() {
               )
                 throw new Error('Invalid workspace view');
               setView(next as View);
-              return result({ view: next, localOnly: true });
+              return result({ view: next });
             },
           },
           { signal: controller.signal },
@@ -567,20 +334,15 @@ export function Workspace() {
         context.registerTool(
           {
             name: 'read_workspace',
-            description:
-              'Read a non-sensitive summary of the local Relay demo workspace.',
+            description: 'Read a non-sensitive summary of the Shoal workspace.',
             inputSchema: { type: 'object', properties: {} },
             execute: async (
               _input: unknown,
               options?: { signal?: AbortSignal },
             ) => {
               if (options?.signal?.aborted) throw new Error('Aborted');
-              return result({
-                workspace: 'Meridian',
-                ...currentRef.current,
-                localOnly: true,
-                serversConnected: false,
-              });
+              const { online, ...current } = currentRef.current;
+              return result({ workspace: 'Shoal', ...current, serversConnected: online });
             },
           },
           { signal: controller.signal },
@@ -597,84 +359,44 @@ export function Workspace() {
   };
   const results = search.trim()
     ? messages.filter((message) =>
-        `${message.name} ${plainText(message.body)}`
+        `${message.name} ${message.body}`
           .toLowerCase()
           .includes(search.toLowerCase()),
       )
     : messages;
   function openRoom(name: string) {
     const member = members.find(person => person.id === name || person.name === name);
-    const room = member ? `dm:${member.id}` : name;
-    setChannel(room);
+    setChannel(member ? `dm:${member.id}` : name);
     setDm(member?.id ?? null);
-    if (member) setMessagesByRoom(all => ({...all, [room]: all[room] ?? all[member.name] ?? []}));
     setDraft('');
     setMentionedIds([]);
     setTab('messages');
     setView('chat');
   }
-  function updateRequest(room: string, id: string, patch: Partial<Message>) {
-    setMessagesByRoom(all => ({...all,[room]:(all[room] ?? []).map(message=>message.id===id?{...message,...patch}:message)}));
+  function post(room: string, text: string, restore?: string) {
+    buzz.sendMessage(room, text, crypto.randomUUID(), mode).catch((error: unknown) => {
+      if (restore !== undefined) setDraft(restore);
+      notify(error instanceof Error ? error.message : 'Message not sent. Try again.');
+    });
   }
-  async function requestAgent(agent: AgentMember, room: string, history: {role:string;content:string}[], existingId?:string) {
-    if ([...requests.current.values()].some(request=>request.agent.id===agent.id)) {
-      notify(`${agent.name} is already responding. Wait or stop the current response.`);
-      return;
-    }
-    const id=existingId ?? `agent-${crypto.randomUUID()}`;
-    const controller=new AbortController();
-    const request={controller,agent,room,history};
-    requests.current.set(id,request);retries.current.set(id,{agent,room,history});
-    const reply:Message={id,name:agent.name,initials:agent.initials,tone:agent.tone??'mint',time:new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}),body:'',agent:agent.runtime,memberId:agent.id,requestState:'pending'};
-    if(existingId)updateRequest(room,id,{body:'',requestState:'pending',error:undefined});
-    else setMessagesByRoom(all=>({...all,[room]:[...(all[room]??[]),reply]}));
-    setAgentActivity(agent.name,'working');
-    const timeout=setTimeout(()=>controller.abort(),120000);
-    let content='';
-    try {
-      const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({messages:history,agentId:agent.id,agent:{id:agent.id,name:agent.name,instructions:agent.instructions,runtime:agent.runtime,model:agent.model,homeId:agent.homeId}})});
-      if(!response.ok){const error:unknown=await response.json().catch(()=>null);const detail=error&&typeof error==='object'&&'error' in error&&typeof error.error==='string'?error.error:`Request failed (${response.status}).`;throw new Error(detail)}
-      if(!response.body)throw new Error('The server returned no response stream.');
-      const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
-      function consume(frame:string){
-        for(const line of frame.split('\n')){if(!line.startsWith('data:'))continue;const payload=line.slice(5).trim();if(!payload||payload==='[DONE]')continue;
-          const data=JSON.parse(payload);if(data.error)throw new Error(typeof data.error==='string'?data.error:data.error.message??'Agent request failed.');
-          const delta=data.choices?.[0]?.delta?.content;if(typeof delta==='string'){content+=delta;updateRequest(room,id,{body:content})}
-        }
-      }
-      while(true){const chunk=await reader.read();if(chunk.done)break;buffer+=decoder.decode(chunk.value,{stream:true});buffer=buffer.replace(/\r\n/g,'\n');let split;while((split=buffer.indexOf('\n\n'))>=0){consume(buffer.slice(0,split));buffer=buffer.slice(split+2)}}
-      buffer+=decoder.decode();if(buffer.trim())consume(buffer);
-      if(!content.trim())throw new Error('The agent returned an empty response. Try again.');
-      updateRequest(room,id,{requestState:'complete',error:undefined});retries.current.delete(id);setAgentActivity(agent.name,'ready');
-    }catch(error){
-      const message=controller.signal.aborted?'Response stopped. You can retry.':error instanceof Error?error.message:'Unable to reach the agent. Try again.';
-      updateRequest(room,id,{requestState:'error',error:message});setAgentActivity(agent.name,'blocked');
-    }finally{clearTimeout(timeout);requests.current.delete(id)}
-  }
-  function retryMessage(message:Message){
-    const retry=retries.current.get(message.id);
-    const agent=members.find((member):member is AgentMember=>member.kind==='agent'&&member.id===message.memberId);
-    const history=(messagesByRoom[channel]??[]).slice(0,(messagesByRoom[channel]??[]).findIndex(item=>item.id===message.id)).filter(item=>!item.requestState||item.requestState==='complete').map(item=>({role:item.memberId===agent?.id?'assistant':'user',content:`${item.name}: ${plainText(item.body)}`})).slice(-40);
-    if(retry)void requestAgent(agent??retry.agent,retry.room,retry.history,message.id);
-    else if(agent)void requestAgent(agent,channel,history,message.id);
+  function retryMessage(message: Message) {
+    if (!message.runId) return notify('No recorded run to retry.');
+    buzz.retryRun(message.runId).catch((error: unknown) => {
+      notify(error instanceof Error ? error.message : 'Could not retry the run.');
+    });
   }
   function send() {
     const text = draft.trim();
     if (!text) return;
-    const message:Message = {id:`local-${crypto.randomUUID()}`,name:'You',initials:'YO',tone:'you-avatar',time:new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}),body:text,memberId:'you'};
-    const history=[...(messagesByRoom[channel]??[]),message].filter(item=>!item.requestState||item.requestState==='complete');
-    setMessagesByRoom(all=>({...all,[channel]:[...(all[channel]??[]),message]}));
-    setDraft('');setMentionedIds([]);
-    const hasMention=(name:string)=>{const at=text.toLowerCase().indexOf(`@${name.toLowerCase()}`);return at>=0&&(at===0||/\s/.test(text[at-1]))&&(!text[at+name.length+1]||/[\s.,!?;:]/.test(text[at+name.length+1]));};
-    const requested=members.filter((member):member is AgentMember=>member.kind==='agent'&&(dm===member.id||hasMention(member.name)));
-    requested.forEach(agent=>void requestAgent(agent,channel,history.slice(-40).map(item=>({role:item.memberId===agent.id?'assistant':'user',content:`${item.name}: ${plainText(item.body)}`}))));
+    setDraft('');
+    setMentionedIds([]);
+    post(channel, text, text);
   }
   function addChannel(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     const name = channelName.trim().toLowerCase().replace(/\s+/g, '-');
     if (!name) return;
-    setChannels((items) => (items.includes(name) ? items : [...items, name]));
-    setMessagesByRoom((all) => ({ ...all, [name]: all[name] || [] }));
+    setLocalChannels((items) => (items.includes(name) ? items : [...items, name]));
     setDm(null);
     setChannel(name);
     setChannelName('');
@@ -713,7 +435,7 @@ export function Workspace() {
             <span className="brand-symbol">
               <Zap size={19} />
             </span>
-            Relay<span className="brand-period">.</span>
+            Shoal<span className="brand-period">.</span>
             <span className="brand-version">PREVIEW</span>
           </div>
           <button
@@ -722,7 +444,7 @@ export function Workspace() {
           >
             <span className="workspace-avatar">M</span>
             <span>
-              <strong>Meridian</strong>
+              <strong>Shoal</strong>
               <small>Workspace</small>
             </span>
             <ChevronDown size={15} />
@@ -762,7 +484,6 @@ export function Workspace() {
                 >
                   <Hash size={16} />
                   <span>{name}</span>
-                  {name === 'launch-room' && <span className="rail-dot" />}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
@@ -834,6 +555,11 @@ export function Workspace() {
         </SidebarFooter>
       </Sidebar>
       <main className="workspace-main">
+        {!online && (
+          <div className="relay-offline" role="status" style={{ padding: '6px 30px', fontSize: '.75rem', color: '#7e7e7e', background: '#f7f7f7', borderBottom: '1px solid #ededed' }}>
+            Offline — reconnecting to the workspace…
+          </div>
+        )}
         <header
           className="topbar"
           style={{ display: view === 'chat' ? 'none' : undefined }}
@@ -846,7 +572,7 @@ export function Workspace() {
                 : view[0].toUpperCase() + view.slice(1)}
             </strong>
             <span>/</span>
-            <span>Meridian</span>
+            <span>Shoal</span>
           </div>
           <div className="topbar-actions">
             <button
@@ -872,14 +598,12 @@ export function Workspace() {
         >
           <Chat
             channel={members.find(member=>member.id===dm)?.name ?? channel}
+            room={channel}
             members={members}
             onMention={id=>setMentionedIds(ids=>ids.includes(id)?ids:[...ids,id])}
             retry={retryMessage}
-            stop={id=>requests.current.get(id)?.controller.abort()}
             openMember={member=>setMemberProfile(member)}
             dm={!!dm}
-            approval={approval}
-            reviewDraft={() => setApprovalOpen(true)}
             invite={() => setPeopleOpen(true)}
             reactionCounts={reactionCounts}
             react={(id) =>
@@ -892,6 +616,8 @@ export function Workspace() {
             draft={draft}
             setDraft={setDraft}
             send={send}
+            mode={mode}
+            setMode={(value) => { setMode(value); try { localStorage.setItem(`shoal-mode:${channel}`, value); } catch { /* The choice still works for this session. */ } }}
             starred={starred}
             setStarred={setStarred}
             setThread={setThread}
@@ -907,8 +633,8 @@ export function Workspace() {
           notify={notify}
           preferences={preferences}
           setPreferences={setPreferences}
-          reviewDraft={() => setApprovalOpen(true)}
-          openRoom={openRoom}
+          reviewApproval={reviewApproval}
+          reviewRequest={reviewRequest}
         />
       </main>
       <Sheet open={!!thread} onOpenChange={(open) => !open && setThread(null)}>
@@ -921,24 +647,16 @@ export function Workspace() {
             <>
               <div className="thread-original">
                 <strong>{thread.name}</strong>
-                <div className="message-text">{thread.body}</div>
+                <div className="message-text">{messageText(thread.body)}</div>
               </div>
               <div className="thread-replies">
-                {(seedReplies[thread.id] || []).map((reply, index) => (
-                  <div className="thread-reply" key={`seed-${index}`}>
-                    <strong>{reply.name}</strong>
-                    <time className="muted small"> {reply.time}</time>
-                    <p>{reply.text}</p>
-                  </div>
-                ))}
                 {(replies[thread.id] || []).map((reply, index) => (
                   <div className="thread-reply" key={index}>
                     <strong>You</strong>
                     <p>{reply}</p>
                   </div>
                 ))}
-                {!replies[thread.id]?.length &&
-                  !seedReplies[thread.id]?.length && (
+                {!replies[thread.id]?.length && (
                     <p className="muted">
                       No replies yet. Start the conversation.
                     </p>
@@ -976,7 +694,7 @@ export function Workspace() {
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="search-dialog">
           <DialogHeader>
-            <DialogTitle>Search Relay</DialogTitle>
+            <DialogTitle>Search Shoal</DialogTitle>
             <DialogDescription className="sr-only">
               Search messages.
             </DialogDescription>
@@ -1002,8 +720,7 @@ export function Workspace() {
                 <span className={`tiny-avatar ${m.tone}`}>{m.initials}</span>
                 <span>
                   <strong>
-                    {m.name}:{' '}
-                    {typeof m.body === 'string' ? m.body : 'Launch room update'}
+                    {m.name}: {m.body}
                   </strong>
                   <small>
                     #{channel} · {m.time}
@@ -1037,41 +754,6 @@ export function Workspace() {
               <MessageCircle size={16} />
             </button>
           ))}
-        </DialogContent>
-      </Dialog>
-      <Dialog open={approvalOpen} onOpenChange={setApprovalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Customer update draft</DialogTitle>
-            <DialogDescription>
-              Nova · local review, no message sent
-            </DialogDescription>
-          </DialogHeader>
-          <p>
-            Your new workspace opens Monday at 10:30. Start with the launch
-            guide, and reply to your account team if you need a hand.
-          </p>
-          <span className="badge">{approval}</span>
-          <DialogFooter>
-            <button
-              className="btn btn-secondary"
-              onClick={() => {
-                setApproval('Rejected');
-                setApprovalOpen(false);
-              }}
-            >
-              Reject draft
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                setApproval('Approved');
-                setApprovalOpen(false);
-              }}
-            >
-              Approve draft
-            </button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={newChannel} onOpenChange={setNewChannel}>
@@ -1118,7 +800,7 @@ export function Workspace() {
           <div className="profile-preview">
             <span className="avatar you-avatar">YO</span>
             <DialogTitle>Your profile</DialogTitle>
-            <p className="muted">Meridian workspace</p>
+            <p className="muted">Shoal workspace</p>
           </div>
           <DialogFooter>
             <button
@@ -1148,10 +830,8 @@ export function Workspace() {
 }
 
 function Chat({
-  members, onMention, retry, stop, openMember,
+  members, onMention, retry, openMember, room,
   dm,
-  approval,
-  reviewDraft,
   invite,
   reactionCounts,
   react,
@@ -1163,6 +843,8 @@ function Chat({
   draft,
   setDraft,
   send,
+  mode,
+  setMode,
   starred,
   setStarred,
   setThread,
@@ -1174,11 +856,9 @@ function Chat({
   members: readonly WorkspaceMember[];
   onMention:(id:string)=>void;
   retry:(message:Message)=>void;
-  stop:(id:string)=>void;
   openMember:(member:WorkspaceMember)=>void;
+  room: string;
   dm: boolean;
-  approval: string;
-  reviewDraft: () => void;
   invite: () => void;
   reactionCounts: Record<string, number>;
   react: (id: string) => void;
@@ -1190,6 +870,8 @@ function Chat({
   draft: string;
   setDraft: (value: string) => void;
   send: () => void;
+  mode: RunMode;
+  setMode: (mode: RunMode) => void;
   starred: boolean;
   setStarred: (value: boolean) => void;
   setThread: (message: Message) => void;
@@ -1200,6 +882,24 @@ function Chat({
 }) {
   const [contextOpen, setContextOpen] = useState(false);
   const [composerMenu, setComposerMenu] = useState(false);
+  const { runs, documents, tasks, projects, loaded } = useBuzz();
+  const [packet, setPacket] = useState<{ runId: string; packet: Packet | null } | null>(null);
+  const roomRuns = useMemo(
+    () => runs.filter((run) => run.room === room).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [runs, room],
+  );
+  const latestRun = roomRuns[0];
+  const agents = members.filter((member): member is AgentMember => member.kind === 'agent');
+  const roomAgents = roomRuns.length ? agents.filter((agent) => roomRuns.some((run) => run.agentId === agent.id)) : agents;
+  const projectId = room === 'launch-room' ? 'launch' : room === 'engineering' ? 'platform' : null;
+  const project = projects.find((item) => item.id === projectId);
+  const projectTasks = project ? tasks.filter((task) => task.project === project.id) : [];
+  const projectDone = projectTasks.filter((task) => task.status === 'Done').length;
+  const projectPercent = projectTasks.length ? Math.round((projectDone / projectTasks.length) * 100) : 0;
+  const viewContext = (id: string) => {
+    if (packet?.runId === id) return setPacket(null);
+    buzz.inspectRun(id).then((r) => setPacket({ runId: id, packet: r.run.packet ?? null })).catch((error: unknown) => notify(error instanceof Error ? error.message : 'Could not load the run context.'));
+  };
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -1292,13 +992,17 @@ function Chat({
         >
           <div className="conversation">
             <div className="conversation-scroll" ref={scrollRef}>
-              <div className="date-divider">Today</div>
+              {!loaded ? (
+                <p className="muted small page-note">Loading workspace…</p>
+              ) : (
+                <div className="date-divider">Today</div>
+              )}
               {messages.map((m, index) => (
                 <article
                   className={`message-row ${messages[index - 1]?.name === m.name ? 'message-grouped' : ''}`}
                   key={m.id}
                 >
-                  {m.agent ? <AgentAvatar character={m.name === 'Nova' ? 'ladybug' : 'worm'} state="idle" size={32} label={m.name} className="message-agent-avatar" /> : <span className={`avatar ${m.tone}`}>{m.initials}</span>}
+                  {m.agent ? <AgentAvatar character={m.character ?? 'worm'} state="idle" size={32} label={m.name} className="message-agent-avatar" /> : <span className={`avatar ${m.tone}`}>{m.initials}</span>}
                   <div className="message-body">
                     <div className="message-meta">
                       <button className="member-name-button" onClick={()=>{const member=members.find(person=>person.id===m.memberId||person.name===m.name);if(member)openMember(member)}}>{m.name}</button>
@@ -1311,13 +1015,10 @@ function Chat({
                       )}
                       <time>{m.time}</time>
                     </div>
-                    <div className="message-text">
-                      {typeof m.body === 'string'
-                        ? messageText(m.body)
-                        : m.body}
-                    </div>
-                    {m.requestState==='pending'&&<output className="message-request-state">Responding… <button onClick={()=>stop(m.id)}>Stop</button></output>}
-                    {m.requestState==='error'&&<div className="message-request-state message-request-error" role="alert">{m.error}<button onClick={()=>retry(m)}>Retry</button></div>}
+                    <div className="message-text">{messageText(m.body)}</div>
+                    {m.state==='pending'&&<output className="message-request-state">{({ queued: 'Queued', preparing: 'Preparing context', running: 'Working', awaiting: 'Waiting for review', completed: 'Finishing', failed: 'Failed', cancelled: 'Cancelled' } as const)[runs.find((run) => run.id === m.runId)?.status ?? 'queued']}</output>}
+                    {m.state==='complete' && m.runId && runs.find((r) => r.id === m.runId)?.mode === 'quick' && <button className="btn btn-ghost" onClick={() => buzz.retryRun(m.runId!, 'deep').catch((error: Error) => notify(error.message))}>Go deeper</button>}
+                    {m.state==='error'&&<div className="message-request-state message-request-error" role="alert">{m.error || 'The agent could not respond.'}<button onClick={()=>retry(m)}>Retry</button></div>}
                     {m.attachment && (
                       <button
                         className="chat-attachment"
@@ -1331,42 +1032,23 @@ function Chat({
                         <ChevronRight size={14} />
                       </button>
                     )}
-                    {m.id === 'm4' && (
-                      <div className="approval-preview">
-                        <button
-                          className="btn btn-secondary"
-                          onClick={reviewDraft}
-                        >
-                          <FileText size={14} /> Review draft
-                        </button>
-                        <span className="badge">{approval}</span>
-                      </div>
-                    )}
                     <div className="message-reactions">
-                      {(m.reactions || 0) + (reactionCounts[m.id] || 0) > 0 && (
+                      {(reactionCounts[m.id] || 0) > 0 && (
                         <button
                           className="reaction"
                           onClick={() => react(m.id)}
                         >
-                          <ThumbsUp size={12} />{' '}
-                          {(m.reactions || 0) + (reactionCounts[m.id] || 0)}
+                          <ThumbsUp size={12} /> {reactionCounts[m.id]}
                         </button>
                       )}
-                      {(replies[m.id]?.length || 0) +
-                        (seedReplies[m.id]?.length || 0) >
-                        0 && (
+                      {(replies[m.id]?.length || 0) > 0 && (
                         <button
                           className="reply-action"
                           onClick={() => setThread(m)}
                         >
                           <MessageCircle size={13} />
-                          {(replies[m.id]?.length || 0) +
-                            (seedReplies[m.id]?.length || 0)}{' '}
-                          {(replies[m.id]?.length || 0) +
-                            (seedReplies[m.id]?.length || 0) ===
-                          1
-                            ? 'reply'
-                            : 'replies'}
+                          {replies[m.id].length}{' '}
+                          {replies[m.id].length === 1 ? 'reply' : 'replies'}
                         </button>
                       )}
                     </div>
@@ -1394,6 +1076,16 @@ function Chat({
               <div className="composer">
                 <LiveComposer ref={composerRef} value={draft} onChange={setDraft} onSend={send} members={members} onMention={onMention} placeholder={`Message ${dm?'@':'#'}${channel}`} />
                 <div className="composer-bottom">
+                  <div role="group" aria-label="Response mode">
+                    {(['quick', 'deep'] as const).map((value) => (
+                      <button key={value} type="button" aria-pressed={mode === value}
+                        className={`btn ${mode === value ? 'btn-primary' : 'btn-ghost'}`}
+                        title={value === 'quick' ? 'A focused answer with a smaller context budget' : 'More context and investigation time; the same protected tools'}
+                        onClick={() => setMode(value)}>
+                        {value === 'quick' ? 'Quick' : 'Deep'}
+                      </button>
+                    ))}
+                  </div>
                   <div>
                     <button
                       className="icon-btn"
@@ -1482,32 +1174,21 @@ function Chat({
                   <span>AGENTS IN THIS ROOM</span>
                   <button onClick={() => navigate('agents')}>View all</button>
                 </div>
-                <button
-                  className="context-agent"
-                  onClick={() => navigate('agents')}
-                >
-                  <AgentAvatar character="worm" state="idle" size={32} label="Atlas"/>
-                  <span>
-                    <strong>
-                      Atlas <span className="tiny-route local">LOCAL</span>
-                    </strong>
-                    <small>Engineering partner · GB10</small>
-                  </span>
-                  <span className="status-dot green" />
-                </button>
-                <button
-                  className="context-agent"
-                  onClick={() => navigate('agents')}
-                >
-                  <AgentAvatar character="ladybug" state="idle" size={32} label="Nova"/>
-                  <span>
-                    <strong>
-                      Nova <span className="tiny-route cloud">CLOUD</span>
-                    </strong>
-                    <small>Creative partner · draft mode</small>
-                  </span>
-                  <span className="status-dot blue" />
-                </button>
+                {roomAgents.map((agent) => {
+                  const activity = agentActivity(agent, runs);
+                  return (
+                    <button className="context-agent" key={agent.id} onClick={() => navigate('agents')}>
+                      <AgentAvatar character={agent.character} state="idle" size={32} label={agent.name} />
+                      <span>
+                        <strong>
+                          {agent.name} <span className={`tiny-route ${agent.runtime}`}>{agent.runtime.toUpperCase()}</span>
+                        </strong>
+                        <small>{agent.role || 'Agent'} · {activity}</small>
+                      </span>
+                      <span className={`status-dot ${activity === 'working' ? 'blue' : activity === 'blocked' ? 'amber' : 'green'}`} />
+                    </button>
+                  );
+                })}
                 <button
                   className="add-agent-link"
                   onClick={() => navigate('agents')}
@@ -1515,57 +1196,83 @@ function Chat({
                   <Plus size={14} /> Invite an agent
                 </button>
               </div>
+              {latestRun && (
+                <div className="context-section">
+                  <div className="context-label">
+                    <span>LATEST RUN</span>
+                    <button onClick={() => viewContext(latestRun.id)}>{packet?.runId === latestRun.id ? 'Hide context' : 'View context'}</button>
+                  </div>
+                  <div className="context-agent">
+                    <span className="document-icon"><Activity size={15} /></span>
+                    <span>
+                      <strong>{members.find((member) => member.id === latestRun.agentId)?.name ?? latestRun.agentId} <span className="badge">{latestRun.status}</span></strong>
+                      <small>{latestRun.model || latestRun.backend} · {latestRun.inputTokens ?? 0} in / {latestRun.outputTokens ?? 0} out</small>
+                      {latestRun.error && <small>{latestRun.error}</small>}
+                    </span>
+                  </div>
+                  {packet?.runId === latestRun.id && (
+                    <div className="context-note" style={{ margin: '0 0 8px', flexDirection: 'column', gap: 4 }}>
+                      {packet.packet ? (
+                        <>
+                          <p>Submitted context: ~{packet.packet.estimatedTokens} of {packet.packet.budgetTokens} tokens · rules v{packet.packet.rulesVersion}</p>
+                          <p>{packet.packet.historyMessages} history messages{packet.packet.droppedHistory ? ` (${packet.packet.droppedHistory} dropped)` : ''}</p>
+                          <p>{packet.packet.evidence.length} evidence passages{packet.packet.droppedEvidence ? ` (${packet.packet.droppedEvidence} dropped)` : ''}</p>
+                          {packet.packet.evidence.map((passage) => (
+                            <p key={passage.chunkId}>· {passage.documentName} §{passage.idx + 1}</p>
+                          ))}
+                        </>
+                      ) : (
+                        <p>No context packet recorded for this run yet.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="context-section">
                 <div className="context-label">
-                  <span>SHARED FILES</span>
+                  <span>DOCUMENTS</span>
                   <button onClick={() => setTab('files')}>See all</button>
                 </div>
-                {[
-                  'Launch checklist.pdf',
-                  'Customer handoff.md',
-                  'Decision log',
-                ].map((f, i) => (
+                {documents.length === 0 && <p className="small muted">No documents yet.</p>}
+                {documents.slice(0, 4).map((document) => (
                   <button
                     className="context-document"
-                    key={f}
-                    onClick={() => setTab('files')}
+                    key={document.id}
+                    onClick={() => navigate('data')}
                   >
-                    <span
-                      className={`document-icon ${i === 1 ? 'green' : i === 2 ? 'amber' : ''}`}
-                    >
+                    <span className={`document-icon ${document.status === 'ready' ? 'green' : document.status === 'failed' ? '' : 'amber'}`}>
                       <FileText size={15} />
                     </span>
                     <span>
-                      <strong>{f}</strong>
+                      <strong>{document.name}</strong>
                       <small>
-                        <Users size={10} />{' '}
-                        {i === 0 ? 'Olivia Chen' : 'Launch room'}
+                        <Users size={10} /> {document.collection} · {document.status}
                       </small>
                     </span>
                     <ChevronRight size={14} />
                   </button>
                 ))}
               </div>
-              <div className="launch-card">
-                <div>
-                  <span className="badge badge-blue">PROJECT</span>
-                  <MoreHorizontal size={15} />
+              {project && (
+                <div className="launch-card">
+                  <div>
+                    <span className="badge badge-blue">PROJECT</span>
+                    <MoreHorizontal size={15} />
+                  </div>
+                  <h3>{project.name}</h3>
+                  <p>{project.description}</p>
+                  <div className="progress-track">
+                    <span className="progress-fill" style={{ width: `${projectPercent}%` }} />
+                  </div>
+                  <div className="launch-progress">
+                    <span>{projectDone} of {projectTasks.length} tasks</span>
+                    <strong>{projectPercent}%</strong>
+                  </div>
+                  <button className="btn" onClick={() => navigate('projects')}>
+                    Open project <ChevronRight size={13} />
+                  </button>
                 </div>
-                <h3>Meridian launch</h3>
-                <p>
-                  Keep the handoff visible and review the final customer note.
-                </p>
-                <div className="progress-track">
-                  <span className="progress-fill" style={{ width: '72%' }} />
-                </div>
-                <div className="launch-progress">
-                  <span>6 of 8 tasks</span>
-                  <strong>72%</strong>
-                </div>
-                <button className="btn" onClick={() => navigate('projects')}>
-                  Open project <ChevronRight size={13} />
-                </button>
-              </div>
+              )}
               <div className="context-note">
                 <ShieldCheck size={14} />
                 <p>
@@ -1602,21 +1309,18 @@ function Chat({
                 <Database size={15} /> Browse Data
               </button>
             </div>
-            {[
-              'Launch checklist.pdf',
-              'Customer handoff.md',
-              'Decision log',
-            ].map((f) => (
+            {documents.length === 0 && <p className="muted small">No documents in the workspace yet.</p>}
+            {documents.map((document) => (
               <button
                 className="list-row"
-                key={f}
+                key={document.id}
                 onClick={() => navigate('data')}
               >
                 <FileText size={17} />
                 <span>
-                  <strong>{f}</strong>
+                  <strong>{document.name}</strong>
                   <small className="muted">
-                    Workspace files
+                    {document.collection} · {document.status}
                   </small>
                 </span>
                 <ChevronRight size={16} />
@@ -1632,16 +1336,16 @@ function Chat({
 function View({
   preferences,
   setPreferences,
-  reviewDraft,
-  openRoom,
+  reviewApproval,
+  reviewRequest,
   view,
   navigate,
   notify,
 }: {
   preferences: boolean[];
   setPreferences: (value: boolean[]) => void;
-  reviewDraft: () => void;
-  openRoom: (name: string) => void;
+  reviewApproval: (id: string) => void;
+  reviewRequest: { id: string; version: number } | null;
   view: View;
   navigate: (view: string) => void;
   notify: (message: string) => void;
@@ -1659,7 +1363,7 @@ function View({
   return (
     <>
       <div {...hidden('inbox')}>
-        <InboxView reviewDraft={reviewDraft} openRoom={openRoom} />
+        <InboxView reviewApproval={reviewApproval} />
       </div>
       <div {...hidden('agents')}>
         <AgentsView onNotify={notify} onNavigate={navigate} />
@@ -1674,7 +1378,7 @@ function View({
         <ProjectsView onNotify={notify} />
       </div>
       <div {...hidden('workflows')}>
-        <WorkflowsView onNotify={notify} />
+        <WorkflowsView onNotify={notify} reviewRequest={reviewRequest} />
       </div>
       <div {...hidden('forum')}>
         <ForumView onNotify={notify} />
@@ -1695,47 +1399,21 @@ function View({
     </>
   );
 }
-function InboxView({
-  reviewDraft,
-  openRoom,
-}: {
-  reviewDraft: () => void;
-  openRoom: (name: string) => void;
-}) {
+function InboxView({ reviewApproval }: { reviewApproval: (id: string) => void }) {
+  const { approvals, members, loaded } = useBuzz();
+  const pending = approvals.filter((approval) => approval.status === 'Pending');
   return (
-    <div className="view-content">
-      <div className="page">
-        <div className="page-heading">
-          <div className="eyebrow">YOUR ATTENTION</div>
-          <h1>Inbox</h1>
-          <p className="subtitle">
-            Review the moments that need a person before work moves forward.
-          </p>
-        </div>
-        <button className="inbox-item" onClick={reviewDraft}>
-          <span className="inbox-item-icon amber">
-            <ShieldCheck size={19} />
-          </span>
-          <span>
-            <strong>Nova prepared a customer update draft</strong>
-            <small>#launch-room · Cloud draft · 8 minutes ago</small>
-          </span>
-          <span className="badge badge-amber">Needs review</span>
-          <ChevronRight size={17} />
+    <div className="view-content"><div className="page">
+      <div className="page-heading"><h1>Inbox</h1><p className="subtitle">Decisions waiting for you.</p></div>
+      {pending.map((approval) => (
+        <button className="inbox-item" key={approval.id} onClick={() => reviewApproval(approval.id)}>
+          <span className="inbox-item-icon amber"><ShieldCheck size={19} /></span>
+          <span><strong>{approval.title}</strong><small>{members.find((member) => member.id === approval.agent)?.name ?? approval.agent}{approval.recipient ? ` · ${approval.recipient}` : ''}</small></span>
+          <span className="badge badge-amber">Needs review</span><ChevronRight size={17} />
         </button>
-        <button className="inbox-item" onClick={() => openRoom('engineering')}>
-          <span className="inbox-item-icon">
-            <AtSign size={19} />
-          </span>
-          <span>
-            <strong>Marcus Reed mentioned you in #engineering</strong>
-            <small>“Can you confirm the rollout owner?” · 18 minutes ago</small>
-          </span>
-          <span className="badge badge-blue">Mention</span>
-          <ChevronRight size={17} />
-        </button>
-      </div>
-    </div>
+      ))}
+      {!pending.length && <p className="muted">{loaded ? 'No decisions waiting.' : 'Loading decisions…'}</p>}
+    </div></div>
   );
 }
 function ActivityView() {
