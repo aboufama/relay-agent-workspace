@@ -1579,7 +1579,7 @@ function Chat({
               {messages.length > 0 && <div className="date-divider">Today</div>}
               {messages.map((m, index) => (
                 <article
-                  className={`message-row ${messages[index - 1]?.name === m.name ? 'message-grouped' : ''}`}
+                  className={`message-row ${messages[index - 1]?.name === m.name && !m.runId ? 'message-grouped' : ''}`}
                   key={m.id}
                 >
                   <button
