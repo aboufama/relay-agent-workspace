@@ -18,6 +18,8 @@ Independent Astra review captured all 11 destinations at 1440, 1024 and 390 pixe
 | New shared avatars inherited flex stretching | Fixed 24×24 sidebar avatars; message/profile sizes remain independent |
 | Generic Settings and Inbox cards | Grouped settings with local name/preferences and list/detail Inbox with keyboard selection, search and read controls |
 | Crowded Data/Workflows screens | Plain headers, scoped responsive layout, accessible collection state, keyboard form submission and empty-file preview handling |
+| Duplicate Ready label and disabled button | One Ready status in the card header; setup action disappears after completion |
+| Gray human placeholders | Consistent pastel colors shared across human avatars |
 | Generic server icon | Original Dell artwork only inside the Compute card; larger portrait and subtle cool-gray card tint/grain; original icons retained everywhere else |
 | Browser-default progress color | Consistent gray progress styling |
 | Many model/setup choices | One Dell card prescribing Holo with NemoClaw, OpenClaw and OpenShell; fixed idempotent setup action with real installation progress |
@@ -31,7 +33,9 @@ TypeScript, lint, production build and `node --experimental-strip-types scripts/
 
 ## Runtime
 
-Holo-3.1-35B-A3B NVFP4 on the Dell returned real authenticated streaming responses through `/api/chat`. The required runtime is **NemoClaw + OpenClaw + OpenShell**, using those existing Holo weights. The earlier Nemotron download was stopped after the user clarified the model; its partial cache is preserved. At this UI release the corrected harness is being configured and is not admitted as ready. The setup endpoint and a separate independent runtime verifier determine full-stack readiness. The Spark is untouched.
+**Holo-3.1-35B-A3B NVFP4 through NemoClaw, OpenClaw and OpenShell is verified running on the Dell.** An independent Astra verifier correlated the unique response `RELAY-HOLO-SEP12-2027 3973` with OpenClaw session output, OpenShell inference routing and the mounted Holo model. [Verification receipt](HOLO_RUNTIME_VERIFICATION.md).
+
+The published app also passed actual two-turn DM recall (`OLIVE`) and a channel `@Atlas` response (`RELEASE_OK`), each through streaming `/api/chat`, with no page errors. Observed request durations were 1.61s, 1.68s and 1.74s; these checks are not performance guarantees. Unauthenticated runtime endpoints return 401. Four concurrent setup POSTs returned ready without restarting the stack. The Spark is untouched.
 
 ## Limits
 

@@ -14,3 +14,5 @@
 .compute-setup-progress progress::-moz-progress-bar{background:#626770;border-radius:10px}
 .compute-icon{display:block;flex:none!important;object-fit:cover;object-position:center}
 @media(max-width:600px){.compute-setup-page .compute-paper{padding:22px}.compute-paper .compute-setup-heading{gap:12px}.compute-paper .compute-setup-state{width:100%;margin:0}.compute-paper .compute-stack>div{grid-template-columns:105px minmax(0,1fr)}}
+
+.compute-ready .compute-stack{margin-bottom:0}.compute-ready .compute-stack>div:last-child{border-bottom:0}

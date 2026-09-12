@@ -1,6 +1,6 @@
 # Relay
 
-A custom agent-native team workspace UI for the Dell × NVIDIA GB10 hackathon. Built with React, TypeScript, Vinext, Base UI primitives, and custom CSS. Meridian is a fictional example company.
+An agent-native team workspace for the Dell × NVIDIA GB10 hackathon. Built with React, TypeScript, Vinext, Base UI primitives and custom CSS, using Block Buzz's interface structure as a reference.
 
 ## Run
 
@@ -12,24 +12,26 @@ npx tsc --noEmit
 npm run build
 ```
 
-## Included
+## Workspace
 
-Channels, direct messages, threads, reactions, search, canvas/files, inbox and draft review, agent creation, local/cloud configuration, GB10 pairing and model planning, classified Data import and collections, projects and tasks, workflows and approvals, forum discussions, huddle previews, activity, and workspace settings.
+Channels, DMs, threads, reactions, workspace search, room-specific notes, Inbox, editable agents, classified Data collections, projects, workflows, discussions, huddles and settings. People and agents share the member directory, profile controls and mention composer. Agent avatars reflect real runtime activity: idle, sleeping, thinking or stuck. The thinking bubble enters and exits with that activity.
 
-The Data flow selects Public, Internal, Confidential, or Restricted classification before adding files to a collection. Files remain in the current browser session; restricted configurations exclude cloud routes. Agent and Compute views distinguish example devices, pending verification, and cloud configuration. They do not claim a connected runtime.
+Compute offers one fixed Holo setup with NemoClaw, OpenClaw and OpenShell. The Dell illustration appears only inside its card. Setup is idempotent and its status comes from the connected Dell.
 
-## Current boundary
+## Verified inference
 
-This is a deployed interactive frontend with session-scoped example data. It is not a multi-user communications backend. Chat, channel, canvas, and preference changes are saved in browser localStorage. Agent identities, instructions, homes, and access levels persist in the shared browser member directory. Data files and other feature-page configuration remain session-scoped. The chat backend streams real completions from a configured OpenAI-compatible endpoint; agents can be mentioned or messaged using the same member directory as people. The Dell model service is configured separately. Cloud homes require their own provider configuration. Multi-user delivery, voice calls, and external tool actions are not connected. Pairing codes, telemetry, and existing workspace records are clearly identified examples or plans.
+The configured Dell serves **Hcompany/Holo-3.1-35B-A3B-NVFP4** through:
 
-Security labels and approval decisions demonstrate product behavior; they are not server-side authorization. Before company use, implement authenticated workspace membership, durable storage, server-enforced per-document and derived-data permissions, encrypted device identity, inference routing, audited human approvals, and tested service integrations. Do not put actual company secrets into a frontend demonstration.
+`Relay → authenticated gateway → OpenClaw in OpenShell → inference.local → Holo vLLM`
 
-The Sites deployment audience is private to its owner. Optional WebMCP navigation and readback tools use feature detection. No supported WebMCP validation context was available in this build session, so those tools have not been verified in a browser.
+NemoClaw manages the sandbox and inference configuration. An independent verifier correlated a unique correct response with OpenClaw, OpenShell and Holo logs. Real DM context recall and channel @agent responses also passed through the published app. See [verification](docs/HOLO_RUNTIME_VERIFICATION.md) and [runtime setup](runtime/gb10/README.md).
 
-See [the Buzz design review](docs/BUZZ_REVIEW.md) for implementation inspiration and the next backend priorities.
+Server-only settings are `GB10_CHAT_URL`, `GB10_API_KEY` and `GB10_MODEL=openclaw/default`. That model value targets the OpenClaw agent; the underlying model remains Holo. Local development reads ignored `.dev.vars`; production values live in Sites environment settings. Optional cloud homes require `CLOUD_CHAT_URL`, `CLOUD_API_KEY`, `CLOUD_MODEL` and `CLOUD_HOME_ID`. Keep credentials out of client code and Git.
 
-## Inference configuration
+`GET /api/runtime` checks actual runtime health. `GET/POST /api/compute/setup` reads or starts the fixed setup. The public-facing gateway exposes only authenticated setup status/start, model discovery, health and chat. OpenClaw administration remains private.
 
-Server-only runtime settings: `GB10_CHAT_URL`, `GB10_API_KEY`, `GB10_MODEL`. Local development reads ignored `.dev.vars`; deployed settings live in Sites secrets. Optional cloud settings use `CLOUD_CHAT_URL`, `CLOUD_API_KEY`, `CLOUD_MODEL`, and `CLOUD_HOME_ID`. No credential belongs in client code or Git. The gateway is authenticated and permits only model discovery and chat requests. `GET /api/runtime` reports verified model availability. Requests to disconnected homes return a retryable error.
+## Current limits
 
-For visual review, two agent-card thought bubbles rotate randomly; this temporary presentation mode does not simulate model responses or change runtime activity.
+Workspace messages, identities, notes and preferences persist in browser localStorage; this is not shared multiuser storage. Data and feature-page records remain local browser state. Access labels and approvals are configuration, not service-level authorization. Voice/video transport and workflow execution are not connected. The published site remains owner-private.
+
+[UI verification](docs/QA.md) records the independent screen review and its limits. [Buzz review](docs/BUZZ_REVIEW.md) records the reference study. Third-party notices preserve the original licenses.

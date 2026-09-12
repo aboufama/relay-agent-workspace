@@ -164,7 +164,7 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
   return (
     <div className="page compute-setup-page">
       <PageHeader className="page-heading" title="Compute" />
-      <section className="compute-setup-card compute-paper" aria-label="Dell GB10 setup">
+      <section className={`compute-setup-card compute-paper ${ready ? "compute-ready" : ""}`} aria-label="Dell GB10 setup">
         <header className="compute-setup-heading">
           <ComputeIcon size={116} label="Dell Pro Max GB10" />
           <h2>Dell GB10</h2>
@@ -209,13 +209,13 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
             {error}
           </p>
         )}
-        <button
+        {!ready && <button
           className="btn btn-primary compute-setup-action"
           disabled={submitting || active || ready}
           onClick={() => void setup()}
         >
-          {ready ? <Check size={16} /> : <Download size={16} />} {buttonText}
-        </button>
+          <Download size={16} /> {buttonText}
+        </button>}
         {Boolean(status?.logs?.length) && (
           <details className="compute-setup-logs">
             <summary>Details</summary>

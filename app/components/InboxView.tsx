@@ -10,7 +10,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { AgentAvatar } from '@/components/AgentAvatar';
+import { MemberAvatar } from '@/components/MemberAvatar';
 import { useWorkspaceMembers } from '@/lib/workspace-members';
 import { PageHeader } from '@/components/buzz/PageHeader';
 type Item = {
@@ -80,13 +80,7 @@ export function InboxView({ reviewDraft, openRoom }: Props) {
   }
   function avatar(item: Item) {
     const member = author(item);
-    return member?.kind === 'agent' ? (
-      <AgentAvatar identityKey={member.id} character={member.character} size={32} label={member.name} />
-    ) : (
-      <span className="quality-inbox-human-avatar">
-        {member?.initials || 'MR'}
-      </span>
-    );
+    return <MemberAvatar member={member} name={authorName(item)} initials="MR" size={32} />;
   }
   return (
     <div className="page quality-inbox">

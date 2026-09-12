@@ -873,7 +873,7 @@ export function Workspace() {
           </button>
           <div className="rail-profile">
             <button onClick={() => setProfileOpen(true)}>
-              <span className="tiny-avatar you-avatar">YO</span>
+              <MemberAvatar member={members.find(m=>m.id==='you')} size={24}/>
               <span>
                 <strong>Your profile</strong>
                 <small>Local</small>
@@ -920,7 +920,7 @@ export function Workspace() {
               onClick={() => setProfileOpen(true)}
               aria-label="Open profile"
             >
-              YO
+              <MemberAvatar member={members.find(m=>m.id==='you')} size={26}/>
             </button>
           </div>
         </header>
@@ -1022,7 +1022,7 @@ export function Workspace() {
                   openThread(m);
                 }}
               >
-                <span className={`tiny-avatar ${m.tone}`}>{m.initials}</span>
+                <MemberAvatar member={resolveMember(members,m.memberId,m.name)} name={m.name} initials={m.initials} size={24}/>
                 <span>
                   <strong>
                     {m.name}:{' '}
@@ -1055,7 +1055,7 @@ export function Workspace() {
                 setPeopleOpen(false);
               }}
             >
-              <span className="avatar">{person.kind==='agent'?<AgentAvatar identityKey={person.id} character={person.character} label={person.name} size={32}/>:person.initials}</span>
+              <MemberAvatar member={person} size={32}/>
               <strong>{person.name}</strong><span className="member-directory-type">{person.kind==='agent'?'Agent':'Person'}</span>
               <MessageCircle size={16} />
             </button>
@@ -1133,7 +1133,7 @@ export function Workspace() {
       <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
         <DialogContent>
           <div className="profile-preview">
-            <span className="avatar you-avatar">YO</span>
+            <MemberAvatar member={members.find(m=>m.id==='you')} size={64}/>
             <DialogTitle>Your profile</DialogTitle>
             <p className="muted">{workspaceName} workspace</p>
           </div>
@@ -1259,9 +1259,7 @@ function Chat({
           <div className="channel-actions">
             {!dm && <div className="member-stack">
               {members.slice(0,3).map((p) => (
-                <span key={p.id} className={`tiny-avatar ${p.tone}`}>
-                  {p.initials}
-                </span>
+                <MemberAvatar key={p.id} member={p} size={24}/>
               ))}
               <span className="member-number">{members.length}</span>
             </div>}
