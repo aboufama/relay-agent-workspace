@@ -1,4 +1,7 @@
+import { useAgentMembers } from "@/lib/workspace-members";
+import { AgentAvatar } from "@/components/AgentAvatar";
 import "./data-layers.css";
+import "./data-visual.css";
 import { PageHeader } from "@/components/buzz/PageHeader";
 import { SelectField } from "@/components/SelectField";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -209,6 +212,7 @@ function LevelBadge({ level }: { level: Level }) {
 }
 
 export function DataView({ onNotify }: Props) {
+  const directoryAgents = useAgentMembers();
   const [items, setItems] = useState<DataItem[]>(seeds);
   const [collections, setCollections] = useState(initialCollections);
   const [collection, setCollection] = useState("All data");
@@ -416,7 +420,7 @@ export function DataView({ onNotify }: Props) {
 
   return (
     <div
-      className="page data-page quality-data"
+      className={`page data-page quality-data data-visual ${layout === "layers" ? "data-visual-layers" : ""}`}
       onDragEnter={(event) => {
         event.preventDefault();
         if (event.dataTransfer.types.includes("Files")) {
@@ -555,34 +559,48 @@ export function DataView({ onNotify }: Props) {
                 </button>
               )}
             </label>
-            <SelectField
-              className="select data-filter"
-              aria-label="Filter classification"
-              value={levelFilter}
-              onChange={(event) => setLevelFilter(event.target.value)}
-            >
-              <option>All classifications</option>
-              {levels.map((level) => (
-                <option key={level}>{level}</option>
-              ))}
-            </SelectField>
-            <SelectField
-              className="select data-sort"
-              aria-label="Sort files"
-              value={sort}
-              onChange={(event) => setSort(event.target.value)}
-            >
-              <option value="recent">Recently added</option>
-              <option value="name">Name A–Z</option>
-              <option value="size">Largest first</option>
-            </SelectField>
+            <details className="data-visual-filters">
+              <summary>Filter</summary>
+              <div>
+                {" "}
+                <SelectField
+                  className="select data-filter"
+                  aria-label="Filter classification"
+                  value={levelFilter}
+                  onChange={(event) => setLevelFilter(event.target.value)}
+                >
+                  <option>All classifications</option>
+                  {levels.map((level) => (
+                    <option key={level}>{level}</option>
+                  ))}
+                </SelectField>
+                <SelectField
+                  className="select data-sort"
+                  aria-label="Sort files"
+                  value={sort}
+                  onChange={(event) => setSort(event.target.value)}
+                >
+                  <option value="recent">Recently added</option>
+                  <option value="name">Name A–Z</option>
+                  <option value="size">Largest first</option>
+                </SelectField>
+              </div>
+            </details>
           </div>
           {layout === "layers" ? (
             <div className="data-security-layers" aria-label="Security layers">
+              <p className="data-visual-hint">
+                Drag files between layers. Select a file to manage access.
+              </p>
               {levels
                 .filter((level) => levelFilter === "All classifications" || levelFilter === level)
                 .map((level) => {
                   const files = visible.filter((item) => item.level === level);
+                  const eligible = directoryAgents.filter(
+                    (agent) =>
+                      levels.indexOf(agent.accessLevel) >= levels.indexOf(level) &&
+                      (!localOnly(level) || agent.runtime === "local"),
+                  );
                   return (
                     <div
                       key={level}
@@ -641,7 +659,7 @@ export function DataView({ onNotify }: Props) {
                       <div className="data-shelf-files">
                         {files.map((item) => (
                           <div
-                                  aria-label={item.name}
+                            aria-label={item.name}
                             key={item.id}
                             className="data-layer-file"
                             draggable
@@ -659,24 +677,8 @@ export function DataView({ onNotify }: Props) {
                               <FileGlyph type={item.type} />
                               <span>
                                 <strong>{item.name}</strong>
-                                <small>
-                                  {bytes(item.size)} ·{" "}
-                                  {item.example ? "No file attached" : "Local file"}
-                                </small>
                               </span>
                             </button>
-                            <SelectField
-                              className="data-layer-move"
-                              aria-label={`Move ${item.name} to security layer`}
-                              value={item.level}
-                              onChange={(event) => changeLevel(item, event.target.value as Level)}
-                            >
-                              {levels.map((next) => (
-                                <option key={next} value={next}>
-                                  {next}
-                                </option>
-                              ))}
-                            </SelectField>
                           </div>
                         ))}
                         {!files.length && (
@@ -687,9 +689,38 @@ export function DataView({ onNotify }: Props) {
                               setImportLevel(level);
                             }}
                           >
-                            Drop files here <span>or browse</span>
+                            <Plus size={18} aria-hidden="true" />
+                            <span className="sr-only">Add files to {level}</span>
                           </button>
                         )}
+                      </div>
+                      <div className="data-shelf-access" aria-label={`${level} agent clearance`}>
+                        <span className="data-access-wire" aria-hidden="true" />
+                        <div className="data-access-end">
+                          <span className="data-access-label">Access</span>
+                          <div className="data-access-avatars">
+                            {eligible.map((agent) => (
+                              <span
+                                key={agent.id}
+                                className="data-access-agent"
+                                title={`${agent.name} · ${agent.accessLevel} clearance`}
+                              >
+                                <AgentAvatar
+                                  identityKey={agent.id}
+                                  character={agent.character}
+                                  label={agent.name}
+                                  size={30}
+                                />
+                              </span>
+                            ))}
+                            {!eligible.length && (
+                              <span className="data-access-none">
+                                —
+                                <span className="sr-only">No agents with sufficient clearance</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -811,21 +842,23 @@ export function DataView({ onNotify }: Props) {
               ))}
             </div>
           )}
-          <button className="data-dropzone" onClick={startImport}>
-            <span className="data-drop-icon">
-              <UploadCloud size={22} strokeWidth={1.6} />
-            </span>
-            <span>
-              <strong>
-                Drop files here, or <em>browse</em>
-              </strong>
-              <small>Files and folders</small>
-            </span>
-            <span className="data-drop-privacy">
-              <LockKeyhole size={13} />
-              Browser only
-            </span>
-          </button>
+          {layout !== "layers" && (
+            <button className="data-dropzone" onClick={startImport}>
+              <span className="data-drop-icon">
+                <UploadCloud size={22} strokeWidth={1.6} />
+              </span>
+              <span>
+                <strong>
+                  Drop files here, or <em>browse</em>
+                </strong>
+                <small>Files and folders</small>
+              </span>
+              <span className="data-drop-privacy">
+                <LockKeyhole size={13} />
+                Browser only
+              </span>
+            </button>
+          )}
         </section>
       </div>
       <output className="data-sr-only" aria-live="polite">
