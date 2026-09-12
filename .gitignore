@@ -45,3 +45,5 @@ next-env.d.ts
 # Generated local demo downloads
 /public/demo-downloads
 /output/shoal-demo/
+
+/output/access-control-demo/
