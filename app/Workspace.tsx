@@ -572,7 +572,7 @@ export function Workspace() {
         context.registerTool(
           {
             name: 'navigate_workspace',
-            description: 'Navigate the Relay workspace.',
+            description: 'Navigate the Shoal workspace.',
             inputSchema: {
               type: 'object',
               properties: { view: { type: 'string', enum: [...allowed] } },
@@ -601,7 +601,7 @@ export function Workspace() {
           {
             name: 'read_workspace',
             description:
-              'Read a non-sensitive summary of the local Relay demo workspace.',
+              'Read a non-sensitive summary of the Shoal workspace.',
             inputSchema: { type: 'object', properties: {} },
             execute: async (
               _input: unknown,
@@ -757,7 +757,7 @@ export function Workspace() {
             <span className="brand-symbol">
               <Zap size={19} />
             </span>
-            Relay<span className="brand-period">.</span>
+            Shoal<span className="brand-period">.</span>
             <span className="brand-version">PREVIEW</span>
           </div>
           <button
@@ -781,7 +781,7 @@ export function Workspace() {
           <SidebarMenu>
             {nav(<Inbox size={17} />, 'Inbox', 'inbox')}
             {nav(<Database size={17} />, 'Data', 'data')}
-            {nav(<Cpu size={17} />, 'Compute', 'compute')}
+            {nav(<Cpu size={17} />, 'Habitats', 'compute')}
           </SidebarMenu>
           <div className="rail-section-label">
             <span>CHANNELS</span>
@@ -884,7 +884,7 @@ export function Workspace() {
             <strong>
               {view === 'chat'
                 ? `${dm ? '@' : '#'} ${channel}`
-                : view === 'deep-dive' ? 'Deep Dive' : view[0].toUpperCase() + view.slice(1)}
+                : view === 'deep-dive' ? 'Deep Dive' : view === 'compute' ? 'Habitats' : view[0].toUpperCase() + view.slice(1)}
             </strong>
             <span>/</span>
             <span>{workspaceName}</span>
@@ -980,7 +980,7 @@ export function Workspace() {
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="search-dialog">
           <DialogHeader>
-            <DialogTitle>Search Relay</DialogTitle>
+            <DialogTitle>Search Shoal</DialogTitle>
             <DialogDescription className="sr-only">
               Search messages.
             </DialogDescription>

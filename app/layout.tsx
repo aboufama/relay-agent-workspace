@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Relay — Your team, extended',
+  title: 'Shoal — Your team, together',
   description: 'A shared workspace for people and agents, with GB10 compute and classified company context.',
 };
 

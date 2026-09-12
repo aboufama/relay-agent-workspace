@@ -111,7 +111,7 @@ export function ComputeHomesView({
   localStatus, cloudStatus, localActions, cloudActions, localSetup, metrics = null, className = '',
 }: ComputeHomesViewProps) {
   return <div className={`page compute-homes-page ${className}`}>
-    <header className="compute-homes-heading"><h1>Compute</h1></header>
+    <header className="compute-homes-heading"><h1>Habitats</h1></header>
     <div className="compute-homes-list">
       <Home name="Dell GB10" kind="local" count={localCount} preview={localPreview} status={localStatus} actions={localActions} setup={localSetup} metrics={metrics} defaultOpen>{localAgents}</Home>
       <Home name="Cloud" kind="cloud" count={cloudCount} preview={cloudPreview} status={cloudStatus} actions={cloudActions} defaultOpen={false}>{cloudAgents}</Home>
