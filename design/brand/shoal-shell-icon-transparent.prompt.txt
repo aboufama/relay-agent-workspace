@@ -1,0 +1,4 @@
+Tool: built-in image_gen, edit mode.
+Input: Shoal-Logo.png (the existing clay shell logo).
+
+Use case: background-extraction. Edit target: the attached Shoal clay shell logo. Remove only the off-white background and any background shadow. Deliver a PNG with a genuinely transparent alpha background, not a white or checkerboard backdrop. Keep the entire shell unchanged: exact silhouette, peach color, clay texture, highlights, inner shading, scale, orientation and square framing. Preserve clean antialiased edges with no white halo. Do not redesign, crop, add text or add anything.
