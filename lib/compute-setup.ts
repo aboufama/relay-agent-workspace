@@ -1,6 +1,6 @@
 import type { ChatRuntimeConfig } from './chat-gateway';
 
-const model = 'Nemotron 3.5 Lightning 30B-A3B · NVFP4';
+const model = 'Holo-3.1-35B-A3B · NVFP4';
 const phases = ['not_installed', 'downloading', 'installing', 'starting', 'ready', 'error'];
 const response = (value: unknown, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 

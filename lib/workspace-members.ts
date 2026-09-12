@@ -45,7 +45,7 @@ const seedAgents: Omit<
     description:
       "Turns technical questions into clear answers and helps the team ship with confidence.",
     runtime: "local",
-    model: "Nemotron 3.5 Lightning 30B-A3B · NVFP4",
+    model: "Holo-3.1-35B-A3B · NVFP4",
     device: "Dell GB10",
     initials: "At",
     color: "green",
@@ -61,7 +61,7 @@ const seedAgents: Omit<
     description:
       "Connects the dots across projects, finds blockers, and keeps every handoff moving.",
     runtime: "local",
-    model: "Nemotron 3.5 Lightning 30B-A3B · NVFP4",
+    model: "Holo-3.1-35B-A3B · NVFP4",
     device: "Dell GB10",
     initials: "Sa",
     color: "amber",
@@ -93,7 +93,7 @@ const seedAgents: Omit<
     description:
       "Brings the customer perspective to every conversation, with the right account context.",
     runtime: "local",
-    model: "Nemotron 3.5 Lightning 30B-A3B · NVFP4",
+    model: "Holo-3.1-35B-A3B · NVFP4",
     device: "Dell GB10",
     initials: "Ir",
     color: "rose",
@@ -125,7 +125,7 @@ const seedAgents: Omit<
     description:
       "Makes financial context easier to understand while keeping sensitive work close to home.",
     runtime: "local",
-    model: "Nemotron 3.5 Lightning 30B-A3B · NVFP4",
+    model: "Holo-3.1-35B-A3B · NVFP4",
     device: "Dell GB10",
     initials: "Le",
     color: "slate",
@@ -196,7 +196,7 @@ function normalize(value: unknown): WorkspaceMember | null {
     instructions,
     description: instructions,
     role: text(v.role, "", 200),
-    model: runtime === "local" ? "Nemotron 3.5 Lightning 30B-A3B · NVFP4" : text(v.model, "", 200),
+    model: runtime === "local" ? "Holo-3.1-35B-A3B · NVFP4" : text(v.model, "", 200),
     device: text(v.device, "", 200),
     color: text(v.color, "slate", 30),
     owner: text(v.owner, "You", 60),

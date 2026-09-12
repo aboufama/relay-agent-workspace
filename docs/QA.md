@@ -18,7 +18,7 @@ Independent Astra review captured all 11 destinations at 1440, 1024 and 390 pixe
 | New shared avatars inherited flex stretching | Fixed 24×24 sidebar avatars; message/profile sizes remain independent |
 | Generic Settings and Inbox cards | Grouped settings with local name/preferences and list/detail Inbox with keyboard selection, search and read controls |
 | Crowded Data/Workflows screens | Plain headers, scoped responsive layout, accessible collection state, keyboard form submission and empty-file preview handling |
-| Many model/setup choices | One Dell card prescribing Nemotron, OpenClaw and OpenShell; fixed idempotent setup action with real installation progress |
+| Many model/setup choices | One Dell card prescribing Holo with NemoClaw, OpenClaw and OpenShell; fixed idempotent setup action with real installation progress |
 | Thread retry lost parent context after reload | Retry reconstructs parent plus thread history |
 | Failed health polling retained stale connection state | Failed or malformed health responses put disconnected agents into sleep |
 | Historical-name lookup could override member IDs | Stable IDs resolve first, including seeded message authors |
@@ -29,7 +29,7 @@ TypeScript, lint, production build and `node --experimental-strip-types scripts/
 
 ## Runtime
 
-The previous Holo NVFP4 runtime on the Dell returned real authenticated streaming responses through `/api/chat`. It is retained only during replacement installation. The required fixed stack is NVIDIA Nemotron 3.5 Lightning 30B-A3B NVFP4, OpenClaw and OpenShell through NVIDIA NemoClaw. At this UI release the replacement is downloading, not admitted as ready. Setup health and a separate independent runtime verification determine readiness. The Spark is untouched.
+Holo-3.1-35B-A3B NVFP4 on the Dell returned real authenticated streaming responses through `/api/chat`. The required runtime is **NemoClaw + OpenClaw + OpenShell**, using those existing Holo weights. The earlier Nemotron download was stopped after the user clarified the model; its partial cache is preserved. At this UI release the corrected harness is being configured and is not admitted as ready. The setup endpoint and a separate independent runtime verifier determine full-stack readiness. The Spark is untouched.
 
 ## Limits
 

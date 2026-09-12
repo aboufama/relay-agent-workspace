@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Download, Server } from "lucide-react";
 import { PageHeader } from "@/components/buzz/PageHeader";
 
-const MODEL_LABEL = "Nemotron 3.5 Lightning 30B-A3B · NVFP4";
+const MODEL_LABEL = "Holo-3.1-35B-A3B · NVFP4";
 
 type Phase = "not_installed" | "downloading" | "installing" | "starting" | "ready" | "error";
 type SetupStatus = {
@@ -175,6 +175,10 @@ export function ComputeView({ onNotify }: { onNotify?: (message: string) => void
           <div>
             <dt>Model</dt>
             <dd>{MODEL_LABEL}</dd>
+          </div>
+          <div>
+            <dt>Harness setup</dt>
+            <dd>NemoClaw</dd>
           </div>
           <div>
             <dt>Agent runtime</dt>

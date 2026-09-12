@@ -133,7 +133,7 @@ export function AgentsView({ onNotify }: Props) {
       role: previous?.role || "",
       description: instructions.trim(),
       runtime: home?.kind || previous?.runtime || "local",
-      model: previous?.model || "",
+      model: home.kind === "local" ? "Holo-3.1-35B-A3B · NVFP4" : previous?.model || "",
       device: home?.name || "",
       initials: name.trim().slice(0, 2),
       color: previous?.color || "slate",
