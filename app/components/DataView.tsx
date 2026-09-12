@@ -1,5 +1,6 @@
-import { SelectField } from "@/components/SelectField";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { PageHeader } from '@/components/buzz/PageHeader';
+import { SelectField } from '@/components/SelectField';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownToLine,
   ArrowUpRight,
@@ -24,7 +25,7 @@ import {
   Trash2,
   UploadCloud,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -32,9 +33,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 
-type Level = "Public" | "Internal" | "Confidential" | "Restricted";
+type Level = 'Public' | 'Internal' | 'Confidential' | 'Restricted';
 type DataItem = {
   id: string;
   name: string;
@@ -51,104 +52,104 @@ type DataItem = {
   path?: string;
 };
 type Props = { onNotify?: (message: string) => void };
-const levels: Level[] = ["Public", "Internal", "Confidential", "Restricted"];
+const levels: Level[] = ['Public', 'Internal', 'Confidential', 'Restricted'];
 const descriptions: Record<Level, string> = {
-  Public: "Approved public material. Eligible for local and cloud agents.",
-  Internal: "For your workspace. Eligible for approved local and cloud agents.",
-  Confidential: "Limited team access. Local agents only in this policy.",
-  Restricted: "Named access only. Local agents only in this policy.",
+  Public: 'Approved public material. Eligible for local and cloud agents.',
+  Internal: 'For your workspace. Eligible for approved local and cloud agents.',
+  Confidential: 'Limited team access. Local agents only in this policy.',
+  Restricted: 'Named access only. Local agents only in this policy.',
 };
 const initialCollections = [
-  "Company knowledge",
-  "Engineering",
-  "Customer operations",
-  "Business & finance",
+  'Company knowledge',
+  'Engineering',
+  'Customer operations',
+  'Business & finance',
 ];
 const audienceOptions = [
-  "Everyone in workspace",
-  "Engineering",
-  "Customer operations",
-  "Leadership",
-  "Finance",
+  'Everyone in workspace',
+  'Engineering',
+  'Customer operations',
+  'Leadership',
+  'Finance',
 ];
-const agentOptions = ["Atlas · local", "Scout · local", "Quill · cloud"];
+const agentOptions = ['Atlas · local', 'Scout · local', 'Quill · cloud'];
 const seeds: DataItem[] = [
   {
-    id: "ex-1",
-    name: "Meridian company handbook.pdf",
+    id: 'ex-1',
+    name: 'Meridian company handbook.pdf',
     size: 2840000,
-    type: "PDF",
-    collection: "Company knowledge",
-    level: "Internal",
-    updated: "2026-09-11",
-    owner: "Maya Chen",
-    audiences: ["Everyone in workspace"],
-    agents: ["Atlas · local", "Quill · cloud"],
+    type: 'PDF',
+    collection: 'Company knowledge',
+    level: 'Internal',
+    updated: '2026-09-11',
+    owner: 'Maya Chen',
+    audiences: ['Everyone in workspace'],
+    agents: ['Atlas · local', 'Quill · cloud'],
     example: true,
   },
   {
-    id: "ex-2",
-    name: "Platform architecture.md",
+    id: 'ex-2',
+    name: 'Platform architecture.md',
     size: 24800,
-    type: "Markdown",
-    collection: "Engineering",
-    level: "Confidential",
-    updated: "2026-09-11",
-    owner: "Alex Rivera",
-    audiences: ["Engineering"],
-    agents: ["Atlas · local"],
+    type: 'Markdown',
+    collection: 'Engineering',
+    level: 'Confidential',
+    updated: '2026-09-11',
+    owner: 'Alex Rivera',
+    audiences: ['Engineering'],
+    agents: ['Atlas · local'],
     example: true,
   },
   {
-    id: "ex-3",
-    name: "Customer onboarding playbook.pdf",
+    id: 'ex-3',
+    name: 'Customer onboarding playbook.pdf',
     size: 1420000,
-    type: "PDF",
-    collection: "Customer operations",
-    level: "Internal",
-    updated: "2026-09-10",
-    owner: "Sam Taylor",
-    audiences: ["Customer operations"],
-    agents: ["Atlas · local", "Quill · cloud"],
+    type: 'PDF',
+    collection: 'Customer operations',
+    level: 'Internal',
+    updated: '2026-09-10',
+    owner: 'Sam Taylor',
+    audiences: ['Customer operations'],
+    agents: ['Atlas · local', 'Quill · cloud'],
     example: true,
   },
   {
-    id: "ex-4",
-    name: "Q4 operating plan.xlsx",
+    id: 'ex-4',
+    name: 'Q4 operating plan.xlsx',
     size: 386000,
-    type: "Spreadsheet",
-    collection: "Business & finance",
-    level: "Restricted",
-    updated: "2026-09-09",
-    owner: "Maya Chen",
-    audiences: ["Leadership", "Finance"],
-    agents: ["Atlas · local"],
+    type: 'Spreadsheet',
+    collection: 'Business & finance',
+    level: 'Restricted',
+    updated: '2026-09-09',
+    owner: 'Maya Chen',
+    audiences: ['Leadership', 'Finance'],
+    agents: ['Atlas · local'],
     example: true,
   },
   {
-    id: "ex-5",
-    name: "Brand guidelines.pdf",
+    id: 'ex-5',
+    name: 'Brand guidelines.pdf',
     size: 4200000,
-    type: "PDF",
-    collection: "Company knowledge",
-    level: "Public",
-    updated: "2026-09-08",
-    owner: "Jamie Park",
-    audiences: ["Everyone in workspace"],
-    agents: ["Atlas · local", "Scout · local", "Quill · cloud"],
+    type: 'PDF',
+    collection: 'Company knowledge',
+    level: 'Public',
+    updated: '2026-09-08',
+    owner: 'Jamie Park',
+    audiences: ['Everyone in workspace'],
+    agents: ['Atlas · local', 'Scout · local', 'Quill · cloud'],
     example: true,
   },
   {
-    id: "ex-6",
-    name: "API reference.json",
+    id: 'ex-6',
+    name: 'API reference.json',
     size: 164000,
-    type: "JSON",
-    collection: "Engineering",
-    level: "Internal",
-    updated: "2026-09-07",
-    owner: "Alex Rivera",
-    audiences: ["Engineering"],
-    agents: ["Atlas · local", "Scout · local"],
+    type: 'JSON',
+    collection: 'Engineering',
+    level: 'Internal',
+    updated: '2026-09-07',
+    owner: 'Alex Rivera',
+    audiences: ['Engineering'],
+    agents: ['Atlas · local', 'Scout · local'],
     example: true,
   },
 ];
@@ -160,34 +161,34 @@ function bytes(n: number) {
       : `${(n / 1000000).toFixed(1)} MB`;
 }
 function localOnly(level: Level) {
-  return level === "Confidential" || level === "Restricted";
+  return level === 'Confidential' || level === 'Restricted';
 }
 function kind(file: File) {
   return (
     (
       {
-        pdf: "PDF",
-        md: "Markdown",
-        txt: "Text",
-        csv: "Spreadsheet",
-        xlsx: "Spreadsheet",
-        json: "JSON",
-        docx: "Document",
-        png: "Image",
-        jpg: "Image",
-        jpeg: "Image",
-        webp: "Image",
+        pdf: 'PDF',
+        md: 'Markdown',
+        txt: 'Text',
+        csv: 'Spreadsheet',
+        xlsx: 'Spreadsheet',
+        json: 'JSON',
+        docx: 'Document',
+        png: 'Image',
+        jpg: 'Image',
+        jpeg: 'Image',
+        webp: 'Image',
       } as Record<string, string>
-    )[file.name.split(".").pop()?.toLowerCase() || ""] || "File"
+    )[file.name.split('.').pop()?.toLowerCase() || ''] || 'File'
   );
 }
 function FileGlyph({ type }: { type: string }) {
   const Icon =
-    type === "Spreadsheet"
+    type === 'Spreadsheet'
       ? FileSpreadsheet
-      : type === "JSON"
+      : type === 'JSON'
         ? FileCode2
-        : type === "Image"
+        : type === 'Image'
           ? FileImage
           : FileText;
   return (
@@ -208,28 +209,28 @@ function LevelBadge({ level }: { level: Level }) {
 export function DataView({ onNotify }: Props) {
   const [items, setItems] = useState<DataItem[]>(seeds);
   const [collections, setCollections] = useState(initialCollections);
-  const [collection, setCollection] = useState("All data");
-  const [query, setQuery] = useState("");
-  const [levelFilter, setLevelFilter] = useState("All classifications");
-  const [layout, setLayout] = useState<"list" | "grid">("list");
-  const [sort, setSort] = useState("recent");
+  const [collection, setCollection] = useState('All data');
+  const [query, setQuery] = useState('');
+  const [levelFilter, setLevelFilter] = useState('All classifications');
+  const [layout, setLayout] = useState<'list' | 'grid'>('list');
+  const [sort, setSort] = useState('recent');
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const [importOpen, setImportOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [importLevel, setImportLevel] = useState<Level>("Internal");
-  const [importCollection, setImportCollection] = useState("Company knowledge");
-  const [importError, setImportError] = useState("");
+  const [importLevel, setImportLevel] = useState<Level>('Internal');
+  const [importCollection, setImportCollection] = useState('Company knowledge');
+  const [importError, setImportError] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<DataItem | null>(null);
-  const [previewText, setPreviewText] = useState("");
-  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewText, setPreviewText] = useState('');
+  const [previewUrl, setPreviewUrl] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [collectionOpen, setCollectionOpen] = useState(false);
-  const [newCollection, setNewCollection] = useState("");
-  const [collectionError, setCollectionError] = useState("");
-  const [statusMessage, setStatusMessage] = useState("");
+  const [newCollection, setNewCollection] = useState('');
+  const [collectionError, setCollectionError] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const selected = items.find((item) => item.id === selectedId);
@@ -238,19 +239,24 @@ export function DataView({ onNotify }: Props) {
     onNotify?.(message);
   };
   useEffect(() => {
-    folderInput.current?.setAttribute("webkitdirectory", "");
-    folderInput.current?.setAttribute("directory", "");
+    folderInput.current?.setAttribute('webkitdirectory', '');
+    folderInput.current?.setAttribute('directory', '');
   }, [importOpen]);
   useEffect(() => {
     if (!previewItem?.file) return;
     let stopped = false;
     const file = previewItem.file;
-    if (/^image\/(png|jpeg|webp|gif|avif)$/.test(file.type) || file.type === "application/pdf") {
+    if (
+      /^image\/(png|jpeg|webp|gif|avif)$/.test(file.type) ||
+      file.type === 'application/pdf'
+    ) {
       return;
     }
     if (
-      file.type.startsWith("text/") ||
-      /\.(md|txt|csv|json|yaml|yml|log|xml|html|js|ts|py|css|sql)$/i.test(file.name)
+      file.type.startsWith('text/') ||
+      /\.(md|txt|csv|json|yaml|yml|log|xml|html|js|ts|py|css|sql)$/i.test(
+        file.name,
+      )
     ) {
       file
         .slice(0, 64000)
@@ -258,12 +264,17 @@ export function DataView({ onNotify }: Props) {
         .then((text) => {
           if (!stopped)
             setPreviewText(
-              text + (file.size > 64000 ? "\n\n— Preview limited to the first 64 KB —" : ""),
+              text +
+                (file.size > 64000
+                  ? '\n\n— Preview limited to the first 64 KB —'
+                  : ''),
             );
         })
         .catch(() => {
           if (!stopped)
-            setPreviewText("This file could not be read. Download your local copy to open it.");
+            setPreviewText(
+              'This file could not be read. Download your local copy to open it.',
+            );
         })
         .finally(() => {
           if (!stopped) setPreviewLoading(false);
@@ -276,28 +287,32 @@ export function DataView({ onNotify }: Props) {
   const previewObjectUrl = useRef<string | null>(null);
   useEffect(
     () => () => {
-      if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
+      if (previewObjectUrl.current)
+        URL.revokeObjectURL(previewObjectUrl.current);
     },
     [],
   );
   const openPreview = (item: DataItem | null) => {
     if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
     previewObjectUrl.current = null;
-    setPreviewText("");
-    setPreviewUrl("");
+    setPreviewText('');
+    setPreviewUrl('');
     setPreviewLoading(false);
     const file = item?.file;
     if (
       file &&
-      (/^image\/(png|jpeg|webp|gif|avif)$/.test(file.type) || file.type === "application/pdf")
+      (/^image\/(png|jpeg|webp|gif|avif)$/.test(file.type) ||
+        file.type === 'application/pdf')
     ) {
       const url = URL.createObjectURL(file);
       previewObjectUrl.current = url;
       setPreviewUrl(url);
     } else if (
       file &&
-      (file.type.startsWith("text/") ||
-        /\.(md|txt|csv|json|yaml|yml|log|xml|html|js|ts|py|css|sql)$/i.test(file.name))
+      (file.type.startsWith('text/') ||
+        /\.(md|txt|csv|json|yaml|yml|log|xml|html|js|ts|py|css|sql)$/i.test(
+          file.name,
+        ))
     ) {
       setPreviewLoading(true);
     }
@@ -308,14 +323,17 @@ export function DataView({ onNotify }: Props) {
       items
         .filter(
           (item) =>
-            (collection === "All data" || item.collection === collection) &&
-            (levelFilter === "All classifications" || item.level === levelFilter) &&
-            `${item.name} ${item.owner} ${item.type}`.toLowerCase().includes(query.toLowerCase()),
+            (collection === 'All data' || item.collection === collection) &&
+            (levelFilter === 'All classifications' ||
+              item.level === levelFilter) &&
+            `${item.name} ${item.owner} ${item.type}`
+              .toLowerCase()
+              .includes(query.toLowerCase()),
         )
         .sort((a, b) =>
-          sort === "name"
+          sort === 'name'
             ? a.name.localeCompare(b.name)
-            : sort === "size"
+            : sort === 'size'
               ? b.size - a.size
               : b.updated.localeCompare(a.updated),
         ),
@@ -323,22 +341,27 @@ export function DataView({ onNotify }: Props) {
   );
   const startImport = () => {
     setPendingFiles([]);
-    setImportError("");
-    setImportCollection(collection === "All data" ? collections[0] : collection);
+    setImportError('');
+    setImportCollection(
+      collection === 'All data' ? collections[0] : collection,
+    );
     setImportOpen(true);
   };
   const receiveFiles = (files: FileList | File[] | null) => {
     if (!files?.length) return;
     // Classification is selected in the import dialog before any local item is created.
     // Keep the current collection when a drop starts from a filtered collection.
-    if (!importOpen) setImportCollection(collection === "All data" ? collections[0] : collection);
+    if (!importOpen)
+      setImportCollection(
+        collection === 'All data' ? collections[0] : collection,
+      );
     setPendingFiles(Array.from(files));
-    setImportError("");
+    setImportError('');
     setImportOpen(true);
   };
   const finishImport = () => {
     if (!pendingFiles.length) {
-      setImportError("Choose at least one file to add.");
+      setImportError('Choose at least one file to add.');
       return;
     }
     const newItems: DataItem[] = pendingFiles.map((file, index) => ({
@@ -349,31 +372,37 @@ export function DataView({ onNotify }: Props) {
       collection: importCollection,
       level: importLevel,
       updated: new Date().toISOString(),
-      owner: "You",
+      owner: 'You',
       audiences:
-        importLevel === "Public" || importLevel === "Internal" ? ["Everyone in workspace"] : [],
+        importLevel === 'Public' || importLevel === 'Internal'
+          ? ['Everyone in workspace']
+          : [],
       agents: [],
       file,
       path: file.webkitRelativePath,
     }));
     setItems((current) => [...newItems, ...current]);
     setCollection(importCollection);
-    setLevelFilter("All classifications");
-    setQuery("");
+    setLevelFilter('All classifications');
+    setQuery('');
     setImportOpen(false);
     setPendingFiles([]);
-    notify(`${newItems.length} ${newItems.length === 1 ? "file added" : "files added"}.`);
+    notify(
+      `${newItems.length} ${newItems.length === 1 ? 'file added' : 'files added'}.`,
+    );
   };
   const patchItem = (id: string, patch: Partial<DataItem>) =>
-    setItems((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+    setItems((current) =>
+      current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
   const changeLevel = (item: DataItem, level: Level) => {
     patchItem(item.id, {
       level,
       agents: localOnly(level)
-        ? item.agents.filter((agent) => !agent.includes("cloud"))
+        ? item.agents.filter((agent) => !agent.includes('cloud'))
         : item.agents,
       audiences: localOnly(level)
-        ? item.audiences.filter((a) => a !== "Everyone in workspace")
+        ? item.audiences.filter((a) => a !== 'Everyone in workspace')
         : item.audiences,
     });
     notify(`Classification updated to ${level}.`);
@@ -381,41 +410,41 @@ export function DataView({ onNotify }: Props) {
   const download = (item: DataItem) => {
     if (!item.file) return;
     const url = URL.createObjectURL(item.file);
-    const anchor = document.createElement("a");
+    const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = item.name;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    notify("Downloaded your local file copy.");
+    notify('Downloaded your local file copy.');
   };
   const addCollection = () => {
     const name = newCollection.trim();
     if (!name) {
-      setCollectionError("Give your collection a name.");
+      setCollectionError('Give your collection a name.');
       return;
     }
     if (
       collections.some((c) => c.toLowerCase() === name.toLowerCase()) ||
-      name.toLowerCase() === "all data"
+      name.toLowerCase() === 'all data'
     ) {
-      setCollectionError("A collection with that name already exists.");
+      setCollectionError('A collection with that name already exists.');
       return;
     }
     setCollections((current) => [...current, name]);
     setCollection(name);
     setCollectionOpen(false);
-    setNewCollection("");
+    setNewCollection('');
     notify(`Created ${name}.`);
   };
 
   return (
     <div
-      className="page data-page"
+      className="page data-page quality-data"
       onDragEnter={(event) => {
         event.preventDefault();
-        if (event.dataTransfer.types.includes("Files")) {
+        if (event.dataTransfer.types.includes('Files')) {
           dragDepth.current++;
           setDragging(true);
         }
@@ -436,14 +465,15 @@ export function DataView({ onNotify }: Props) {
         receiveFiles(event.dataTransfer.files);
       }}
     >
-      <header className="page-heading">
-        <div className="title-row">
-          <div>
-            <div className="eyebrow">WORKSPACE INTELLIGENCE</div>
-            <h1>Company knowledge</h1>
-          </div>
+      <PageHeader
+        className="page-heading"
+        title="Data"
+        action={
           <div className="data-heading-actions">
-            <button className="btn btn-secondary" onClick={() => setPolicyOpen(true)}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setPolicyOpen(true)}
+            >
               <ShieldCheck size={16} />
               Access policy
             </button>
@@ -452,8 +482,8 @@ export function DataView({ onNotify }: Props) {
               Add data
             </button>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <div className="data-workspace">
         <aside className="data-collections card" aria-label="Data collections">
@@ -463,7 +493,7 @@ export function DataView({ onNotify }: Props) {
               className="icon-btn"
               aria-label="New collection"
               onClick={() => {
-                setCollectionError("");
+                setCollectionError('');
                 setCollectionOpen(true);
               }}
             >
@@ -471,8 +501,9 @@ export function DataView({ onNotify }: Props) {
             </button>
           </div>
           <button
-            className={`data-collection ${collection === "All data" ? "active" : ""}`}
-            onClick={() => setCollection("All data")}
+            className={`data-collection ${collection === 'All data' ? 'active' : ''}`}
+            aria-current={collection === 'All data' ? 'page' : undefined}
+            onClick={() => setCollection('All data')}
           >
             <Grid2X2 size={16} />
             <span>All data</span>
@@ -481,59 +512,51 @@ export function DataView({ onNotify }: Props) {
           <div className="data-collection-divider" />
           {collections.map((name) => (
             <button
-              className={`data-collection ${collection === name ? "active" : ""}`}
+              className={`data-collection ${collection === name ? 'active' : ''}`}
+              aria-current={collection === name ? 'page' : undefined}
               key={name}
               onClick={() => setCollection(name)}
             >
               <Folder size={16} />
               <span>{name}</span>
-              <small>{items.filter((item) => item.collection === name).length}</small>
+              <small>
+                {items.filter((item) => item.collection === name).length}
+              </small>
             </button>
           ))}
           <button
             className="data-new-collection"
             onClick={() => {
-              setCollectionError("");
+              setCollectionError('');
               setCollectionOpen(true);
             }}
           >
             <FolderPlus size={16} />
             New collection
           </button>
-          <div className="data-collection-help">
-            <ShieldCheck size={20} />
-            <strong>Context has boundaries.</strong>
-            <p>Classify every source before making it available to an agent.</p>
-            <button onClick={() => setPolicyOpen(true)}>
-              Explore access levels <ArrowUpRight size={13} />
-            </button>
-          </div>
         </aside>
         <section className="data-library card" aria-label="Knowledge sources">
           <div className="data-library-heading">
             <div>
               <h2>{collection}</h2>
               <span>
-                {visible.length} {visible.length === 1 ? "source" : "sources"}
-                {query || levelFilter !== "All classifications"
-                  ? " matching your filters"
-                  : " across your workspace"}
+                {visible.length} {visible.length === 1 ? 'source' : 'sources'}
               </span>
             </div>
             <div className="data-view-toggle" aria-label="View style">
               <button
-                className={layout === "list" ? "active" : ""}
-                onClick={() => setLayout("list")}
+                className={layout === 'list' ? 'active' : ''}
+                onClick={() => setLayout('list')}
                 aria-label="List view"
-                aria-pressed={layout === "list"}
+                aria-pressed={layout === 'list'}
               >
                 <List size={17} />
               </button>
               <button
-                className={layout === "grid" ? "active" : ""}
-                onClick={() => setLayout("grid")}
+                className={layout === 'grid' ? 'active' : ''}
+                onClick={() => setLayout('grid')}
                 aria-label="Grid view"
-                aria-pressed={layout === "grid"}
+                aria-pressed={layout === 'grid'}
               >
                 <Grid2X2 size={16} />
               </button>
@@ -549,7 +572,7 @@ export function DataView({ onNotify }: Props) {
                 aria-label="Search knowledge sources"
               />
               {query && (
-                <button aria-label="Clear search" onClick={() => setQuery("")}>
+                <button aria-label="Clear search" onClick={() => setQuery('')}>
                   <X size={14} />
                 </button>
               )}
@@ -580,21 +603,21 @@ export function DataView({ onNotify }: Props) {
             <div className="empty-state data-empty">
               <Folder size={32} />
               <h3>
-                {query || levelFilter !== "All classifications"
-                  ? "No matching sources"
-                  : "A place for shared context"}
+                {query || levelFilter !== 'All classifications'
+                  ? 'No matching sources'
+                  : 'No files yet'}
               </h3>
               <p>
-                {query || levelFilter !== "All classifications"
-                  ? "Try a different search or classification."
-                  : "Add your first file to this collection."}
+                {query || levelFilter !== 'All classifications'
+                  ? 'Try a different search or classification.'
+                  : 'Add your first file to this collection.'}
               </p>
-              {query || levelFilter !== "All classifications" ? (
+              {query || levelFilter !== 'All classifications' ? (
                 <button
                   className="btn btn-secondary"
                   onClick={() => {
-                    setQuery("");
-                    setLevelFilter("All classifications");
+                    setQuery('');
+                    setLevelFilter('All classifications');
                   }}
                 >
                   Clear filters
@@ -606,7 +629,7 @@ export function DataView({ onNotify }: Props) {
                 </button>
               )}
             </div>
-          ) : layout === "list" ? (
+          ) : layout === 'list' ? (
             <div className="table-wrap data-files-wrap">
               <table className="data-table data-files-table">
                 <thead>
@@ -624,13 +647,16 @@ export function DataView({ onNotify }: Props) {
                   {visible.map((item) => (
                     <tr key={item.id}>
                       <td>
-                        <button className="data-source-link" onClick={() => setSelectedId(item.id)}>
+                        <button
+                          className="data-source-link"
+                          onClick={() => setSelectedId(item.id)}
+                        >
                           <FileGlyph type={item.type} />
                           <span>
                             <strong>{item.name}</strong>
                             <small>
-                              {item.type} <span>·</span> {bytes(item.size)} <span>·</span>{" "}
-                              {item.owner}
+                              {item.type} <span>·</span> {bytes(item.size)}{' '}
+                              <span>·</span> {item.owner}
                             </small>
                           </span>
                         </button>
@@ -640,20 +666,30 @@ export function DataView({ onNotify }: Props) {
                       </td>
                       <td>
                         <span
-                          className={`data-eligibility ${localOnly(item.level) ? "local" : ""}`}
+                          className={`data-eligibility ${localOnly(item.level) ? 'local' : ''}`}
                         >
-                          {localOnly(item.level) ? <HardDrive size={14} /> : <Cloud size={14} />}
-                          {localOnly(item.level) ? "Local only" : "Local + cloud"}
+                          {localOnly(item.level) ? (
+                            <HardDrive size={14} />
+                          ) : (
+                            <Cloud size={14} />
+                          )}
+                          {localOnly(item.level)
+                            ? 'Local only'
+                            : 'Local + cloud'}
                         </span>
                       </td>
                       <td>
-                        <span className={`data-file-state ${item.example ? "" : "available"}`}>
+                        <span
+                          className={`data-file-state ${item.example ? '' : 'available'}`}
+                        >
                           {item.example ? (
                             <span className="data-example-dot" />
                           ) : (
                             <Check size={13} />
                           )}
-                          {item.example ? "No file attached" : "Local · not indexed"}
+                          {item.example
+                            ? 'No file attached'
+                            : 'Local · not indexed'}
                         </span>
                       </td>
                       <td>
@@ -686,7 +722,11 @@ export function DataView({ onNotify }: Props) {
                   <span>{item.collection}</span>
                   <div className="data-file-card-bottom">
                     <small>{bytes(item.size)}</small>
-                    <small>{item.example ? "No file attached" : "Local · not indexed"}</small>
+                    <small>
+                      {item.example
+                        ? 'No file attached'
+                        : 'Local · not indexed'}
+                    </small>
                   </div>
                 </button>
               ))}
@@ -698,11 +738,9 @@ export function DataView({ onNotify }: Props) {
             </span>
             <span>
               <strong>
-                Drop knowledge here, or <em>browse files</em>
+                Drop files here, or <em>browse</em>
               </strong>
-              <small>
-                Documents, spreadsheets, images, code, and folders · classify before adding
-              </small>
+              <small>Files and folders</small>
             </span>
             <span className="data-drop-privacy">
               <LockKeyhole size={13} />
@@ -718,7 +756,7 @@ export function DataView({ onNotify }: Props) {
         <div className="data-drag-overlay">
           <div>
             <UploadCloud size={40} />
-            <h2>Give your agents the context</h2>
+            <h2>Drop files to import</h2>
             <p>Drop files to choose their collection and security level.</p>
           </div>
         </div>
@@ -731,127 +769,152 @@ export function DataView({ onNotify }: Props) {
           if (!open) setPendingFiles([]);
         }}
       >
-        <DialogContent className="data-dialog">
+        <DialogContent className="data-dialog quality-data-dialog">
           <DialogHeader>
             <DialogTitle>Import files</DialogTitle>
             <DialogDescription className="sr-only">
               Choose files and a classification.
             </DialogDescription>
           </DialogHeader>
-          <div className="field">
-            <label className="field-label" htmlFor="data-import-collection">
-              Collection
-            </label>
-            <SelectField
-              id="data-import-collection"
-              className="select"
-              value={importCollection}
-              onChange={(event) => setImportCollection(event.target.value)}
-            >
-              {collections.map((name) => (
-                <option key={name}>{name}</option>
-              ))}
-            </SelectField>
-          </div>
-          <fieldset className="data-security-fieldset">
-            <legend className="field-label">Classification</legend>
-            <div className="data-security-options">
-              {levels.map((level) => (
-                <label
-                  className={`data-security-option ${importLevel === level ? "selected" : ""}`}
-                  key={level}
-                >
-                  <input
-                    type="radio"
-                    name="import-classification"
-                    value={level}
-                    checked={importLevel === level}
-                    onChange={() => setImportLevel(level)}
-                  />
-                  <div>
-                    <LevelBadge level={level} />
-                    <p>{descriptions[level]}</p>
-                  </div>
-                  {importLevel === level && <Check size={16} />}
-                </label>
-              ))}
+          <form
+            className="data-import-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              finishImport();
+            }}
+          >
+            <div className="field">
+              <label className="field-label" htmlFor="data-import-collection">
+                Collection
+              </label>
+              <SelectField
+                id="data-import-collection"
+                className="select"
+                value={importCollection}
+                onChange={(event) => setImportCollection(event.target.value)}
+              >
+                {collections.map((name) => (
+                  <option key={name}>{name}</option>
+                ))}
+              </SelectField>
             </div>
-          </fieldset>
-          <div className="data-picker-box">
-            <UploadCloud size={23} />
-            <strong>
-              {pendingFiles.length
-                ? `${pendingFiles.length} ${pendingFiles.length === 1 ? "file" : "files"} selected · ${bytes(pendingFiles.reduce((sum, file) => sum + file.size, 0))}`
-                : "Select the files you want to add"}
-            </strong>
-            <div className="data-picker-actions">
-              <button className="btn btn-secondary" onClick={() => fileInput.current?.click()}>
-                Choose files
-              </button>
-              <button className="btn btn-ghost" onClick={() => folderInput.current?.click()}>
-                <Folder size={15} />
-                Choose folder
-              </button>
-            </div>
-            <input
-              ref={fileInput}
-              type="file"
-              multiple
-              hidden
-              onChange={(event) => {
-                receiveFiles(event.target.files);
-                event.target.value = "";
-              }}
-            />
-            <input
-              ref={folderInput}
-              type="file"
-              multiple
-              hidden
-              onChange={(event) => {
-                receiveFiles(event.target.files);
-                event.target.value = "";
-              }}
-            />
-          </div>
-          {pendingFiles.length > 0 && (
-            <ul className="data-pending-files">
-              {pendingFiles.slice(0, 5).map((file, index) => (
-                <li key={`${file.name}-${index}`}>
-                  <FileIcon size={14} />
-                  <span>{file.webkitRelativePath || file.name}</span>
-                  <small>{bytes(file.size)}</small>
-                  <button
-                    className="icon-btn"
-                    aria-label={`Remove ${file.name} from selection`}
-                    onClick={() =>
-                      setPendingFiles((current) => current.filter((_, i) => i !== index))
-                    }
+            <fieldset className="data-security-fieldset">
+              <legend className="field-label">Classification</legend>
+              <div className="data-security-options">
+                {levels.map((level) => (
+                  <label
+                    className={`data-security-option ${importLevel === level ? 'selected' : ''}`}
+                    key={level}
                   >
-                    <X size={13} />
-                  </button>
-                </li>
-              ))}
-              {pendingFiles.length > 5 && (
-                <li className="muted">and {pendingFiles.length - 5} more files</li>
-              )}
-            </ul>
-          )}
-          {importError && (
-            <p className="data-form-error" role="alert">
-              {importError}
-            </p>
-          )}
+                    <input
+                      type="radio"
+                      name="import-classification"
+                      value={level}
+                      checked={importLevel === level}
+                      onChange={() => setImportLevel(level)}
+                    />
+                    <div>
+                      <LevelBadge level={level} />
+                      <p>{descriptions[level]}</p>
+                    </div>
+                    {importLevel === level && <Check size={16} />}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <div className="data-picker-box">
+              <UploadCloud size={23} />
+              <strong>
+                {pendingFiles.length
+                  ? `${pendingFiles.length} ${pendingFiles.length === 1 ? 'file' : 'files'} selected · ${bytes(pendingFiles.reduce((sum, file) => sum + file.size, 0))}`
+                  : 'Select the files you want to add'}
+              </strong>
+              <div className="data-picker-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => fileInput.current?.click()}
+                >
+                  Choose files
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => folderInput.current?.click()}
+                >
+                  <Folder size={15} />
+                  Choose folder
+                </button>
+              </div>
+              <input
+                ref={fileInput}
+                type="file"
+                multiple
+                hidden
+                onChange={(event) => {
+                  receiveFiles(event.target.files);
+                  event.target.value = '';
+                }}
+              />
+              <input
+                ref={folderInput}
+                type="file"
+                multiple
+                hidden
+                onChange={(event) => {
+                  receiveFiles(event.target.files);
+                  event.target.value = '';
+                }}
+              />
+            </div>
+            {pendingFiles.length > 0 && (
+              <ul className="data-pending-files">
+                {pendingFiles.slice(0, 5).map((file, index) => (
+                  <li key={`${file.name}-${index}`}>
+                    <FileIcon size={14} />
+                    <span>{file.webkitRelativePath || file.name}</span>
+                    <small>{bytes(file.size)}</small>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      aria-label={`Remove ${file.name} from selection`}
+                      onClick={() =>
+                        setPendingFiles((current) =>
+                          current.filter((_, i) => i !== index),
+                        )
+                      }
+                    >
+                      <X size={13} />
+                    </button>
+                  </li>
+                ))}
+                {pendingFiles.length > 5 && (
+                  <li className="muted">
+                    and {pendingFiles.length - 5} more files
+                  </li>
+                )}
+              </ul>
+            )}
+            {importError && (
+              <p className="data-form-error" role="alert">
+                {importError}
+              </p>
+            )}
 
-          <DialogFooter>
-            <button className="btn btn-secondary" onClick={() => setImportOpen(false)}>
-              Cancel
-            </button>
-            <button className="btn btn-primary" onClick={finishImport}>
-              <Plus size={16} />
-              Import
-            </button>
-          </DialogFooter>
+            <DialogFooter>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setImportOpen(false)}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary">
+                <Plus size={16} />
+                Import
+              </button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -861,7 +924,7 @@ export function DataView({ onNotify }: Props) {
           if (!open) setSelectedId(null);
         }}
       >
-        <DialogContent className="data-dialog data-detail-dialog">
+        <DialogContent className="data-dialog data-detail-dialog quality-data-dialog">
           {selected && (
             <>
               <DialogHeader>
@@ -870,22 +933,35 @@ export function DataView({ onNotify }: Props) {
                   <div>
                     <DialogTitle>{selected.name}</DialogTitle>
                     <DialogDescription>
-                      {selected.type} · {bytes(selected.size)} ·{" "}
-                      {selected.example ? "No file attached" : "Local file"}
+                      {selected.type} · {bytes(selected.size)} ·{' '}
+                      {selected.example ? 'No file attached' : 'Local file'}
                     </DialogDescription>
                   </div>
                 </div>
               </DialogHeader>
               <div className="data-detail-state">
-                <span className={`data-file-state ${selected.example ? "" : "available"}`}>
-                  {selected.example ? <Info size={15} /> : <HardDrive size={15} />}
-                  {selected.example ? "No file attached" : "Local file available — not indexed"}
+                <span
+                  className={`data-file-state ${selected.example ? '' : 'available'}`}
+                >
+                  {selected.example ? (
+                    <Info size={15} />
+                  ) : (
+                    <HardDrive size={15} />
+                  )}
+                  {selected.example
+                    ? 'No file attached'
+                    : 'Local file available — not indexed'}
                 </span>
-                <span>{selected.example ? "No agent access" : "No network upload"}</span>
+                <span>
+                  {selected.example ? 'No agent access' : 'No network upload'}
+                </span>
               </div>
               <div className="form-grid">
                 <div className="field">
-                  <label className="field-label" htmlFor="data-detail-collection">
+                  <label
+                    className="field-label"
+                    htmlFor="data-detail-collection"
+                  >
                     Collection
                   </label>
                   <SelectField
@@ -893,8 +969,10 @@ export function DataView({ onNotify }: Props) {
                     id="data-detail-collection"
                     value={selected.collection}
                     onChange={(event) => {
-                      patchItem(selected.id, { collection: event.target.value });
-                      notify("Collection updated.");
+                      patchItem(selected.id, {
+                        collection: event.target.value,
+                      });
+                      notify('Collection updated.');
                     }}
                   >
                     {collections.map((name) => (
@@ -910,7 +988,9 @@ export function DataView({ onNotify }: Props) {
                     className="select"
                     id="data-detail-level"
                     value={selected.level}
-                    onChange={(event) => changeLevel(selected, event.target.value as Level)}
+                    onChange={(event) =>
+                      changeLevel(selected, event.target.value as Level)
+                    }
                   >
                     {levels.map((level) => (
                       <option key={level}>{level}</option>
@@ -918,13 +998,19 @@ export function DataView({ onNotify }: Props) {
                   </SelectField>
                 </div>
               </div>
-              <div className={`data-routing-note ${localOnly(selected.level) ? "local" : ""}`}>
-                {localOnly(selected.level) ? <HardDrive size={19} /> : <Cloud size={19} />}
+              <div
+                className={`data-routing-note ${localOnly(selected.level) ? 'local' : ''}`}
+              >
+                {localOnly(selected.level) ? (
+                  <HardDrive size={19} />
+                ) : (
+                  <Cloud size={19} />
+                )}
                 <div>
                   <strong>
                     {localOnly(selected.level)
-                      ? "Local inference only"
-                      : "Local and approved cloud inference"}
+                      ? 'Local inference only'
+                      : 'Local and approved cloud inference'}
                   </strong>
                   <p>{descriptions[selected.level]}</p>
                 </div>
@@ -937,12 +1023,17 @@ export function DataView({ onNotify }: Props) {
                       <input
                         type="checkbox"
                         checked={selected.audiences.includes(audience)}
-                        disabled={localOnly(selected.level) && audience === "Everyone in workspace"}
+                        disabled={
+                          localOnly(selected.level) &&
+                          audience === 'Everyone in workspace'
+                        }
                         onChange={(event) =>
                           patchItem(selected.id, {
                             audiences: event.target.checked
                               ? [...selected.audiences, audience]
-                              : selected.audiences.filter((a) => a !== audience),
+                              : selected.audiences.filter(
+                                  (a) => a !== audience,
+                                ),
                           })
                         }
                       />
@@ -957,7 +1048,9 @@ export function DataView({ onNotify }: Props) {
                       <input
                         type="checkbox"
                         checked={selected.agents.includes(agent)}
-                        disabled={localOnly(selected.level) && agent.includes("cloud")}
+                        disabled={
+                          localOnly(selected.level) && agent.includes('cloud')
+                        }
                         onChange={(event) =>
                           patchItem(selected.id, {
                             agents: event.target.checked
@@ -967,7 +1060,7 @@ export function DataView({ onNotify }: Props) {
                         }
                       />
                       <span>{agent}</span>
-                      {localOnly(selected.level) && agent.includes("cloud") && (
+                      {localOnly(selected.level) && agent.includes('cloud') && (
                         <LockKeyhole size={12} />
                       )}
                     </label>
@@ -984,9 +1077,11 @@ export function DataView({ onNotify }: Props) {
                 <button
                   className="btn data-delete-button"
                   onClick={() => {
-                    setItems((current) => current.filter((item) => item.id !== selected.id));
+                    setItems((current) =>
+                      current.filter((item) => item.id !== selected.id),
+                    );
                     setSelectedId(null);
-                    notify("Source removed.");
+                    notify('Source removed.');
                   }}
                 >
                   <Trash2 size={16} />
@@ -1014,7 +1109,10 @@ export function DataView({ onNotify }: Props) {
                       </button>
                     </>
                   ) : (
-                    <button className="btn btn-secondary" onClick={() => setSelectedId(null)}>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setSelectedId(null)}
+                    >
                       Done
                     </button>
                   )}
@@ -1031,7 +1129,7 @@ export function DataView({ onNotify }: Props) {
           if (!open) openPreview(null);
         }}
       >
-        <DialogContent className="data-dialog data-preview-dialog">
+        <DialogContent className="data-dialog data-preview-dialog quality-data-dialog">
           <DialogHeader>
             <DialogTitle>{previewItem?.name}</DialogTitle>
             <DialogDescription>Local file</DialogDescription>
@@ -1039,8 +1137,12 @@ export function DataView({ onNotify }: Props) {
           {previewLoading ? (
             <div className="empty-state">Reading local file…</div>
           ) : previewUrl ? (
-            previewItem?.file?.type === "application/pdf" ? (
-              <iframe className="data-pdf-preview" src={previewUrl} title={previewItem.name} />
+            previewItem?.file?.type === 'application/pdf' ? (
+              <iframe
+                className="data-pdf-preview"
+                src={previewUrl}
+                title={previewItem.name}
+              />
             ) : (
               <div className="data-image-preview">
                 {/* Local blob URLs cannot use the remote image optimizer. */}
@@ -1048,8 +1150,15 @@ export function DataView({ onNotify }: Props) {
                 <img src={previewUrl} alt={`Preview of ${previewItem?.name}`} />
               </div>
             )
-          ) : previewText ? (
-            <pre className="data-text-preview">{previewText}</pre>
+          ) : previewText ||
+            (previewItem?.file &&
+              (previewItem.file.type.startsWith('text/') ||
+                /\.(md|txt|csv|json|yaml|yml|log|xml|html|js|ts|py|css|sql)$/i.test(
+                  previewItem.file.name,
+                ))) ? (
+            <pre className="data-text-preview">
+              {previewText || 'Empty file'}
+            </pre>
           ) : (
             <div className="empty-state">
               <FileIcon size={32} />
@@ -1058,7 +1167,10 @@ export function DataView({ onNotify }: Props) {
             </div>
           )}
           <DialogFooter>
-            <button className="btn btn-secondary" onClick={() => openPreview(null)}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => openPreview(null)}
+            >
               Close
             </button>
             <button
@@ -1072,12 +1184,12 @@ export function DataView({ onNotify }: Props) {
         </DialogContent>
       </Dialog>
       <Dialog open={policyOpen} onOpenChange={setPolicyOpen}>
-        <DialogContent className="data-dialog">
+        <DialogContent className="data-dialog quality-data-dialog">
           <DialogHeader>
             <DialogTitle>Access policy</DialogTitle>
             <DialogDescription>
-              Every source carries a classification. Agents should inherit the most restrictive rule
-              across the context they use.
+              Every source carries a classification. Agents should inherit the
+              most restrictive rule across the context they use.
             </DialogDescription>
           </DialogHeader>
           <div className="data-policy-list">
@@ -1107,24 +1219,29 @@ export function DataView({ onNotify }: Props) {
               Designed for permission-aware context
             </strong>
             <p>
-              Retrieval, citations, generated summaries, and tool actions must all respect source
-              permissions. Moving work to a cloud agent must never silently move restricted data
-              with it.
+              Retrieval, citations, generated summaries, and tool actions must
+              all respect source permissions. Moving work to a cloud agent must
+              never silently move restricted data with it.
             </p>
           </div>
 
           <DialogFooter>
-            <button className="btn btn-primary" onClick={() => setPolicyOpen(false)}>
+            <button
+              className="btn btn-primary"
+              onClick={() => setPolicyOpen(false)}
+            >
               Got it
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={collectionOpen} onOpenChange={setCollectionOpen}>
-        <DialogContent className="data-dialog data-small-dialog">
+        <DialogContent className="data-dialog data-small-dialog quality-data-dialog">
           <DialogHeader>
             <DialogTitle>New collection</DialogTitle>
-            <DialogDescription>Organize related sources into a collection</DialogDescription>
+            <DialogDescription>
+              Organize related sources into a collection
+            </DialogDescription>
           </DialogHeader>
           <form
             onSubmit={(event) => {
@@ -1143,7 +1260,7 @@ export function DataView({ onNotify }: Props) {
                 value={newCollection}
                 onChange={(event) => {
                   setNewCollection(event.target.value);
-                  setCollectionError("");
+                  setCollectionError('');
                 }}
                 maxLength={50}
               />

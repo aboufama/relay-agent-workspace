@@ -45,8 +45,8 @@ const seedAgents: Omit<
     description:
       "Turns technical questions into clear answers and helps the team ship with confidence.",
     runtime: "local",
-    model: "Holo-3.1-35B-A3B",
-    device: "Meridian Lab · GB10",
+    model: "Nemotron 3.5 Lightning 30B-A3B · NVFP4",
+    device: "Dell GB10",
     initials: "At",
     color: "green",
     owner: "Alex Morgan",
@@ -61,8 +61,8 @@ const seedAgents: Omit<
     description:
       "Connects the dots across projects, finds blockers, and keeps every handoff moving.",
     runtime: "local",
-    model: "Holo-3.1-35B-A3B",
-    device: "Meridian Lab · GB10",
+    model: "Nemotron 3.5 Lightning 30B-A3B · NVFP4",
+    device: "Dell GB10",
     initials: "Sa",
     color: "amber",
     owner: "Jamie Chen",
@@ -93,8 +93,8 @@ const seedAgents: Omit<
     description:
       "Brings the customer perspective to every conversation, with the right account context.",
     runtime: "local",
-    model: "Holo-3.1-35B-A3B",
-    device: "Studio · GB10",
+    model: "Nemotron 3.5 Lightning 30B-A3B · NVFP4",
+    device: "Dell GB10",
     initials: "Ir",
     color: "rose",
     owner: "Jordan Lee",
@@ -125,8 +125,8 @@ const seedAgents: Omit<
     description:
       "Makes financial context easier to understand while keeping sensitive work close to home.",
     runtime: "local",
-    model: "Holo-3.1-35B-A3B",
-    device: "Studio · GB10",
+    model: "Nemotron 3.5 Lightning 30B-A3B · NVFP4",
+    device: "Dell GB10",
     initials: "Le",
     color: "slate",
     owner: "Taylor Kim",
@@ -145,14 +145,7 @@ const initialMembers: readonly WorkspaceMember[] = [
       kind: "agent",
       character: characters[index % characters.length],
       instructions: agent.description,
-      homeId:
-        agent.runtime === "cloud"
-          ? agent.device === "OpenAI"
-            ? "openai-preview"
-            : "cloud-preview"
-          : agent.device.startsWith("Studio")
-            ? "studio"
-            : "lab",
+      homeId: agent.runtime === 'cloud' ? 'openai-preview' : 'lab',
       accessLevel: agent.runtime === "cloud" ? "Public" : "Confidential",
       nameCustomized: true,
     }),
@@ -191,7 +184,7 @@ function normalize(value: unknown): WorkspaceMember | null {
     ...base,
     kind: "agent",
     runtime,
-    homeId: text(v.homeId, "", 100),
+    homeId: ['studio', 'lab'].includes(String(v.homeId)) ? 'lab' : ['cloud-preview', 'openai-preview'].includes(String(v.homeId)) ? 'openai-preview' : text(v.homeId, '', 100),
     character: characters.includes(v.character as AgentCharacter)
       ? (v.character as AgentCharacter)
       : "worm",
@@ -203,7 +196,7 @@ function normalize(value: unknown): WorkspaceMember | null {
     instructions,
     description: instructions,
     role: text(v.role, "", 200),
-    model: text(v.model, "", 200),
+    model: runtime === "local" ? "Nemotron 3.5 Lightning 30B-A3B · NVFP4" : text(v.model, "", 200),
     device: text(v.device, "", 200),
     color: text(v.color, "slate", 30),
     owner: text(v.owner, "You", 60),

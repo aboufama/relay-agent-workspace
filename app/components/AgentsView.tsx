@@ -57,21 +57,6 @@ export function AgentsView({ onNotify }: Props) {
   const [error, setError] = useState("");
   const [newlyCreatedId, setNewlyCreatedId] = useState<string | null>(null);
   const createdCard = useRef<HTMLDivElement>(null);
-  const [bubblePreviewIds, setBubblePreviewIds] = useState<string[]>(['sage', 'nova']);
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    const cycle = () => {
-      setBubblePreviewIds(current => {
-        const candidates = agents.filter(agent => !current.includes(agent.id));
-        if (!candidates.length) return current;
-        const next = candidates[Math.floor(Math.random() * candidates.length)];
-        return [current[current.length - 1], next.id].filter(Boolean);
-      });
-      timer = setTimeout(cycle, 4500 + Math.random() * 4500);
-    };
-    timer = setTimeout(cycle, 4500);
-    return () => clearTimeout(timer);
-  }, [agents]);
   useEffect(() => {
     if (!newlyCreatedId) return;
     const frame = requestAnimationFrame(() =>
@@ -165,7 +150,7 @@ export function AgentsView({ onNotify }: Props) {
     };
     upsertWorkspaceMember(next);
     if (!editingId) setNewlyCreatedId(next.id);
-    setAgentAvatarIdentity(next.name, character);
+    setAgentAvatarIdentity(next.id, character);
     setDialogOpen(false);
     onNotify?.(editingId ? "Agent saved." : "Agent created.");
   }
@@ -193,8 +178,8 @@ export function AgentsView({ onNotify }: Props) {
             />
             <div className="buzz-identity-avatar">
               <div className="agent-card-portrait">
-                <AgentAvatar character={agent.character || "worm"} size={120} label={agent.name} />
-                <AgentThinkingBubble name={agent.name} preview={bubblePreviewIds.includes(agent.id)} />
+                <AgentAvatar identityKey={agent.id} character={agent.character || "worm"} size={120} label={agent.name} />
+                <AgentThinkingBubble name={agent.name} agentId={agent.id} />
               </div>
             </div>
             <div className="buzz-identity-footer">

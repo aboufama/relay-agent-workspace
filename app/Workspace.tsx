@@ -1,9 +1,15 @@
 'use client';
-import { AgentAvatar, setAgentActivity } from '@/components/AgentAvatar';
+import { AgentAvatar, setAgentActivity, setAgentAvailability } from '@/components/AgentAvatar';
+import { SettingsView } from './components/SettingsView';
+import { InboxView } from './components/InboxView';
+import { useWorkspaceName } from '@/lib/workspace-name';
 import { HuddlesView } from './components/HuddlesView';
 import { useWorkspaceMembers, type WorkspaceMember, type AgentMember } from '@/lib/workspace-members';
-import { LiveComposer } from './LiveComposer';
+import { LiveComposer, type ComposerHandle } from './LiveComposer';
 import './live-chat.css';
+import { MemberAvatar } from '@/components/MemberAvatar';
+import { useAgentHomes } from '@/lib/agent-homes';
+import './chat-quality.css';
 import { ChatHeader } from '@/components/buzz/ChatHeader';
 
 import { isValidElement, useEffect, useRef, useState } from 'react';
@@ -50,13 +56,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
 import {
   SidebarProvider,
   useSidebar,
@@ -111,9 +110,21 @@ function plainText(node: ReactNode): string {
     return plainText(node.props.children);
   return '';
 }
+function resolveMember(members: readonly WorkspaceMember[], id?: string, name?: string) { return id ? members.find(member => member.id === id) : members.find(member => member.name === name); }
+function hasAgentMention(text: string, name: string): boolean {
+  const token = `@${name.toLocaleLowerCase()}`;
+  const input = text.toLocaleLowerCase();
+  let offset = input.indexOf(token);
+  while (offset >= 0) {
+    if ((offset === 0 || /\s/.test(input[offset - 1])) && (!input[offset + token.length] || /[\s.,!?;:]/.test(input[offset + token.length]))) return true;
+    offset = input.indexOf(token, offset + token.length);
+  }
+  return false;
+}
 const seed: Message[] = [
   {
     id: 'm1',
+    memberId: 'olivia',
     name: 'Olivia Chen',
     initials: 'OC',
     tone: 'peach',
@@ -123,6 +134,7 @@ const seed: Message[] = [
   },
   {
     id: 'launch-2',
+    memberId: 'olivia',
     name: 'Olivia Chen',
     initials: 'OC',
     tone: 'peach',
@@ -135,6 +147,7 @@ const seed: Message[] = [
   },
   {
     id: 'm3',
+    memberId: 'marcus',
     name: 'Marcus Reed',
     initials: 'MR',
     tone: 'lavender',
@@ -149,6 +162,7 @@ const seed: Message[] = [
   },
   {
     id: 'launch-4',
+    memberId: 'you',
     name: 'You',
     initials: 'YO',
     tone: 'you-avatar',
@@ -157,6 +171,7 @@ const seed: Message[] = [
   },
   {
     id: 'm2',
+    memberId: 'atlas',
     name: 'Atlas',
     initials: 'At',
     tone: 'mint',
@@ -176,6 +191,7 @@ const seed: Message[] = [
   },
   {
     id: 'launch-6',
+    memberId: 'marcus',
     name: 'Marcus Reed',
     initials: 'MR',
     tone: 'lavender',
@@ -184,6 +200,7 @@ const seed: Message[] = [
   },
   {
     id: 'launch-7',
+    memberId: 'marcus',
     name: 'Marcus Reed',
     initials: 'MR',
     tone: 'lavender',
@@ -201,6 +218,7 @@ const seed: Message[] = [
   },
   {
     id: 'launch-8',
+    memberId: 'olivia',
     name: 'Olivia Chen',
     initials: 'OC',
     tone: 'peach',
@@ -210,6 +228,7 @@ const seed: Message[] = [
   },
   {
     id: 'launch-9',
+    memberId: 'you',
     name: 'You',
     initials: 'YO',
     tone: 'you-avatar',
@@ -224,6 +243,7 @@ const seed: Message[] = [
   },
   {
     id: 'm4',
+    memberId: 'nova',
     name: 'Nova',
     initials: 'No',
     tone: 'lavender',
@@ -234,6 +254,7 @@ const seed: Message[] = [
   },
   {
     id: 'launch-11',
+    memberId: 'olivia',
     name: 'Olivia Chen',
     initials: 'OC',
     tone: 'peach',
@@ -246,6 +267,7 @@ const seed: Message[] = [
   },
   {
     id: 'launch-12',
+    memberId: 'marcus',
     name: 'Marcus Reed',
     initials: 'MR',
     tone: 'lavender',
@@ -256,30 +278,34 @@ const seed: Message[] = [
 ];
 const seedReplies: Record<
   string,
-  { name: string; text: string; time: string }[]
+  { memberId?: string; name: string; text: string; time: string }[]
 > = {
   m1: [
     {
-      name: 'Marcus Reed',
+      memberId: 'marcus',
+    name: 'Marcus Reed',
       text: 'Thanks. Keeping rollout notes in this room too.',
       time: '9:20 AM',
     },
     {
-      name: 'Olivia Chen',
+      memberId: 'olivia',
+    name: 'Olivia Chen',
       text: 'Great — one place for the final decisions.',
       time: '9:21 AM',
     },
   ],
   m3: [
     {
-      name: 'Olivia Chen',
+      memberId: 'olivia',
+    name: 'Olivia Chen',
       text: '10:30 works for CS. I’ll update the calendar.',
       time: '9:25 AM',
     },
   ],
   m4: [
     {
-      name: 'You',
+      memberId: 'you',
+    name: 'You',
       text: 'Use “account team” instead of a general inbox. Otherwise looks good.',
       time: '9:39 AM',
     },
@@ -353,6 +379,7 @@ function NavigationContent({ children }: { children: ReactNode }) {
 }
 export function Workspace() {
   const members = useWorkspaceMembers();
+  const workspaceName = useWorkspaceName();
   const [, setMentionedIds] = useState<string[]>([]);
   const requests = useRef(new Map<string, {controller: AbortController; agent: AgentMember; room: string; history: {role: string;content: string}[]}>());
   const retries = useRef(new Map<string, {agent: AgentMember; room: string; history: {role: string;content: string}[]}>());
@@ -370,7 +397,10 @@ export function Workspace() {
   const messages = messagesByRoom[channel] || [];
   const [draft, setDraft] = useState('');
   const [toast, setToast] = useState('');
-  const [thread, setThread] = useState<Message | null>(null);
+  const homes = useAgentHomes();
+  useEffect(() => { members.forEach(member => { if (member.kind === 'agent') setAgentAvailability(member.id, homes.some(home => home.id === member.homeId && home.status === 'connected'), member.paused === true, member.character); }); }, [homes, members]);
+  const [threadSnapshot, setThread] = useState<Message | null>(null);
+  const thread = threadSnapshot ? Object.values(messagesByRoom).flat().find(message => message.id === threadSnapshot.id) ?? threadSnapshot : null;
   const [starred, setStarred] = useState(false);
   const [tab, setTab] = useState('messages');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -378,9 +408,9 @@ export function Workspace() {
   const [newChannel, setNewChannel] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [channelName, setChannelName] = useState('');
-  const [canvas, setCanvas] = useState(
-    '# Launch room\n\nDecision log\n- Confirm handoff window\n- Review customer draft\n- Keep launch checklist current',
-  );
+  const [canvases, setCanvases] = useState<Record<string, string>>({ 'launch-room': '# Launch room\n\nDecision log\n- Confirm handoff window\n- Review customer draft\n- Keep launch checklist current' });
+  const canvas = canvases[channel] ?? '';
+  const setCanvas = (value: string) => setCanvases(all => ({ ...all, [channel]: value }));
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [approval, setApproval] = useState('Needs review');
@@ -403,6 +433,7 @@ export function Workspace() {
             approval?: string;
             preferences?: boolean[];
             canvas?: string;
+            canvases?: Record<string, string>;
           };
           if (data.rooms) Object.values(data.rooms).forEach(room=>room.forEach(message=>{if(message.requestState==='pending'){message.requestState='error';message.error='Response interrupted by reload. Retry to continue.'}}));
           if (Array.isArray(data.channels))
@@ -437,7 +468,8 @@ export function Workspace() {
           if (data.reactions) setReactionCounts(data.reactions);
           if (data.approval) setApproval(data.approval);
           if (data.preferences?.length === 3) setPreferences(data.preferences);
-          if (typeof data.canvas === 'string') setCanvas(data.canvas);
+          if (data.canvases && typeof data.canvases === 'object') setCanvases(Object.fromEntries(Object.entries(data.canvases).filter(([,value]) => typeof value === 'string')));
+          else if (typeof data.canvas === 'string') setCanvases({ 'launch-room': data.canvas });
         }
       } catch {
         /* Start from sample data if storage is unavailable. */
@@ -467,7 +499,7 @@ export function Workspace() {
           reactions: reactionCounts,
           approval,
           preferences,
-          canvas,
+          canvases,
         }),
       );
     } catch {
@@ -481,7 +513,7 @@ export function Workspace() {
     reactionCounts,
     approval,
     preferences,
-    canvas,
+    canvases,
   ]);
   const currentRef = useRef({ channel, view });
   useEffect(() => {
@@ -489,6 +521,20 @@ export function Workspace() {
   }, [channel, view]);
   const [dm, setDm] = useState<string | null>(null);
   const [threadReply, setThreadReply] = useState('');
+  const threadComposerRef = useRef<ComposerHandle>(null);
+  const [panelWidth, setPanelWidth] = useState(390);
+  const panelRef = useRef<HTMLElement>(null);
+  const threadMessages = thread ? messagesByRoom[`thread:${thread.id}`] ?? [] : [];
+  const openThread = (message: Message) => { setMemberProfile(null); setThread(message); setThreadReply(''); };
+  const openProfile = (member: WorkspaceMember) => { setThread(null); setMemberProfile(member); };
+  useEffect(() => {
+    if (!threadSnapshot && !memberProfile) return;
+    const previous = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    const onEscape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !event.defaultPrevented) { setThread(null); setMemberProfile(null); previous?.focus(); } };
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
+  }, [threadSnapshot, memberProfile]);
   useEffect(() => {
     if (!toast) return;
     const id = window.setTimeout(() => setToast(''), 2600);
@@ -595,16 +641,12 @@ export function Workspace() {
   const navigate = (next: string) => {
     setView(next as View);
   };
-  const results = search.trim()
-    ? messages.filter((message) =>
-        `${message.name} ${plainText(message.body)}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-      )
-    : messages;
+  const results = Object.entries(messagesByRoom).filter(([room]) => !room.startsWith('thread:')).flatMap(([room, items]) => items.map(message => ({...message, room}))).filter(message => !search.trim() || `${message.name} ${plainText(message.body)}`.toLowerCase().includes(search.toLowerCase())).slice(-100).reverse();
   function openRoom(name: string) {
     const member = members.find(person => person.id === name || person.name === name);
     const room = member ? `dm:${member.id}` : name;
+    setThread(null);
+    setMemberProfile(null);
     setChannel(room);
     setDm(member?.id ?? null);
     if (member) setMessagesByRoom(all => ({...all, [room]: all[room] ?? all[member.name] ?? []}));
@@ -621,6 +663,7 @@ export function Workspace() {
       notify(`${agent.name} is already responding. Wait or stop the current response.`);
       return;
     }
+    if (agent.paused) { notify(`${agent.name} is paused.`); return; }
     const id=existingId ?? `agent-${crypto.randomUUID()}`;
     const controller=new AbortController();
     const request={controller,agent,room,history};
@@ -628,8 +671,8 @@ export function Workspace() {
     const reply:Message={id,name:agent.name,initials:agent.initials,tone:agent.tone??'mint',time:new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}),body:'',agent:agent.runtime,memberId:agent.id,requestState:'pending'};
     if(existingId)updateRequest(room,id,{body:'',requestState:'pending',error:undefined});
     else setMessagesByRoom(all=>({...all,[room]:[...(all[room]??[]),reply]}));
-    setAgentActivity(agent.name,'working');
-    const timeout=setTimeout(()=>controller.abort(),120000);
+    setAgentActivity(agent.id,'working');
+    const timeout=setTimeout(()=>controller.abort('timeout'),120000);
     let content='';
     try {
       const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({messages:history,agentId:agent.id,agent:{id:agent.id,name:agent.name,instructions:agent.instructions,runtime:agent.runtime,model:agent.model,homeId:agent.homeId}})});
@@ -645,18 +688,21 @@ export function Workspace() {
       while(true){const chunk=await reader.read();if(chunk.done)break;buffer+=decoder.decode(chunk.value,{stream:true});buffer=buffer.replace(/\r\n/g,'\n');let split;while((split=buffer.indexOf('\n\n'))>=0){consume(buffer.slice(0,split));buffer=buffer.slice(split+2)}}
       buffer+=decoder.decode();if(buffer.trim())consume(buffer);
       if(!content.trim())throw new Error('The agent returned an empty response. Try again.');
-      updateRequest(room,id,{requestState:'complete',error:undefined});retries.current.delete(id);setAgentActivity(agent.name,'ready');
+      updateRequest(room,id,{requestState:'complete',error:undefined});retries.current.delete(id);setAgentActivity(agent.id,'ready');
     }catch(error){
       const message=controller.signal.aborted?'Response stopped. You can retry.':error instanceof Error?error.message:'Unable to reach the agent. Try again.';
-      updateRequest(room,id,{requestState:'error',error:message});setAgentActivity(agent.name,'blocked');
+      updateRequest(room,id,{requestState:'error',error:message});setAgentActivity(agent.id,controller.signal.aborted && controller.signal.reason !== 'timeout' ? 'ready' : 'blocked');
     }finally{clearTimeout(timeout);requests.current.delete(id)}
   }
-  function retryMessage(message:Message){
+  function retryMessage(message:Message, room = channel){
     const retry=retries.current.get(message.id);
     const agent=members.find((member):member is AgentMember=>member.kind==='agent'&&member.id===message.memberId);
-    const history=(messagesByRoom[channel]??[]).slice(0,(messagesByRoom[channel]??[]).findIndex(item=>item.id===message.id)).filter(item=>!item.requestState||item.requestState==='complete').map(item=>({role:item.memberId===agent?.id?'assistant':'user',content:`${item.name}: ${plainText(item.body)}`})).slice(-40);
+    const parent = room.startsWith('thread:') ? Object.values(messagesByRoom).flat().find(item => item.id === room.slice(7)) : undefined;
+    const before = (messagesByRoom[room]??[]).slice(0,(messagesByRoom[room]??[]).findIndex(item=>item.id===message.id));
+    const history = [...(parent ? [parent] : []), ...before].filter(item=>!item.requestState||item.requestState==='complete').map(item=>({role:item.memberId===agent?.id?'assistant':'user',content:`${item.name}: ${plainText(item.body)}`})).slice(-40);
+
     if(retry)void requestAgent(agent??retry.agent,retry.room,retry.history,message.id);
-    else if(agent)void requestAgent(agent,channel,history,message.id);
+    else if(agent)void requestAgent(agent,room,history,message.id);
   }
   function send() {
     const text = draft.trim();
@@ -665,9 +711,20 @@ export function Workspace() {
     const history=[...(messagesByRoom[channel]??[]),message].filter(item=>!item.requestState||item.requestState==='complete');
     setMessagesByRoom(all=>({...all,[channel]:[...(all[channel]??[]),message]}));
     setDraft('');setMentionedIds([]);
-    const hasMention=(name:string)=>{const at=text.toLowerCase().indexOf(`@${name.toLowerCase()}`);return at>=0&&(at===0||/\s/.test(text[at-1]))&&(!text[at+name.length+1]||/[\s.,!?;:]/.test(text[at+name.length+1]));};
-    const requested=members.filter((member):member is AgentMember=>member.kind==='agent'&&(dm===member.id||hasMention(member.name)));
+
+    const requested=members.filter((member):member is AgentMember=>member.kind==='agent'&&(dm===member.id||hasAgentMention(text, member.name)));
     requested.forEach(agent=>void requestAgent(agent,channel,history.slice(-40).map(item=>({role:item.memberId===agent.id?'assistant':'user',content:`${item.name}: ${plainText(item.body)}`}))));
+  }
+  function sendThread() {
+    const text = threadReply.trim();
+    if (!text || !thread) return;
+    const room = `thread:${thread.id}`;
+    const message: Message = {id:`local-${crypto.randomUUID()}`,name:'You',initials:'YO',tone:'you-avatar',time:new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}),body:text,memberId:'you'};
+    const history = [thread, ...(messagesByRoom[room] ?? []), message].filter(item=>!item.requestState||item.requestState==='complete');
+    setMessagesByRoom(all => ({...all, [room]: [...(all[room] ?? []), message]}));
+    setThreadReply('');
+    const requested = members.filter((member): member is AgentMember => member.kind === 'agent' && (dm === member.id || thread.memberId === member.id || hasAgentMention(text, member.name)));
+    requested.forEach(agent => void requestAgent(agent, room, history.slice(-40).map(item=>({role:item.memberId===agent.id?'assistant':'user',content:`${item.name}: ${plainText(item.body)}`}))));
   }
   function addChannel(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -722,7 +779,7 @@ export function Workspace() {
           >
             <span className="workspace-avatar">M</span>
             <span>
-              <strong>Meridian</strong>
+              <strong>{workspaceName}</strong>
               <small>Workspace</small>
             </span>
             <ChevronDown size={15} />
@@ -735,7 +792,7 @@ export function Workspace() {
             <kbd>⌘ K</kbd>
           </button>
           <SidebarMenu>
-            {nav(<Inbox size={17} />, 'Inbox', 'inbox', '2')}
+            {nav(<Inbox size={17} />, 'Inbox', 'inbox')}
             {nav(<Bot size={17} />, 'Agents', 'agents')}
             {nav(<Database size={17} />, 'Data', 'data')}
             {nav(<Cpu size={17} />, 'Compute', 'compute')}
@@ -793,9 +850,10 @@ export function Workspace() {
               <SidebarMenuItem key={p.id}>
                 <SidebarMenuButton
                   className="rail-link"
+                  data-active={view === 'chat' && dm === p.id}
                   onClick={() => openRoom(p.id)}
                 >
-                  <span className="tiny-avatar">{p.kind==='agent'?<AgentAvatar character={p.character} label={p.name} size={24}/>:p.initials}</span>
+                  <MemberAvatar member={p} size={24} />
                   <span>{p.name.split(' ')[0]}</span>
                   <span className="rail-dot" />
                 </SidebarMenuButton>
@@ -809,7 +867,7 @@ export function Workspace() {
             <span>
               <strong>Dell GB10</strong>
               <small>
-                <span className="status-dot amber" /> Not connected
+                <span className="status-dot" /> {homes.find(home => home.id === 'lab')?.status === 'connected' ? 'Connected' : 'Setting up'}
               </small>
             </span>
           </button>
@@ -833,7 +891,7 @@ export function Workspace() {
           </div>
         </SidebarFooter>
       </Sidebar>
-      <main className="workspace-main">
+      <main className={`workspace-main ${view === 'chat' && (thread || memberProfile) ? 'workspace-has-panel' : ''}`} style={{'--detail-pane-width': `${panelWidth}px`} as CSSProperties}>
         <header
           className="topbar"
           style={{ display: view === 'chat' ? 'none' : undefined }}
@@ -846,7 +904,7 @@ export function Workspace() {
                 : view[0].toUpperCase() + view.slice(1)}
             </strong>
             <span>/</span>
-            <span>Meridian</span>
+            <span>{workspaceName}</span>
           </div>
           <div className="topbar-actions">
             <button
@@ -876,8 +934,9 @@ export function Workspace() {
             onMention={id=>setMentionedIds(ids=>ids.includes(id)?ids:[...ids,id])}
             retry={retryMessage}
             stop={id=>requests.current.get(id)?.controller.abort()}
-            openMember={member=>setMemberProfile(member)}
+            openMember={openProfile}
             dm={!!dm}
+            recipient={members.find(member=>member.id===dm)}
             approval={approval}
             reviewDraft={() => setApprovalOpen(true)}
             invite={() => setPeopleOpen(true)}
@@ -885,7 +944,7 @@ export function Workspace() {
             react={(id) =>
               setReactionCounts((all) => ({ ...all, [id]: (all[id] || 0) + 1 }))
             }
-            replies={replies}
+            replies={Object.fromEntries(messages.map(message => [message.id, [...(replies[message.id] ?? []), ...(messagesByRoom[`thread:${message.id}`] ?? []).map(reply => plainText(reply.body))]]))}
             tab={tab}
             setTab={setTab}
             messages={messages}
@@ -894,7 +953,7 @@ export function Workspace() {
             send={send}
             starred={starred}
             setStarred={setStarred}
-            setThread={setThread}
+            setThread={openThread}
             canvas={canvas}
             setCanvas={setCanvas}
             navigate={navigate}
@@ -910,69 +969,31 @@ export function Workspace() {
           reviewDraft={() => setApprovalOpen(true)}
           openRoom={openRoom}
         />
+        {view === 'chat' && (thread || memberProfile) && <aside ref={panelRef} tabIndex={-1} className="conversation-detail-pane" aria-label={thread ? 'Thread' : 'Member profile'}>
+          {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- A focusable adjustable separator implements the ARIA window splitter pattern. */}
+          <div className="detail-pane-resizer" role="separator" aria-orientation="vertical" aria-label="Resize details" tabIndex={0} aria-valuemin={320} aria-valuemax={560} aria-valuenow={panelWidth} onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); setPanelWidth(width => Math.max(320, Math.min(560, width + (event.key === 'ArrowLeft' ? 20 : -20)))); } }} onPointerDown={event => {
+            event.preventDefault(); const handle = event.currentTarget; handle.setPointerCapture(event.pointerId); const start=event.clientX, width=panelWidth;
+            const move = (e: PointerEvent) => setPanelWidth(Math.max(320, Math.min(560, width+start-e.clientX)));
+            const end = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', end); handle.removeEventListener('pointercancel', end); };
+            handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', end); handle.addEventListener('pointercancel', end);
+          }} />
+          <header className="detail-pane-header"><h2>{thread ? 'Thread' : 'Profile'}</h2><button className="icon-btn" aria-label="Close details" onClick={() => {setThread(null);setMemberProfile(null)}}><X size={18}/></button></header>
+          {thread ? <>
+            <div className="detail-pane-scroll">
+              <div className="thread-message"><MemberAvatar member={resolveMember(members,thread.memberId,thread.name)} name={thread.name} initials={thread.initials} size={36}/><div><div className="message-meta"><strong>{resolveMember(members,thread.memberId,thread.name)?.name ?? thread.name}</strong><time>{thread.time}</time></div><div className="message-text">{typeof thread.body === 'string' ? messageText(thread.body) : thread.body}</div></div></div>
+              <div className="thread-reply-divider">{(seedReplies[thread.id]?.length ?? 0)+(replies[thread.id]?.length ?? 0)+threadMessages.length} replies</div>
+              {(seedReplies[thread.id] ?? []).map((reply,index) => <div className="thread-message" key={`seed-${index}`}><MemberAvatar member={resolveMember(members,reply.memberId,reply.name)} name={reply.name} initials={reply.name.slice(0,2)} size={36}/><div><div className="message-meta"><strong>{resolveMember(members,reply.memberId,reply.name)?.name ?? reply.name}</strong><time>{reply.time}</time></div><div className="message-text">{reply.text}</div></div></div>)}
+              {(replies[thread.id] ?? []).map((reply,index) => <div className="thread-message" key={`old-${index}`}><MemberAvatar member={members.find(m=>m.id==='you')} size={36}/><div><div className="message-meta"><strong>You</strong></div><div className="message-text">{reply}</div></div></div>)}
+              {threadMessages.map(reply => <div className="thread-message" key={reply.id}><MemberAvatar member={members.find(m=>m.id===reply.memberId)} name={reply.name} initials={reply.initials} size={36}/><div><div className="message-meta"><strong>{resolveMember(members,reply.memberId,reply.name)?.name ?? reply.name}</strong><time>{reply.time}</time></div><div className="message-text">{typeof reply.body === 'string' ? messageText(reply.body) : reply.body}</div>{reply.requestState==='pending'&&<output className="message-request-state">Responding… <button onClick={()=>requests.current.get(reply.id)?.controller.abort()}>Stop</button></output>}{reply.requestState==='error'&&<div className="message-request-state" role="alert">{reply.error}<button onClick={()=>retryMessage(reply,`thread:${thread.id}`)}>Retry</button></div>}</div></div>)}
+            </div>
+            <div className="thread-composer composer"><LiveComposer ref={threadComposerRef} value={threadReply} onChange={setThreadReply} onSend={sendThread} members={members} onMention={()=>{}} placeholder="Reply in thread…"/><div className="composer-bottom"><div><button className="icon-btn" aria-label="Mention in thread" onClick={()=>threadComposerRef.current?.insertText('@')}><AtSign size={16}/></button><button className="icon-btn" aria-label="Add emoji to reply" onClick={()=>threadComposerRef.current?.insertText(' 🙂')}><Smile size={16}/></button></div><button className="send-button" disabled={!threadReply.trim()} aria-label="Send reply" onClick={sendThread}><Send size={15}/></button></div></div>
+          </> : memberProfile && <div className="member-profile-panel">
+            <MemberAvatar member={memberProfile} size={104}/><h2>{memberProfile.name}</h2><span className="badge">{memberProfile.kind==='agent'?'Agent':'Member'}</span>
+            <button className="btn btn-secondary" onClick={()=>openRoom(memberProfile.id)}><MessageCircle size={16}/> Message</button>
+            {memberProfile.kind==='agent'&&<><dl><div><dt>Home</dt><dd>{memberProfile.runtime==='local'?'Dell GB10':'Cloud'}</dd></div><div><dt>Access</dt><dd>{memberProfile.accessLevel}</dd></div></dl>{memberProfile.instructions&&<section><h3>Instructions</h3><p>{memberProfile.instructions}</p></section>}<button className="btn btn-secondary" onClick={()=>{const agentId=memberProfile.id;setMemberProfile(null);navigate('agents');requestAnimationFrame(()=>window.dispatchEvent(new CustomEvent('relay:open-agent',{detail:{agentId}})))}}>Agent settings</button></>}
+          </div>}
+        </aside>}
       </main>
-      <Sheet open={!!thread} onOpenChange={(open) => !open && setThread(null)}>
-        <SheetContent className="thread-sheet">
-          <SheetHeader>
-            <SheetTitle>Thread</SheetTitle>
-            <SheetDescription className="sr-only">Replies</SheetDescription>
-          </SheetHeader>
-          {thread && (
-            <>
-              <div className="thread-original">
-                <strong>{thread.name}</strong>
-                <div className="message-text">{thread.body}</div>
-              </div>
-              <div className="thread-replies">
-                {(seedReplies[thread.id] || []).map((reply, index) => (
-                  <div className="thread-reply" key={`seed-${index}`}>
-                    <strong>{reply.name}</strong>
-                    <time className="muted small"> {reply.time}</time>
-                    <p>{reply.text}</p>
-                  </div>
-                ))}
-                {(replies[thread.id] || []).map((reply, index) => (
-                  <div className="thread-reply" key={index}>
-                    <strong>You</strong>
-                    <p>{reply}</p>
-                  </div>
-                ))}
-                {!replies[thread.id]?.length &&
-                  !seedReplies[thread.id]?.length && (
-                    <p className="muted">
-                      No replies yet. Start the conversation.
-                    </p>
-                  )}
-              </div>
-              <div className="thread-composer">
-                <textarea
-                  className="textarea"
-                  aria-label="Thread reply"
-                  placeholder="Reply in thread…"
-                  value={threadReply}
-                  onChange={(e) => setThreadReply(e.target.value)}
-                />
-                <button
-                  className="btn btn-primary"
-                  onClick={() => {
-                    if (!threadReply.trim()) return;
-                    setReplies((all) => ({
-                      ...all,
-                      [thread.id]: [
-                        ...(all[thread.id] || []),
-                        threadReply.trim(),
-                      ],
-                    }));
-                    setThreadReply('');
-                  }}
-                >
-                  Reply
-                </button>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="search-dialog">
           <DialogHeader>
@@ -991,12 +1012,14 @@ export function Workspace() {
             <kbd>ESC</kbd>
           </div>
           <div className="search-results">
+            {results.length === 0 && <p className="search-empty">No messages found.</p>}
             {results.map((m) => (
               <button
-                key={m.id}
+                key={`${m.room}-${m.id}`}
                 onClick={() => {
                   setSearchOpen(false);
-                  setThread(m);
+                  openRoom(m.room.startsWith('dm:') ? m.room.slice(3) : m.room);
+                  openThread(m);
                 }}
               >
                 <span className={`tiny-avatar ${m.tone}`}>{m.initials}</span>
@@ -1006,7 +1029,7 @@ export function Workspace() {
                     {typeof m.body === 'string' ? m.body : 'Launch room update'}
                   </strong>
                   <small>
-                    #{channel} · {m.time}
+                    {m.room.startsWith('dm:') ? members.find(person=>person.id===m.room.slice(3))?.name ?? 'Direct message' : `#${m.room}`} · {m.time}
                   </small>
                 </span>
                 <ChevronRight size={15} />
@@ -1032,7 +1055,7 @@ export function Workspace() {
                 setPeopleOpen(false);
               }}
             >
-              <span className="avatar">{person.kind==='agent'?<AgentAvatar character={person.character} label={person.name} size={32}/>:person.initials}</span>
+              <span className="avatar">{person.kind==='agent'?<AgentAvatar identityKey={person.id} character={person.character} label={person.name} size={32}/>:person.initials}</span>
               <strong>{person.name}</strong><span className="member-directory-type">{person.kind==='agent'?'Agent':'Person'}</span>
               <MessageCircle size={16} />
             </button>
@@ -1107,18 +1130,12 @@ export function Workspace() {
           </form>
         </DialogContent>
       </Dialog>
-      <Dialog open={!!memberProfile} onOpenChange={open=>!open&&setMemberProfile(null)}>
-        <DialogContent><DialogHeader><DialogTitle>{memberProfile?.name}</DialogTitle><DialogDescription>{memberProfile?.kind==='agent'?'Workspace agent':'Workspace member'}</DialogDescription></DialogHeader>
-          {memberProfile?.kind==='agent'&&<><AgentAvatar character={memberProfile.character} label={memberProfile.name} size={48}/><p>{memberProfile.description}</p><p className="muted">{memberProfile.runtime==='local'?'Local · GB10':'Cloud'} · {memberProfile.model}</p></>}
-          <DialogFooter><button className="btn btn-secondary" onClick={()=>{if(memberProfile)openRoom(memberProfile.id);setMemberProfile(null)}}>Message</button>{memberProfile?.kind==='agent'&&<button className="btn btn-primary" onClick={()=>{const agentId=memberProfile?.id;setMemberProfile(null);navigate('agents');requestAnimationFrame(()=>window.dispatchEvent(new CustomEvent('relay:open-agent',{detail:{agentId}})))}}>Agent settings</button>}</DialogFooter>
-        </DialogContent>
-      </Dialog>
       <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
         <DialogContent>
           <div className="profile-preview">
             <span className="avatar you-avatar">YO</span>
             <DialogTitle>Your profile</DialogTitle>
-            <p className="muted">Meridian workspace</p>
+            <p className="muted">{workspaceName} workspace</p>
           </div>
           <DialogFooter>
             <button
@@ -1148,7 +1165,7 @@ export function Workspace() {
 }
 
 function Chat({
-  members, onMention, retry, stop, openMember,
+  members, onMention, retry, stop, openMember, recipient,
   dm,
   approval,
   reviewDraft,
@@ -1171,6 +1188,7 @@ function Chat({
   navigate,
   notify,
 }: {
+  recipient?: WorkspaceMember;
   members: readonly WorkspaceMember[];
   onMention:(id:string)=>void;
   retry:(message:Message)=>void;
@@ -1201,18 +1219,14 @@ function Chat({
   const [contextOpen, setContextOpen] = useState(false);
   const [composerMenu, setComposerMenu] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const composerRef = useRef<ComposerHandle>(null);
+  const followingMessages = useRef(true);
+  useEffect(() => { followingMessages.current = true; const el = scrollRef.current; if (el) el.scrollTop = el.scrollHeight; }, [channel, tab]);
   useEffect(() => {
     const element = scrollRef.current;
-    if (element) element.scrollTop = element.scrollHeight;
-  }, [channel, messages, tab]);
-  const insertText = (text: string) => {
-    const field = composerRef.current;
-    const start = field?.selectionStart ?? draft.length;
-    const end = field?.selectionEnd ?? draft.length;
-    setDraft(draft.slice(0, start) + text + draft.slice(end));
-    field?.focus();
-  };
+    if (element && followingMessages.current) element.scrollTop = element.scrollHeight;
+  }, [messages]);
+  const insertText = (text: string) => { composerRef.current?.insertText(text); };
   const formatSelection = () => {
     const field = composerRef.current;
     const start = field?.selectionStart ?? draft.length;
@@ -1225,16 +1239,17 @@ function Chat({
     <section className="chat-page">
       <ChatHeader
         title={channel}
+        onTitleClick={recipient ? () => openMember(recipient) : undefined}
         leadingContent={
           <>
             <SidebarTrigger className="mobile-menu" />
-            {dm ? <AtSign size={16} /> : <Hash size={16} />}
+            {recipient ? <button className="dm-header-avatar" aria-label={`View ${recipient.name}'s profile`} onClick={() => openMember(recipient)}><MemberAvatar member={recipient} size={32} /></button> : <Hash size={18} />}
           </>
         }
         titleAdornment={
           <button
             className={`icon-btn star-button ${starred ? 'starred' : ''}`}
-            aria-label="Star channel"
+            aria-label={dm ? 'Star conversation' : 'Star channel'}
             onClick={() => setStarred(!starred)}
           >
             <Star size={15} fill={starred ? 'currentColor' : 'none'} />
@@ -1242,18 +1257,17 @@ function Chat({
         }
         actions={
           <div className="channel-actions">
-            <div className="member-stack">
+            {!dm && <div className="member-stack">
               {members.slice(0,3).map((p) => (
                 <span key={p.id} className={`tiny-avatar ${p.tone}`}>
                   {p.initials}
                 </span>
               ))}
               <span className="member-number">{members.length}</span>
-            </div>
-            <button className="btn btn-secondary desktop-only" onClick={invite}>
-              {' '}
+            </div>}
+            {!dm && <button className="btn btn-secondary desktop-only" onClick={invite}>
               <Users size={15} /> People
-            </button>
+            </button>}
             <button
               className="icon-btn"
               aria-label="Toggle room context"
@@ -1291,17 +1305,24 @@ function Chat({
           }}
         >
           <div className="conversation">
-            <div className="conversation-scroll" ref={scrollRef}>
-              <div className="date-divider">Today</div>
+            <div className="conversation-scroll" ref={scrollRef} onScroll={event => { const el=event.currentTarget; followingMessages.current=el.scrollHeight-el.scrollTop-el.clientHeight<80; }}>
+              {recipient && <div className="dm-conversation-intro">
+                <button aria-label={`Open ${recipient.name}'s profile`} onClick={() => openMember(recipient)}><MemberAvatar member={recipient} size={72} /></button>
+                <h2>{recipient.name}</h2>
+                <p>This is your conversation with {recipient.name}.</p>
+              </div>}
+              {messages.length > 0 && <div className="date-divider">Today</div>}
               {messages.map((m, index) => (
                 <article
                   className={`message-row ${messages[index - 1]?.name === m.name ? 'message-grouped' : ''}`}
                   key={m.id}
                 >
-                  {m.agent ? <AgentAvatar character={m.name === 'Nova' ? 'ladybug' : 'worm'} state="idle" size={32} label={m.name} className="message-agent-avatar" /> : <span className={`avatar ${m.tone}`}>{m.initials}</span>}
+                  <button className="message-avatar-button" aria-label={`View ${m.name}'s profile`} onClick={() => { const person=resolveMember(members,m.memberId,m.name); if(person)openMember(person); }}>
+                    <MemberAvatar member={resolveMember(members,m.memberId,m.name)} name={m.name} initials={m.initials} size={36} />
+                  </button>
                   <div className="message-body">
                     <div className="message-meta">
-                      <button className="member-name-button" onClick={()=>{const member=members.find(person=>person.id===m.memberId||person.name===m.name);if(member)openMember(member)}}>{m.name}</button>
+                      <button className="member-name-button" onClick={()=>{const member=resolveMember(members,m.memberId,m.name);if(member)openMember(member)}}>{members.find(person=>person.id===m.memberId)?.name ?? m.name}</button>
                       {m.agent && (
                         <span
                           className={`badge ${m.agent === 'local' ? 'badge-green' : 'badge-blue'}`}
@@ -1486,7 +1507,7 @@ function Chat({
                   className="context-agent"
                   onClick={() => navigate('agents')}
                 >
-                  <AgentAvatar character="worm" state="idle" size={32} label="Atlas"/>
+                  <AgentAvatar identityKey="atlas" character="worm" size={32} label="Atlas"/>
                   <span>
                     <strong>
                       Atlas <span className="tiny-route local">LOCAL</span>
@@ -1499,7 +1520,7 @@ function Chat({
                   className="context-agent"
                   onClick={() => navigate('agents')}
                 >
-                  <AgentAvatar character="ladybug" state="idle" size={32} label="Nova"/>
+                  <AgentAvatar identityKey="nova" character="ladybug" size={32} label="Nova"/>
                   <span>
                     <strong>
                       Nova <span className="tiny-route cloud">CLOUD</span>
@@ -1578,23 +1599,20 @@ function Chat({
         </div>
       ) : tab === 'canvas' ? (
         <div className="conversation-scroll canvas-panel">
-          <div className="eyebrow">SHARED CANVAS · BROWSER ONLY</div>
-          <h2>Launch room notes</h2>
+          <h2>{channel} notes</h2>
           <textarea
             className="canvas-editor"
             value={canvas}
             onChange={(e) => setCanvas(e.target.value)}
             aria-label="Edit shared canvas"
           />
-          <p className="small muted page-note">
-            Edits are kept in this session and are not uploaded.
-          </p>
+
         </div>
       ) : (
         <div className="conversation-scroll">
           <div className="card shared-file">
             <div className="card-header">
-              <h2>Files shared in #{channel}</h2>
+              <h2>Files shared in {dm ? '' : '#'}{channel}</h2>
               <button
                 className="btn btn-secondary"
                 onClick={() => navigate('data')}
@@ -1695,49 +1713,6 @@ function View({
     </>
   );
 }
-function InboxView({
-  reviewDraft,
-  openRoom,
-}: {
-  reviewDraft: () => void;
-  openRoom: (name: string) => void;
-}) {
-  return (
-    <div className="view-content">
-      <div className="page">
-        <div className="page-heading">
-          <div className="eyebrow">YOUR ATTENTION</div>
-          <h1>Inbox</h1>
-          <p className="subtitle">
-            Review the moments that need a person before work moves forward.
-          </p>
-        </div>
-        <button className="inbox-item" onClick={reviewDraft}>
-          <span className="inbox-item-icon amber">
-            <ShieldCheck size={19} />
-          </span>
-          <span>
-            <strong>Nova prepared a customer update draft</strong>
-            <small>#launch-room · Cloud draft · 8 minutes ago</small>
-          </span>
-          <span className="badge badge-amber">Needs review</span>
-          <ChevronRight size={17} />
-        </button>
-        <button className="inbox-item" onClick={() => openRoom('engineering')}>
-          <span className="inbox-item-icon">
-            <AtSign size={19} />
-          </span>
-          <span>
-            <strong>Marcus Reed mentioned you in #engineering</strong>
-            <small>“Can you confirm the rollout owner?” · 18 minutes ago</small>
-          </span>
-          <span className="badge badge-blue">Mention</span>
-          <ChevronRight size={17} />
-        </button>
-      </div>
-    </div>
-  );
-}
 function ActivityView() {
   return (
     <div className="view-content">
@@ -1767,74 +1742,6 @@ function ActivityView() {
               <time>{i + 2}m ago</time>
             </div>
           ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-function SettingsView({
-  navigate,
-  preferences,
-  setPreferences,
-}: {
-  navigate: (s: string) => void;
-  preferences: boolean[];
-  setPreferences: (value: boolean[]) => void;
-}) {
-  return (
-    <div className="view-content">
-      <div className="page settings-page">
-        <div className="page-heading">
-          <div className="eyebrow">MAKE RELAY YOURS</div>
-          <h1>Settings</h1>
-          <p className="subtitle">
-            
-          </p>
-        </div>
-        <div className="card settings-card">
-          <h2>Workspace preferences</h2>
-          {[
-            [
-              'Desktop notifications',
-              'Get notified when a review or mention needs you.',
-            ],
-            [
-              'Compact conversation density',
-              'Show more messages at once in channels.',
-            ],
-            ['Keyboard shortcuts', 'Use ⌘ K to search and quick navigation.'],
-          ].map(([label, desc], i) => (
-            <div className="setting-row" key={label}>
-              <div>
-                <strong>{label}</strong>
-                <p>{desc}</p>
-              </div>
-              <button
-                className={`work-toggle ${preferences[i] ? 'is-on' : ''}`}
-                role="switch"
-                aria-label={label}
-                aria-checked={preferences[i]}
-                onClick={() => {
-                  setPreferences(
-                    preferences.map((value, index) =>
-                      index === i ? !value : value,
-                    ),
-                  );
-                }}
-              >
-                <span />
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="card settings-card">
-          <h2>Connections</h2>
-          <button
-            className="btn btn-secondary"
-            onClick={() => navigate('compute')}
-          >
-            <Settings size={15} /> Manage connections
-          </button>
         </div>
       </div>
     </div>
