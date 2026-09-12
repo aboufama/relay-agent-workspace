@@ -18,7 +18,7 @@ export function apply(events: EventRecord[]) {
     switch (ev.type) {
       case 'message.created': case 'message.updated': {
         const m = p.message as MessageRecord;
-        s = { ...s, messages: upsert(s.messages, m), channels: m.room.startsWith('dm:') || s.channels.includes(m.room) ? s.channels : [...s.channels, m.room] };
+        s = { ...s, messages: upsert(s.messages, m), channels: m.room.startsWith('dm:') || m.room.startsWith('thread:') || s.channels.includes(m.room) ? s.channels : [...s.channels, m.room] };
         break;
       }
       case 'run.delta': {

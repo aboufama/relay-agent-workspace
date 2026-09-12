@@ -18,14 +18,14 @@ import {
   Sparkles,
   X,
   Zap,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 
 type Workflow = {
   id: string;
@@ -42,63 +42,73 @@ type Workflow = {
 // Automation definitions have no backend yet: local UI state only, nothing executes.
 const initialWorkflows: Workflow[] = [
   {
-    id: "wf-1",
-    name: "Customer launch briefing",
-    description: "Bring every team into the loop before a customer goes live.",
-    trigger: "New launch in #customer-launches",
-    agent: "Atlas",
-    active: true,
-    steps: [
-      "Collect launch context",
-      "Draft a readiness brief",
-      "Request owner approval",
-      "Share in channel",
+    "id": "bell-wf-1",
+    "name": "Compass pilot readiness",
+    "description": "Review recovery and security attestations before the 250-system pilot.",
+    "trigger": "Release owner requests a gate review",
+    "agent": "Atlas",
+    "active": false,
+    "steps": [
+      "Retrieve scoped firmware evidence",
+      "List unmet criteria and owners",
+      "Draft a sanitized gate summary",
+      "Request Olivia\u2019s promotion approval"
     ],
-    owner: "Maya Chen",
-    color: "blue",
-    approval: true,
+    "owner": "Olivia Chen",
+    "color": "blue",
+    "approval": true
   },
   {
-    id: "wf-2",
-    name: "Weekly engineering pulse",
-    description: "A considered summary of shipped work, blockers, and what’s next.",
-    trigger: "Every Monday at 9:00 AM",
-    agent: "Scout",
-    active: true,
-    steps: ["Read engineering updates", "Summarize progress", "Prepare channel draft"],
-    owner: "Alex Morgan",
-    color: "violet",
-    approval: false,
-  },
-  {
-    id: "wf-3",
-    name: "New teammate onboarding",
-    description: "A warm welcome with the right context from day one.",
-    trigger: "New workspace member",
-    agent: "Nova",
-    active: false,
-    steps: [
-      "Find team handbook",
-      "Prepare welcome plan",
-      "Request manager approval",
-      "Create onboarding tasks",
+    "id": "bell-wf-2",
+    "name": "Horizon thermal decision",
+    "description": "Compare fan curves against power, skin temperature, and acoustic limits.",
+    "trigger": "A new chamber result is imported",
+    "agent": "Nova",
+    "active": false,
+    "steps": [
+      "Read Thermal & Power Lab results",
+      "Compare every acceptance limit",
+      "Propose the next measured run",
+      "Request Marcus\u2019s qualification review"
     ],
-    owner: "Jordan Lee",
-    color: "green",
-    approval: true,
+    "owner": "Marcus Reed",
+    "color": "violet",
+    "approval": true
   },
   {
-    id: "wf-4",
-    name: "Sensitive document review",
-    description: "Make sure restricted knowledge reaches the right people.",
-    trigger: "Document added to Restricted",
-    agent: "Atlas",
-    active: true,
-    steps: ["Read document metadata", "Suggest access policy", "Request security approval"],
-    owner: "Maya Chen",
-    color: "amber",
-    approval: true,
+    "id": "bell-wf-3",
+    "name": "Cedar sourcing review",
+    "description": "Separate qualified launch supply from conditional cost scenarios.",
+    "trigger": "Qualification or allocation evidence changes",
+    "agent": "Ledger",
+    "active": false,
+    "steps": [
+      "Read restricted supplier scenarios",
+      "Check qualified system coverage",
+      "Draft an Internal summary without prices",
+      "Request Orion\u2019s sourcing approval"
+    ],
+    "owner": "Orion",
+    "color": "green",
+    "approval": true
   },
+  {
+    "id": "bell-wf-4",
+    "name": "Weekly engineering readout",
+    "description": "Bring approved Internal milestones and blockers into one brief.",
+    "trigger": "Friday engineering review",
+    "agent": "Sage",
+    "active": false,
+    "steps": [
+      "Read Engineering Release Office",
+      "Group blockers by decision owner",
+      "Prepare a source-linked readout",
+      "Request Olivia\u2019s review"
+    ],
+    "owner": "Olivia Chen",
+    "color": "amber",
+    "approval": true
+  }
 ];
 const prettyAction = (action: string) => {
   try {
@@ -120,9 +130,7 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
   const [decideError, setDecideError] = useState("");
   useEffect(() => {
     if (!reviewRequest) return;
-    setTab("approvals");
-    setApprovalId(reviewRequest.id);
-    setDecideError("");
+    queueMicrotask(() => { setTab("approvals"); setApprovalId(reviewRequest.id); setDecideError(""); });
   }, [reviewRequest]);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
@@ -136,16 +144,21 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
     () =>
       workflows.filter(
         (w) =>
-          (w.name + w.description).toLowerCase().includes(search.toLowerCase()) &&
-          (filter === "All workflows" || (filter === "Active" ? w.active : !w.active)),
+          (w.name + w.description)
+            .toLowerCase()
+            .includes(search.toLowerCase()) &&
+          (filter === 'All workflows' ||
+            (filter === 'Active' ? w.active : !w.active)),
       ),
     [workflows, search, filter],
   );
   function toggleWorkflow(workflow: Workflow) {
     const next = { ...workflow, active: !workflow.active };
-    setWorkflows((items) => items.map((item) => (item.id === workflow.id ? next : item)));
+    setWorkflows((items) =>
+      items.map((item) => (item.id === workflow.id ? next : item)),
+    );
     if (selected?.id === workflow.id) setSelected(next);
-    onNotify?.(`${workflow.name} ${next.active ? "enabled" : "paused"}`);
+    onNotify?.(`${workflow.name} ${next.active ? 'enabled' : 'paused'}`);
   }
   function createWorkflow(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -153,15 +166,15 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
     const workflow: Workflow = {
       id: crypto.randomUUID(),
       name: name.trim(),
-      description: description.trim() || "A custom workflow for your team.",
+      description: description.trim() || 'A custom workflow for your team.',
       trigger,
       agent: agent || agents[0]?.name || "",
       active: false,
       steps: [
-        "Gather permitted context",
-        "Prepare a response",
-        ...(needsApproval ? ["Request owner approval"] : []),
-        "Prepare channel draft",
+        'Gather permitted context',
+        'Prepare a response',
+        ...(needsApproval ? ['Request owner approval'] : []),
+        'Prepare channel draft',
       ],
       owner: "You",
       color: "blue",
@@ -173,7 +186,7 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
     setDescription("");
     onNotify?.("Automation saved (preview only; nothing runs yet).");
   }
-  function decide(status: "Approved" | "Rejected") {
+  function decide(status: 'Approved' | 'Rejected') {
     if (!approval) return;
     setDecideError("");
     // The decision is bound to the exact action reviewed; the API rejects (409) if it changed.
@@ -184,37 +197,40 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
   }
 
   return (
-    <div className="page work-page">
+    <div className="page work-page quality-workflows">
       <PageHeader
         className="page-heading"
         title="Workflows"
         action={
-          <button className="btn btn-primary" onClick={() => setCreateOpen(true)}>
+          <button
+            className="btn btn-primary"
+            onClick={() => setCreateOpen(true)}
+          >
             <Plus size={17} /> Create workflow
           </button>
         }
       />
 
       <div className="work-tabbar">
-        <div className="tabs">
+        <fieldset className="tabs" aria-label="Workflow sections">
           <button
-            className={`tab ${tab === "workflows" ? "active" : ""}`}
-            onClick={() => setTab("workflows")}
+            className={`tab ${tab === 'workflows' ? 'active' : ''}`}
+            aria-pressed={tab === 'workflows'}
+            onClick={() => setTab('workflows')}
           >
             Automations (preview) <span className="work-count">{workflows.length}</span>
           </button>
           <button
-            className={`tab ${tab === "approvals" ? "active" : ""}`}
-            onClick={() => setTab("approvals")}
+            className={`tab ${tab === 'approvals' ? 'active' : ''}`}
+            aria-pressed={tab === 'approvals'}
+            onClick={() => setTab('approvals')}
           >
-            Needs approval <span className="work-count work-count-amber">{pending}</span>
+            Needs approval{' '}
+            <span className="work-count work-count-amber">{pending}</span>
           </button>
-        </div>
-        <span className="muted small">
-          <ShieldCheck size={14} /> Human oversight, built in
-        </span>
+        </fieldset>
       </div>
-      {tab === "workflows" ? (
+      {tab === 'workflows' ? (
         <>
           <div className="toolbar work-toolbar">
             <label className="work-search">
@@ -245,10 +261,10 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
                     <GitBranch size={21} />
                   </span>
                   <button
-                    className={`work-toggle ${workflow.active ? "is-on" : ""}`}
+                    className={`work-toggle ${workflow.active ? 'is-on' : ''}`}
                     role="switch"
                     aria-checked={workflow.active}
-                    aria-label={`${workflow.active ? "Pause" : "Enable"} ${workflow.name}`}
+                    aria-label={`${workflow.active ? 'Pause' : 'Enable'} ${workflow.name}`}
                     onClick={() => toggleWorkflow(workflow)}
                   >
                     <span />
@@ -264,10 +280,14 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
                   <span>{workflow.trigger}</span>
                 </div>
                 <div className="work-mini-flow">
-                  <span className="avatar avatar-agent">{workflow.agent.slice(0, 1)}</span>
+                  <span className="avatar avatar-agent">
+                    {workflow.agent.slice(0, 1)}
+                  </span>
                   <span>{workflow.agent}</span>
                   <ChevronRight size={14} />
-                  <span className="work-step-pill">{workflow.steps.length} steps</span>
+                  <span className="work-step-pill">
+                    {workflow.steps.length} steps
+                  </span>
                   {workflow.approval && (
                     <span title="Includes human approval">
                       <ShieldCheck size={16} />
@@ -277,7 +297,7 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
                 <div className="work-flow-footer">
                   <span>
                     <span
-                      className={`status-dot ${workflow.active ? "work-dot-green" : "work-dot-muted"}`}
+                      className={`status-dot ${workflow.active ? 'work-dot-green' : 'work-dot-muted'}`}
                     />
                     {workflow.active ? "Enabled (preview)" : "Paused"}
                   </span>
@@ -292,12 +312,12 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
             <div className="empty-state">
               <Search size={28} />
               <h3>No matching workflows</h3>
-              <p>Try another search or create a workflow for your team.</p>
+
               <button
                 className="btn btn-secondary"
                 onClick={() => {
-                  setSearch("");
-                  setFilter("All workflows");
+                  setSearch('');
+                  setFilter('All workflows');
                 }}
               >
                 Clear filters
@@ -309,8 +329,7 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
         <div className="work-approval-panel">
           <div className="work-panel-heading">
             <div>
-              <h2>A moment of human judgment</h2>
-              <p className="muted">Review the exact draft before an agent takes the next step.</p>
+              <h2>Approvals</h2>
             </div>
             <span className="badge badge-amber">{pending} awaiting review</span>
           </div>
@@ -336,9 +355,9 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
                 </span>
               </span>
               <span
-                className={`badge ${item.status === "Pending" ? "badge-amber" : item.status === "Approved" ? "badge-green" : "badge-red"}`}
+                className={`badge ${item.status === 'Pending' ? 'badge-amber' : item.status === 'Approved' ? 'badge-green' : 'badge-red'}`}
               >
-                {item.status === "Pending" ? "Needs review" : item.status}
+                {item.status === 'Pending' ? 'Needs review' : item.status}
               </span>
               <ChevronRight size={18} />
             </button>
@@ -347,12 +366,11 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
       )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="work-dialog">
+        <DialogContent className="work-dialog quality-work-dialog">
           <DialogHeader>
             <DialogTitle>Create a workflow</DialogTitle>
-            <DialogDescription>
-              Start with a clear outcome. You can walk through each step before connecting a
-              service.
+            <DialogDescription className="sr-only">
+              Workflow configuration
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={createWorkflow} className="work-form">
@@ -415,7 +433,9 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
               />
               <span>
                 <strong>Include human approval</strong>
-                <small>Pause for review before preparing the final action.</small>
+                <small>
+                  Pause for review before preparing the final action.
+                </small>
               </span>
               <ShieldCheck size={19} />
             </label>
@@ -441,7 +461,7 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
           if (!open) setSelected(null);
         }}
       >
-        <DialogContent className="work-dialog work-dialog-wide">
+        <DialogContent className="work-dialog work-dialog-wide quality-work-dialog">
           {selected && (
             <>
               <DialogHeader>
@@ -465,16 +485,16 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
                     <div>
                       <strong>{step}</strong>
                       <p>
-                        {step.toLowerCase().includes("approval")
-                          ? "An authorized person reviews the exact proposed action."
+                        {step.toLowerCase().includes('approval')
+                          ? 'An authorized person reviews the exact proposed action.'
                           : index === 0
-                            ? "Use only the context available to the assigned agent."
+                            ? 'Use only the context available to the assigned agent.'
                             : index === selected.steps.length - 1
-                              ? "Prepare the result for the destination channel."
-                              : "Create a draft that can be inspected before continuing."}
+                              ? 'Prepare the result for the destination channel.'
+                              : 'Create a draft that can be inspected before continuing.'}
                       </p>
                     </div>
-                    {step.toLowerCase().includes("approval") ? (
+                    {step.toLowerCase().includes('approval') ? (
                       <ShieldCheck size={18} />
                     ) : (
                       <ChevronRight size={17} />
@@ -487,9 +507,12 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
               </p>
 
               <div className="dialog-actions">
-                <button className="btn btn-secondary" onClick={() => toggleWorkflow(selected)}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => toggleWorkflow(selected)}
+                >
                   {selected.active ? <Pause size={16} /> : <Play size={16} />}
-                  {selected.active ? "Pause" : "Enable"}
+                  {selected.active ? 'Pause' : 'Enable'}
                 </button>
                 <button className="btn btn-primary" onClick={() => setSelected(null)}>
                   Close
@@ -506,13 +529,14 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
           if (!open) setApprovalId(null);
         }}
       >
-        <DialogContent className="work-dialog work-dialog-wide">
+        <DialogContent className="work-dialog work-dialog-wide quality-work-dialog">
           {approval && (
             <>
               <DialogHeader>
                 <DialogTitle>{approval.title}</DialogTitle>
                 <DialogDescription>
-                  {approval.agent} is requesting review before sharing with {approval.recipient}.
+                  {approval.agent} is requesting review before sharing with{' '}
+                  {approval.recipient}.
                 </DialogDescription>
               </DialogHeader>
               <div className="work-detail-meta">
@@ -521,7 +545,7 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
                   {approval.level}
                 </span>
                 <span
-                  className={`badge ${approval.status === "Pending" ? "badge-amber" : approval.status === "Approved" ? "badge-green" : "badge-red"}`}
+                  className={`badge ${approval.status === 'Pending' ? 'badge-amber' : approval.status === 'Approved' ? 'badge-green' : 'badge-red'}`}
                 >
                   {approval.status}
                 </span>
@@ -553,16 +577,19 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
               )}
 
               <div className="dialog-actions">
-                {approval.status === "Pending" ? (
+                {approval.status === 'Pending' ? (
                   <>
                     <button
                       className="btn btn-secondary work-reject"
-                      onClick={() => decide("Rejected")}
+                      onClick={() => decide('Rejected')}
                     >
                       <X size={16} />
                       Reject draft
                     </button>
-                    <button className="btn btn-primary" onClick={() => decide("Approved")}>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => decide('Approved')}
+                    >
                       <Check size={16} />
                       Approve draft
                     </button>

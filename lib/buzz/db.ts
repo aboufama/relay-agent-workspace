@@ -1,3 +1,4 @@
+import { BELL_COLLECTIONS, seedBell } from './bell-seed';
 import type { ApprovalRecord, DocumentRecord, EventRecord, MemberRecord, MessageRecord, NodeRecord, RunRecord, TaskRecord, WorkspaceState } from './types';
 
 export type BuzzEnv = {
@@ -40,47 +41,12 @@ CREATE TABLE IF NOT EXISTS events(seq INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `;
 
-const SEED_CHANNELS = ['launch-room', 'engineering', 'customer-success'];
-const SEED_HUMANS: MemberRecord[] = [
-  { id: 'you', kind: 'human', name: 'You', initials: 'YO', tone: 'you-avatar', data: {} },
-  { id: 'olivia', kind: 'human', name: 'Olivia Chen', initials: 'OC', tone: 'coral', data: {} },
-  { id: 'marcus', kind: 'human', name: 'Marcus Reed', initials: 'MR', tone: 'sky', data: {} },
-];
-const SEED_PROJECTS = [
-  { id: 'launch', name: 'Meridian launch', description: 'Customer-facing launch work', color: '#5b8def' },
-  { id: 'platform', name: 'Platform', description: 'Engineering and infrastructure', color: '#2fb47c' },
-];
-const SEED_RULES = `Answer from the evidence and conversation provided. Cite sources as [name §n]. If evidence is insufficient, say what is missing instead of guessing. Never claim to have taken an action you did not take.`;
-// Every seed agent runs locally on the Spark; generation stays on company hardware.
-const agent = (id: string, name: string, role: string, description: string, instructions: string, character: string, color: string, tone: string, channels: string[], context: string[], accessLevel = 'Internal'): MemberRecord => ({
-  id, kind: 'agent', name, initials: name.slice(0, 2), tone,
-  data: { role, description, instructions, character, color, owner: 'you', channels, context, accessLevel, runtime: 'local', homeId: 'lab', model: 'gemma', device: 'DGX Spark · GB10', capabilities: ['Answer questions', 'Summarize documents', 'Draft content'] },
-});
-const SEED_AGENTS: MemberRecord[] = [
-  agent('atlas', 'Atlas', 'Engineering partner', 'Turns technical questions into clear answers and helps the team ship with confidence.', 'You are the engineering specialist. Give precise technical answers, propose small concrete patches or prototypes, and name the files or systems involved.', 'worm', 'green', 'mint', ['engineering', 'launch-room'], ['Engineering', 'Company']),
-  agent('sage', 'Sage', 'Operations partner', 'Connects the dots across projects, finds blockers, and keeps every handoff moving.', 'You coordinate work. Break objectives into bounded subtasks with owners and acceptance criteria, surface blockers, and keep decisions and open questions explicit.', 'ladybug', 'amber', 'gold', ['launch-room'], ['Company', 'Product']),
-  agent('nova', 'Nova', 'Product partner', 'Turns customer problems into design briefs and launch stories.', 'You are the product specialist. Write short design briefs: problem, evidence, proposal, open questions. Cite the sources you used.', 'firefly', 'purple', 'lilac', ['launch-room'], ['Product', 'Company']),
-  agent('iris', 'Iris', 'Customer partner', 'Brings the customer perspective to every conversation, with the right account context.', 'You are the support specialist. Prepare sourced customer responses from policy and account evidence. Flag anything that needs human approval before it is sent.', 'caterpillar', 'rose', 'coral', ['customer-success'], ['Support', 'Company']),
-  agent('scout', 'Scout', 'Research partner', 'Explores new questions, compares sources, and brings useful findings back to the team.', 'You research. Compare sources, report findings with citations, and state confidence and gaps.', 'firefly', 'blue', 'sky', ['engineering', 'launch-room'], ['Company', 'Product', 'Engineering']),
-  agent('ledger', 'Ledger', 'Finance partner', 'Makes financial context easier to understand while keeping sensitive work close to home.', 'You handle finance questions. Use only evidence at your access level, show the numbers you relied on, and never estimate figures you cannot source.', 'worm', 'slate', 'slate', ['launch-room'], ['Company'], 'Confidential'),
-];
-
 let ready: Promise<void> | null = null;
 export function ensureSchema(env: BuzzEnv): Promise<void> {
   // ponytail: schema bootstrap on first request per isolate; migrations when the schema stops being additive.
   ready ??= (async () => {
     await env.DB.exec(SCHEMA.trim().split('\n').filter(Boolean).join('\n'));
-    const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM channels').first<{ n: number }>();
-    if (!count?.n) {
-      const now = new Date().toISOString();
-      await env.DB.batch([
-        ...SEED_CHANNELS.map((name) => env.DB.prepare('INSERT OR IGNORE INTO channels(name, created_at) VALUES (?, ?)').bind(name, now)),
-        ...[...SEED_HUMANS, ...SEED_AGENTS].map((m) => env.DB.prepare('INSERT OR IGNORE INTO members(id, kind, name, initials, tone, data) VALUES (?, ?, ?, ?, ?, ?)').bind(m.id, m.kind, m.name, m.initials, m.tone ?? null, JSON.stringify(m.data))),
-        ...SEED_PROJECTS.map((p) => env.DB.prepare('INSERT OR IGNORE INTO projects(id, name, description, color) VALUES (?, ?, ?, ?)').bind(p.id, p.name, p.description, p.color)),
-        env.DB.prepare("INSERT OR IGNORE INTO settings(key, value) VALUES ('rules', ?)").bind(SEED_RULES),
-        env.DB.prepare("INSERT OR IGNORE INTO settings(key, value) VALUES ('rules_version', '1')"),
-      ]);
-    }
+    await seedBell(env);
   })().catch((error) => { ready = null; throw error; });
   return ready;
 }
@@ -136,7 +102,7 @@ export async function loadState(env: BuzzEnv): Promise<WorkspaceState> {
     documents: docs,
     approvals: (approvals.results as Row[]).map(mapApproval),
     nodes: (nodes.results as Row[]).map(mapNode),
-    collections: [...new Set(['Company', 'Product', 'Support', 'Engineering', ...docs.map((d) => d.collection)])],
+    collections: [...new Set([...BELL_COLLECTIONS, ...docs.map((d) => d.collection)])],
     rules: String((rules.results[0] as Row | undefined)?.value ?? ''),
     cursor: Number((cursor.results[0] as Row).seq),
   };

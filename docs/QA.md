@@ -1,43 +1,44 @@
-# Frontend release audit — 12 September 2026
+# Relay release verification — 12 September 2026
 
-Reference reviewed: actual Block Buzz source and channel screenshots at snapshot 6c35e82bd50f4ad6587554eeb429e7378d474ba7. PageHeader was ported, ChatHeader adapted, and original license retained. Visual comparison covers hierarchy, density, message layout, sidebar, menus, and dialogs; this is not a claim of exact pixel or complete feature parity.
+Actual Block Buzz source was reviewed at snapshot `6c35e82bd50f4ad6587554eeb429e7378d474ba7`, including ChatHeader, channel header/avatar, thread and profile panes, identity cards, Inbox panes and Settings sections. Original Apache-2.0 notices remain. The comparison covers counterpart structure and interaction quality; it does not certify complete Buzz or Slack feature parity.
 
-## Browser results
+## Current verified frontend
 
-- 11 chat scenarios passed: sending with Enter and line breaks with Shift+Enter; channel and DM isolation; new channel/message persistence after reload; saved replies; rich-text search; reactions; matching draft approval; room context; canvas retention; keyboard preference; mobile navigation dismissal.
-- 12 multi-action scenarios passed across Agents, Data, Compute, Projects, Workflows, and Forum. See qa/FEATURE_GAUNTLET.md.
-- Huddles: room creation, opening, mute/camera UI state, and leaving passed. Voice and video transmission are not connected.
-- All 11 pages captured at 1440×960, 1024×768, and 390×844. Desktop/tablet had no document horizontal overflow. Mobile Data overflow was fixed and screenshot-verified.
-- Mobile Data import, GB10 pairing, project creation, and discussion dialogs fit and scroll. Agent and workflow forms were covered by functional desktop checks.
-- Final functional runs reported no page/console errors.
+Independent Astra review captured all 11 destinations at 1440, 1024 and 390 pixels. No document horizontal overflow remained. Mobile profile/thread navigation and agent creation fit. The final review verified the thread mention toolbar focuses the composer and opens the picker.
 
-## Fixed defects
+| Before | After |
+| --- | --- |
+| DM header used @ and workspace-wide members | Recipient avatar, editable shared identity, profile sidepane, appropriate DM controls |
+| Threads blocked/blurred the conversation | Embedded, keyboard-resizable desktop pane; full-width mobile pane; shared mention composer and real agent request path |
+| Notes shared one global state | Notes persist separately per channel/DM, with migration of the old canvas to launch-room |
+| Workspace search inspected only the current room | Search covers stored conversations and opens the matching room/thread |
+| Keyboard mention selection could leave the popup viewport | Active member scrolls into view; toolbar insertion focuses the textarea and updates its caret |
+| Agent states and bubbles cycled as a visual preview | Stable member IDs share actual idle/sleep/thinking/stuck state across cards, headers, messages, profiles, mentions and sidebar |
+| Gradient too strong; bubble exit incomplete | Softer lower-left glow/grain; 54×30 frosted bubble without a tail; 240ms entrance and 220ms exit |
+| New shared avatars inherited flex stretching | Fixed 24×24 sidebar avatars; message/profile sizes remain independent |
+| Generic Settings and Inbox cards | Grouped settings with local name/preferences and list/detail Inbox with keyboard selection, search and read controls |
+| Crowded Data/Workflows screens | Plain headers, scoped responsive layout, accessible collection state, keyboard form submission and empty-file preview handling |
+| Duplicate Ready label and disabled button | One Ready status in the card header; setup action disappears after completion |
+| Gray human placeholders | Consistent pastel colors shared across human avatars |
+| Generic server icon | Original Dell artwork only inside the Compute card; larger portrait and subtle cool-gray card tint/grain; original icons retained everywhere else |
+| Browser-default progress color | Consistent gray progress styling |
+| Many model/setup choices | One Dell card prescribing Holo with NemoClaw, OpenClaw and OpenShell; fixed idempotent setup action with real installation progress |
+| Thread retry lost parent context after reload | Retry reconstructs parent plus thread history |
+| Failed health polling retained stale connection state | Failed or malformed health responses put disconnected agents into sleep |
+| Historical-name lookup could override member IDs | Stable IDs resolve first, including seeded message authors |
 
-Mobile navigation remained open after selection; Data table escaped the viewport; agent detail cards cleared selection instead of opening; some compute metadata was 8–9px; card chevrons wrapped; empty thread actions cluttered the conversation; Settings connection management was a dead-end toast. These were corrected. Automatic workflow detail opening after creation was removed.
+Controlled SSE checks against the built production Worker passed: DM avatar; no DM-wide member stack; synchronized thinking during a request; idle after completion; sleep for disconnected cloud; stuck on failure; Retry back to thinking; real request routing from thread composer; no overlay; no browser page errors. The checks verify frontend lifecycle/routing, not an independent model benchmark. Entry/exit animation names and timing were inspected in the production build.
 
-## Scope and remaining integrations
+TypeScript, lint, production build and `node --experimental-strip-types scripts/check-compute-setup.mjs` pass. The setup proxy checks cover same-origin requests, server-owned destination/action, bounded public status, credential containment and unavailable/malformed upstream responses.
 
-This is an interactive frontend; server messaging, company authentication/authorization, shared data persistence, agent inference, runtime verification/model installation, real voice/video, and workflow execution remain backend integration work. The UI marks disconnected operations and does not execute them. File classification and cloud exclusion are local configuration behavior, not enforceable service security.
+## Runtime
 
-Optional WebMCP tools were not verified: document.modelContext was absent in the available Chromium context. No assistive-technology certification, load test, or exhaustive permutation test is claimed. Automated screenshots are QA artifacts, not a deployment thumbnail.
+**Holo-3.1-35B-A3B NVFP4 through NemoClaw, OpenClaw and OpenShell is verified running on the Dell.** An independent Astra verifier correlated the unique response `RELAY-HOLO-SEP12-2027 3973` with OpenClaw session output, OpenShell inference routing and the mounted Holo model. [Verification receipt](HOLO_RUNTIME_VERIFICATION.md).
 
-## Final agent screen and dependency pass
+The published app also passed actual two-turn DM recall (`OLIVE`) and a channel `@Atlas` response (`RELEASE_OK`), each through streaming `/api/chat`, with no page errors. Observed request durations were 1.61s, 1.68s and 1.74s; these checks are not performance guarantees. Unauthenticated runtime endpoints return 401. Four concurrent setup POSTs returned ready without restarting the stack. The Spark is untouched.
 
-The Agents screen was subsequently rebuilt from Buzz identity-card markup (4:5 cards, 96px centered avatars, dashed create card, responsive 1–5 columns, agent teams). Local/cloud setup, editable capabilities, agent defaults, team creation/editing, and custom avatar/state selection remain available. User-supplied sprite files are preserved verbatim.
+## Limits
 
-React packages were updated together to 19.2.8 for [the published server-function fix](https://github.com/advisories/GHSA-wx67-qw84-cm4g). Vinext, Vite, and the RSC plugin were upgraded together with compatible peer versions; Undici is pinned through an override. The final production dependency audit reports no high or critical advisories; one low-severity Windows-only development-server esbuild advisory remains. Frontend/browser verification is separate from this dependency audit.
+Messages, identity configuration, notes, data and preferences remain local browser state, not a shared multiuser database. Access labels are configuration, not service-level authorization. Voice/video transport and workflow execution remain disconnected. No load test, assistive-technology certification or complete product parity is claimed.
 
-
-Final sprite check: all 16 character/state combinations use the correct sheet and CSS quadrant. Agent creation with a selected sprite and team creation/editing were exercised in Chromium. The built production Worker was also served locally; all ten non-chat page destinations loaded without page errors. The monochrome application theme intentionally preserves the user-provided profile art in its original colors.
-
-Profile sprite changes were additionally verified to propagate from Agents into existing chat appearances without resetting user messages.
-
-## 12 September — simplified agents and custom dropdowns
-
-Production-worker browser checks pass for generated names, draft cancellation, create/edit persistence during navigation, local/cloud access defaults and freely editable overrides, dropdown keyboard selection, mobile dialog/popup fit, and all five other dropdown surfaces. Ten feature scenarios cover data import/preview/removal/reclassification, projects/tasks/comments, workflows, forum, and compute configuration; no production browser errors. Lint, TypeScript, and production build pass.
-
-All 16 sprite quadrants visually checked; original images unchanged. Runtime activity-to-sprite updates tested independently through the adapter export. Native visible select elements are absent from the app.
-
-## Member directory and live-chat integration
-
-Shared-directory storage checks pass for create, rename, reload, cross-tab changes, malformed data, and unavailable storage. Browser tests against a controlled SSE response verify @agent routing, agent DMs, human DMs, error/Retry, and no duplicate user posts; those controlled tests do not establish Dell inference readiness. Real endpoint verification is tracked separately. Current agent create/edit form and ten feature scenarios pass against the production Worker. No runtime/browser errors; mobile fit verified at 390px. All visible dropdowns use the shared custom control.
+The reported MetaMask rejection names the browser extension's `chrome-extension://…/inpage.js`. No wallet/MetaMask dependency or call exists in Relay app code or its dependency manifest; fresh isolated-browser runs do not reproduce it.

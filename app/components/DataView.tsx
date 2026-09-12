@@ -1,3 +1,5 @@
+import "./data-layers.css";
+import { PageHeader } from "@/components/buzz/PageHeader";
 import { SelectField } from "@/components/SelectField";
 import { buzz, useBuzz } from "@/lib/buzz/store";
 import type { DocumentRecord, Passage } from "@/lib/buzz/types";
@@ -18,6 +20,7 @@ import {
   HardDrive,
   Info,
   List,
+  Layers3,
   LockKeyhole,
   MoreHorizontal,
   Plus,
@@ -49,6 +52,13 @@ const descriptions: Record<Level, string> = {
 };
 const audienceOptions = [
   "Everyone in workspace",
+  "Bell Engineering",
+  "Server Platform",
+  "Platform Software",
+  "Thermal Engineering",
+  "Product Reliability",
+  "Firmware Security",
+  "Sourcing Review",
   "Engineering",
   "Customer operations",
   "Leadership",
@@ -152,10 +162,11 @@ export function DataView({ onNotify }: Props) {
   const [collection, setCollection] = useState("All data");
   const [query, setQuery] = useState("");
   const [levelFilter, setLevelFilter] = useState("All classifications");
-  const [layout, setLayout] = useState<"list" | "grid">("list");
+  const [layout, setLayout] = useState<"layers" | "list" | "grid">("layers");
   const [sort, setSort] = useState("recent");
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
+  const [dropLevel, setDropLevel] = useState<Level | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [importLevel, setImportLevel] = useState<Level>("Internal");
@@ -313,6 +324,14 @@ export function DataView({ onNotify }: Props) {
     setQuery("");
     notify(`${added} ${added === 1 ? "file added" : "files added"}.`);
   };
+  async function changeLevel(item: DataItem, level: Level) {
+    try {
+      const response = await fetch('/api/documents', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, level }) });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error || 'Could not move the document.');
+      onNotify?.(`Moved to ${level}.`);
+    } catch (error) { onNotify?.(error instanceof Error ? error.message : 'Could not move the document.'); }
+  }
   const download = (item: DataItem) => {
     const anchor = document.createElement("a");
     anchor.href = buzz.documentUrl(item.id);
@@ -366,7 +385,7 @@ export function DataView({ onNotify }: Props) {
 
   return (
     <div
-      className="page data-page"
+      className="page data-page quality-data"
       onDragEnter={(event) => {
         event.preventDefault();
         if (event.dataTransfer.types.includes("Files")) {
@@ -390,12 +409,10 @@ export function DataView({ onNotify }: Props) {
         receiveFiles(event.dataTransfer.files);
       }}
     >
-      <header className="page-heading">
-        <div className="title-row">
-          <div>
-            <div className="eyebrow">WORKSPACE INTELLIGENCE</div>
-            <h1>Company knowledge</h1>
-          </div>
+      <PageHeader
+        className="page-heading"
+        title="Data"
+        action={
           <div className="data-heading-actions">
             <button className="btn btn-secondary" onClick={() => setPolicyOpen(true)}>
               <ShieldCheck size={16} />
@@ -406,8 +423,8 @@ export function DataView({ onNotify }: Props) {
               Add data
             </button>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <section className="card data-ask" aria-label="Ask the index">
         <form
@@ -486,6 +503,7 @@ export function DataView({ onNotify }: Props) {
           </div>
           <button
             className={`data-collection ${collection === "All data" ? "active" : ""}`}
+            aria-current={collection === "All data" ? "page" : undefined}
             onClick={() => setCollection("All data")}
           >
             <Grid2X2 size={16} />
@@ -496,6 +514,7 @@ export function DataView({ onNotify }: Props) {
           {collections.map((name) => (
             <button
               className={`data-collection ${collection === name ? "active" : ""}`}
+              aria-current={collection === name ? "page" : undefined}
               key={name}
               onClick={() => setCollection(name)}
             >
@@ -514,14 +533,6 @@ export function DataView({ onNotify }: Props) {
             <FolderPlus size={16} />
             New collection
           </button>
-          <div className="data-collection-help">
-            <ShieldCheck size={20} />
-            <strong>Context has boundaries.</strong>
-            <p>Classify every source before making it available to an agent.</p>
-            <button onClick={() => setPolicyOpen(true)}>
-              Explore access levels <ArrowUpRight size={13} />
-            </button>
-          </div>
         </aside>
         <section className="data-library card" aria-label="Knowledge sources">
           <div className="data-library-heading">
@@ -529,12 +540,17 @@ export function DataView({ onNotify }: Props) {
               <h2>{collection}</h2>
               <span>
                 {visible.length} {visible.length === 1 ? "source" : "sources"}
-                {query || levelFilter !== "All classifications"
-                  ? " matching your filters"
-                  : " across your workspace"}
               </span>
             </div>
             <div className="data-view-toggle" aria-label="View style">
+              <button
+                className={layout === "layers" ? "active" : ""}
+                onClick={() => setLayout("layers")}
+                aria-label="Security layers view"
+                aria-pressed={layout === "layers"}
+              >
+                <Layers3 size={17} />
+              </button>
               <button
                 className={layout === "list" ? "active" : ""}
                 onClick={() => setLayout("list")}
@@ -590,13 +606,131 @@ export function DataView({ onNotify }: Props) {
               <option value="size">Largest first</option>
             </SelectField>
           </div>
-          {!visible.length ? (
+          {layout === "layers" ? (
+            <div className="data-security-layers" aria-label="Security layers">
+              {levels
+                .filter((level) => levelFilter === "All classifications" || levelFilter === level)
+                .map((level) => {
+                  const files = visible.filter((item) => item.level === level);
+                  return (
+                    <div
+                      key={level}
+                      className={`data-security-shelf${dropLevel === level ? " is-drop-target" : ""}`}
+                      aria-label={`${level} files`}
+                      onDragEnter={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setDragging(false);
+                        setDropLevel(level);
+                      }}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        event.dataTransfer.dropEffect = event.dataTransfer.types.includes(
+                          "application/x-relay-file",
+                        )
+                          ? "move"
+                          : "copy";
+                      }}
+                      onDragLeave={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+                          setDropLevel(null);
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setDropLevel(null);
+                        setDragging(false);
+                        dragDepth.current = 0;
+                        const id = event.dataTransfer.getData("application/x-relay-file");
+                        if (id) {
+                          const item = items.find((file) => file.id === id);
+                          if (item && item.level !== level) void changeLevel(item, level);
+                        } else if (event.dataTransfer.files.length) {
+                          setImportLevel(level);
+                          receiveFiles(event.dataTransfer.files);
+                        }
+                      }}
+                    >
+                      <header className="data-shelf-header">
+                        <span className="data-shelf-index">0{levels.indexOf(level) + 1}</span>
+                        <h3>{level}</h3>
+                        <span className="data-shelf-count">{files.length}</span>
+                        <button
+                          className="icon-btn"
+                          aria-label={`Add files to ${level}`}
+                          onClick={() => {
+                            startImport();
+                            setImportLevel(level);
+                          }}
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </header>
+                      <div className="data-shelf-files">
+                        {files.map((item) => (
+                          <div
+                                  aria-label={item.name}
+                            key={item.id}
+                            className="data-layer-file"
+                            draggable
+                            onDragStart={(event) => {
+                              event.dataTransfer.setData("application/x-relay-file", item.id);
+                              event.dataTransfer.effectAllowed = "move";
+                            }}
+                            onDragEnd={() => setDropLevel(null)}
+                          >
+                            <button
+                              className="data-layer-file-open"
+                              onClick={() => setSelectedId(item.id)}
+                              aria-label={`View details for ${item.name}`}
+                            >
+                              <FileGlyph type={item.type} />
+                              <span>
+                                <strong>{item.name}</strong>
+                                <small>
+                                  {bytes(item.size)} ·{" "}
+                                  {item.status === "ready" ? "Searchable" : item.status}
+                                </small>
+                              </span>
+                            </button>
+                            <SelectField
+                              className="data-layer-move"
+                              aria-label={`Move ${item.name} to security layer`}
+                              value={item.level}
+                              onChange={(event) => changeLevel(item, event.target.value as Level)}
+                            >
+                              {levels.map((next) => (
+                                <option key={next} value={next}>
+                                  {next}
+                                </option>
+                              ))}
+                            </SelectField>
+                          </div>
+                        ))}
+                        {!files.length && (
+                          <button
+                            className="data-shelf-empty"
+                            onClick={() => {
+                              startImport();
+                              setImportLevel(level);
+                            }}
+                          >
+                            Drop files here <span>or browse</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          ) : !visible.length ? (
             <div className="empty-state data-empty">
               <Folder size={32} />
               <h3>
                 {query || levelFilter !== "All classifications"
                   ? "No matching sources"
-                  : "A place for shared context"}
+                  : "No files yet"}
               </h3>
               <p>
                 {query || levelFilter !== "All classifications"
@@ -711,11 +845,9 @@ export function DataView({ onNotify }: Props) {
             </span>
             <span>
               <strong>
-                Drop knowledge here, or <em>browse files</em>
+                Drop files here, or <em>browse</em>
               </strong>
-              <small>
-                Documents, spreadsheets, images, code, and folders · classify before adding
-              </small>
+              <small>Files and folders</small>
             </span>
             <span className="data-drop-privacy">
               <LockKeyhole size={13} />
@@ -731,7 +863,7 @@ export function DataView({ onNotify }: Props) {
         <div className="data-drag-overlay">
           <div>
             <UploadCloud size={40} />
-            <h2>Give your agents the context</h2>
+            <h2>Drop files to import</h2>
             <p>Drop files to choose their collection and security level.</p>
           </div>
         </div>
@@ -745,7 +877,7 @@ export function DataView({ onNotify }: Props) {
           if (!open) setPendingFiles([]);
         }}
       >
-        <DialogContent className="data-dialog">
+        <DialogContent className="data-dialog quality-data-dialog">
           <DialogHeader>
             <DialogTitle>Import files</DialogTitle>
             <DialogDescription className="sr-only">
@@ -941,7 +1073,7 @@ export function DataView({ onNotify }: Props) {
           if (!open) setSelectedId(null);
         }}
       >
-        <DialogContent className="data-dialog data-detail-dialog">
+        <DialogContent className="data-dialog data-detail-dialog quality-data-dialog">
           {selected && (
             <>
               <DialogHeader>
@@ -975,8 +1107,7 @@ export function DataView({ onNotify }: Props) {
               )}
               <div className="data-dialog-note">
                 <Info size={15} />
-                Classification and access are set at import. To change them, remove the source and
-                import it again.
+                Classification changes retain the original source and its named access grants. Collection and audience changes require a new import.
               </div>
               <div className="form-grid">
                 <div className="field">
@@ -1001,8 +1132,7 @@ export function DataView({ onNotify }: Props) {
                     className="select"
                     id="data-detail-level"
                     value={selected.level}
-                    disabled
-                    onChange={() => {}}
+                    onChange={event => changeLevel(selected, event.target.value as Level)}
                   >
                     {levels.map((level) => (
                       <option key={level}>{level}</option>
@@ -1090,7 +1220,7 @@ export function DataView({ onNotify }: Props) {
           if (!open) openPreview(null);
         }}
       >
-        <DialogContent className="data-dialog data-preview-dialog">
+        <DialogContent className="data-dialog data-preview-dialog quality-data-dialog">
           <DialogHeader>
             <DialogTitle>{previewItem?.name}</DialogTitle>
             <DialogDescription>Stored locally</DialogDescription>
@@ -1107,8 +1237,13 @@ export function DataView({ onNotify }: Props) {
                 <img src={previewUrl} alt={`Preview of ${previewItem?.name}`} />
               </div>
             )
-          ) : previewText ? (
-            <pre className="data-text-preview">{previewText}</pre>
+          ) : previewText ||
+            (previewItem &&
+              (previewItem.type.startsWith("text/") ||
+                /\.(md|txt|csv|json|yaml|yml|log|xml|html|js|ts|py|css|sql)$/i.test(
+                  previewItem.name,
+                ))) ? (
+            <pre className="data-text-preview">{previewText || "Empty file"}</pre>
           ) : (
             <div className="empty-state">
               <FileIcon size={32} />
@@ -1131,7 +1266,7 @@ export function DataView({ onNotify }: Props) {
         </DialogContent>
       </Dialog>
       <Dialog open={policyOpen} onOpenChange={setPolicyOpen}>
-        <DialogContent className="data-dialog">
+        <DialogContent className="data-dialog quality-data-dialog">
           <DialogHeader>
             <DialogTitle>Access policy</DialogTitle>
             <DialogDescription>
@@ -1180,7 +1315,7 @@ export function DataView({ onNotify }: Props) {
         </DialogContent>
       </Dialog>
       <Dialog open={collectionOpen} onOpenChange={setCollectionOpen}>
-        <DialogContent className="data-dialog data-small-dialog">
+        <DialogContent className="data-dialog data-small-dialog quality-data-dialog">
           <DialogHeader>
             <DialogTitle>New collection</DialogTitle>
             <DialogDescription>Organize related sources into a collection</DialogDescription>

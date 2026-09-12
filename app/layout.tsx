@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
+import './bell-demo.css';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Shoal — Your team, extended',
-  description: 'A shared workspace for people and agents, with GB10 compute and classified company context.',
+  title: 'Bell Engineering — Agent Workspace',
+  description: 'A fictional Bell Corporation engineering division with six specialist agents, scoped technical context, and project delivery workflows.',
 };
 
 export default function RootLayout({

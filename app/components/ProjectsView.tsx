@@ -1,8 +1,9 @@
+import { bellProjects } from "@/lib/bell-projects";
 import { SelectField } from "@/components/SelectField";
 import { PageHeader } from "@/components/buzz/PageHeader";
 import { buzz, useBuzz } from "@/lib/buzz/store";
 import type { Packet, RunMode, RunRecord, TaskRecord } from "@/lib/buzz/types";
-import { useMemo, useState, type SyntheticEvent } from "react";
+import { useState, type SyntheticEvent } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -25,7 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const statuses = ["Backlog", "In progress", "In review", "Done"];
+const statuses = ["Backlog", "In progress", "Blocked", "In review", "Done"];
 const initials = (name: string) =>
   name
     .split(" ")
@@ -35,12 +36,12 @@ const initials = (name: string) =>
 const runBadge = (status: RunRecord["status"]) =>
   status === "completed" ? "badge-green" : status === "failed" || status === "cancelled" ? "badge-red" : "badge-amber";
 
-export function ProjectsView({ onNotify }: { onNotify?: (message: string) => void }) {
+export function ProjectsView({ onNotify, onNavigate }: { onNotify?: (message: string) => void; onNavigate?: (view: string) => void }) {
   const { projects, tasks, members, runs, loaded } = useBuzz();
   const agents = members.filter((m) => m.kind === "agent");
   const agentNames = new Set(agents.map((m) => m.name));
   const isAgent = (name: string) => agentNames.has(name);
-  const [projectId, setProjectId] = useState("launch");
+  const [projectId, setProjectId] = useState("summit-r8");
   const [view, setView] = useState<"board" | "list">("board");
   const [search, setSearch] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("Everyone");
@@ -49,7 +50,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [criteria, setCriteria] = useState("");
-  const [owner, setOwner] = useState("You");
+  const [owner, setOwner] = useState("Orion");
   const [status, setStatus] = useState("Backlog");
   const [priority, setPriority] = useState("Medium");
   const [comment, setComment] = useState("");
@@ -59,17 +60,14 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
   const [packet, setPacket] = useState<{ runId: string; packet: Packet | null } | null>(null);
   const project = projects.find((item) => item.id === projectId) ?? projects[0];
   const allTasks = tasks.filter((task) => task.project === project?.id);
-  const filtered = useMemo(
-    () =>
-      tasks.filter(
+  const filtered = tasks.filter(
         (task) =>
           task.project === project?.id &&
           `${task.title} ${task.id} ${task.label}`.toLowerCase().includes(search.toLowerCase()) &&
           (ownerFilter === "Everyone" ||
             (ownerFilter === "Agents" ? agentNames.has(task.owner) : !agentNames.has(task.owner))),
-      ),
-    [tasks, project?.id, search, ownerFilter, members],
-  );
+      );
+  const brief = bellProjects.find(item => item.id === project?.id);
   const selected = tasks.find((task) => task.id === selectedId);
   const selectedRuns = runs
     .filter((r) => r.taskId === selectedId)
@@ -134,6 +132,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
   }
   function openTask(id: string) {
     setSelectedId(id);
+    setRunAgent(agents.find(agent => agent.name === tasks.find(task => task.id === id)?.owner)?.id || "");
     setComment("");
     setRunError("");
     setPacket(null);
@@ -199,6 +198,21 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
           </div>
         </div>
       </section>
+      {brief && <section className="bell-project-brief" aria-label="Program brief">
+        <div><span className="bell-eyebrow">Program objective</span><p>{brief.goal}</p>
+          <div className="bell-program-agents">{brief.agentIds.map(id => {
+            const agent = agents.find(item => item.id === id);
+            return agent && <button className="btn btn-secondary" key={id} onClick={() => { onNavigate?.('compute'); window.dispatchEvent(new CustomEvent('relay:open-agent', { detail: { agentId: id } })); }}>
+              {agent.name}<span className="muted">{String(agent.data.role || '')}</span>
+            </button>;
+          })}</div>
+        </div>
+        <div><span className="bell-eyebrow">Next decision</span><h3>{brief.nextGate}</h3>
+          <p className="bell-gate-owner">Decision owner: {members.find(member => member.id === brief.ownerId)?.name}</p>
+          <p className="bell-project-risk">{brief.risk}</p>
+          <span className="badge badge-amber">{brief.status} · demo scenario</span>
+        </div>
+      </section>}
       <div className="work-board-toolbar">
         <div className="work-view-switch">
           <button
@@ -567,13 +581,13 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                       ))}
                     </SelectField>
                   </label>
-                  <label>
+                  <div>
                     <span>Mode</span>
                     <SelectField className="select" aria-label="Task mode" value={runMode} onChange={(event) => setRunMode(event.target.value as RunMode)}>
                       <option value="quick">Quick</option><option value="deep">Deep</option>
                     </SelectField>
-                  </label>
-                  <label>
+                  </div>
+                  <div>
                     <span>&nbsp;</span>
                     <button
                       type="button"
@@ -583,7 +597,7 @@ export function ProjectsView({ onNotify }: { onNotify?: (message: string) => voi
                     >
                       <Play size={15} /> Run with agent
                     </button>
-                  </label>
+                  </div>
                 </div>
                 {runError && (
                   <p role="alert" className="agents-form-error">

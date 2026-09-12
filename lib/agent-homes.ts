@@ -13,28 +13,8 @@ export type AgentHome = {
 };
 
 const initialHomes: readonly AgentHome[] = [
-  { id: 'openai-preview', name: 'OpenAI', kind: 'cloud', status: 'preview', provider: 'OpenAI' },
-  {
-    id: 'lab',
-    name: 'Meridian Lab',
-    kind: 'local',
-    status: 'preview',
-    location: 'Engineering · Sample device',
-  },
-  {
-    id: 'studio',
-    name: 'Studio',
-    kind: 'local',
-    status: 'preview',
-    location: 'Operations · Sample device',
-  },
-  {
-    id: 'cloud-preview',
-    name: 'Anthropic',
-    kind: 'cloud',
-    status: 'preview',
-    provider: 'Anthropic',
-  },
+  { id: 'lab', name: 'Dell GB10', kind: 'local', status: 'preview', location: 'Dell Pro Max · NVIDIA GB10' },
+  { id: 'openai-preview', name: 'Cloud', kind: 'cloud', status: 'preview', provider: 'OpenAI' },
 ];
 let homes = initialHomes;
 const listeners = new Set<() => void>();
@@ -43,14 +23,15 @@ let checkingHealth = false;
 async function refreshRuntimeHealth() {
   if (checkingHealth) return;
   checkingHealth = true;
+  const disconnected = () => { if (homes.some(home=>home.id==='lab' && home.status==='connected')) publish(homes.map(home=>home.id==='lab' ? {...home,status:'preview' as const} : home)); };
   try {
     // buzz.runtime() also stores the observed nodes in the shared store (useBuzz().nodes).
     const data = await buzz.runtime();
     const verified = data.homes.find((home) => home.id === 'lab');
-    if (!verified) return;
+    if (!verified) { disconnected(); return; }
     const next = homes.map(home => home.id === 'lab' ? { ...home, name: verified.name, location: `Inference · ${verified.model}`, status: verified.connected ? 'connected' as const : 'preview' as const } : home);
     if (next.some((home, index) => home.name !== homes[index].name || home.status !== homes[index].status || home.location !== homes[index].location)) publish(next);
-  } catch { /* Health is advisory; chat reports retryable connection failures. */ }
+  } catch { disconnected(); }
   finally { checkingHealth = false; }
 }
 const subscribe = (listener: () => void) => {

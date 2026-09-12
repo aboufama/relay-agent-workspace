@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const ts = now(); const triggerId = id('msg');
   const pending = agents.map((a) => ({ agent: a, replyId: id('msg'), runId: id('run') }));
   const stmts = [e.DB.prepare('INSERT INTO messages(id, room, member_id, name, body, created_at, state, client_id) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)').bind(triggerId, room, memberId, String(member?.name || 'You'), text, ts, clientId)];
-  if (!room.startsWith('dm:')) stmts.push(e.DB.prepare('INSERT OR IGNORE INTO channels(name, created_at) VALUES (?, ?)').bind(room, ts));
+  if (!room.startsWith('dm:') && !room.startsWith('thread:')) stmts.push(e.DB.prepare('INSERT OR IGNORE INTO channels(name, created_at) VALUES (?, ?)').bind(room, ts));
   for (const { agent, replyId, runId } of pending) stmts.push(
     e.DB.prepare("INSERT INTO messages(id, room, member_id, name, body, created_at, run_id, state) VALUES (?, ?, ?, ?, '', ?, ?, 'pending')").bind(replyId, room, agent.id, agent.name, ts, runId),
     e.DB.prepare("INSERT INTO runs(id, kind, agent_id, room, message_id, trigger_message_id, status, backend, mode, created_at) VALUES (?, 'chat', ?, ?, ?, ?, 'queued', 'openclaw', ?, ?)").bind(runId, agent.id, room, replyId, triggerId, mode, ts),
