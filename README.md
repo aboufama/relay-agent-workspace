@@ -93,3 +93,5 @@ backend mutations. An unconfigured backend is never replaced with simulated repl
 
 The [integration notes](docs/BACKEND_MERGE.md) describe preserved UI behavior,
 shared API changes, and the deliberately unconfigured hosted-backend connection.
+
+[Stored brand assets](design/brand/README.md) are available for collaborators; the shell icon is stored only and is not used in the interface.
