@@ -29,3 +29,5 @@ React packages were updated together to 19.2.8 for [the published server-functio
 
 
 Final sprite check: all 16 character/state combinations use the correct sheet and CSS quadrant. Agent creation with a selected sprite and team creation/editing were exercised in Chromium. The built production Worker was also served locally; all ten non-chat page destinations loaded without page errors. The monochrome application theme intentionally preserves the user-provided profile art in its original colors.
+
+Profile sprite changes were additionally verified to propagate from Agents into existing chat appearances without resetting user messages.

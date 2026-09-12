@@ -1,5 +1,5 @@
 // Layout adapted from Buzz AgentsView, UnifiedAgentsSection, AgentIdentityCard and CreateIdentityCard. See repository third-party notices.
-import { AgentAvatar } from "@/components/AgentAvatar";
+import { AgentAvatar, setAgentAvatarIdentity } from "@/components/AgentAvatar";
 import { PageHeader } from "@/components/buzz/PageHeader";
 import { useState } from "react";
 import {
@@ -325,6 +325,7 @@ export function AgentsView({ onNotify }: Props) {
     onNotify?.(`${agent.name} configured for this session. Connect a runtime to activate it.`);
   }
   function updateAgent(updated: Agent) {
+    setAgentAvatarIdentity(updated.name, updated.character || "worm", updated.spriteState || "idle");
     setAgents(agents.map((a) => (a.id === updated.id ? updated : a)));
     setSelected(updated);
   }

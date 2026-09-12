@@ -1235,7 +1235,7 @@ function Chat({
                   className={`message-row ${messages[index - 1]?.name === m.name ? 'message-grouped' : ''}`}
                   key={m.id}
                 >
-                  {m.agent ? <AgentAvatar character={m.name === 'Nova' ? 'firefly' : 'worm'} state="idle" size={32} label={m.name} className="message-agent-avatar" /> : <span className={`avatar ${m.tone}`}>{m.initials}</span>}
+                  {m.agent ? <AgentAvatar character={m.name === 'Nova' ? 'ladybug' : 'worm'} state="idle" size={32} label={m.name} className="message-agent-avatar" /> : <span className={`avatar ${m.tone}`}>{m.initials}</span>}
                   <div className="message-body">
                     <div className="message-meta">
                       <strong>{m.name}</strong>
@@ -1446,7 +1446,7 @@ function Chat({
                   className="context-agent"
                   onClick={() => navigate('agents')}
                 >
-                  <AgentAvatar character="firefly" state="idle" size={32} label="Nova"/>
+                  <AgentAvatar character="ladybug" state="idle" size={32} label="Nova"/>
                   <span>
                     <strong>
                       Nova <span className="tiny-route cloud">CLOUD</span>
