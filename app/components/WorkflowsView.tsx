@@ -310,7 +310,7 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
           <div className="work-panel-heading">
             <div>
               <h2>A moment of human judgment</h2>
-              <p className="muted">Review the exact draft before an agent takes the next step.</p>
+              <p className="muted">Review the exact action before an agent takes the next step.</p>
             </div>
             <span className="badge badge-amber">{pending} awaiting review</span>
           </div>
@@ -512,7 +512,7 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
               <DialogHeader>
                 <DialogTitle>{approval.title}</DialogTitle>
                 <DialogDescription>
-                  {approval.agent} is requesting review before sharing with {approval.recipient}.
+                  {members.find((member) => member.id === approval.agent)?.name || approval.agent} is requesting permission for the action below.
                 </DialogDescription>
               </DialogHeader>
               <div className="work-detail-meta">
@@ -528,7 +528,7 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
               </div>
               <div className="work-draft">
                 <div className="work-draft-label">
-                  <FileText size={15} /> PROPOSED MESSAGE
+                  <FileText size={15} /> REQUEST
                 </div>
                 <p>{approval.body}</p>
               </div>
@@ -536,9 +536,7 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
                 <div className="work-draft-label">
                   <ShieldCheck size={15} /> EXACT PROPOSED ACTION
                 </div>
-                <p>
-                  <code>{prettyAction(approval.action)}</code>
-                </p>
+                <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}><code>{prettyAction(approval.action)}</code></pre>
               </div>
               {approval.status !== "Pending" && (
                 <p className="muted small">
@@ -546,6 +544,8 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
                   {approval.decidedAt ? ` · ${new Date(approval.decidedAt).toLocaleString()}` : ""}
                 </p>
               )}
+              {approval.expiresAt && <p className="muted small">Request expires {new Date(approval.expiresAt).toLocaleTimeString()}.</p>}
+              {approval.receipt && <p className="muted small">Native decision: {String(approval.receipt.status)}. Check the task result for execution and output.</p>}
               {decideError && (
                 <p role="alert" className="agents-form-error">
                   {decideError}
@@ -553,18 +553,18 @@ export function WorkflowsView({ onNotify, reviewRequest }: { onNotify?: (message
               )}
 
               <div className="dialog-actions">
-                {approval.status === "Pending" ? (
+                {approval.status === "Pending" && !approval.receipt && (!approval.expiresAt || Date.parse(approval.expiresAt) > Date.now()) ? (
                   <>
                     <button
                       className="btn btn-secondary work-reject"
                       onClick={() => decide("Rejected")}
                     >
                       <X size={16} />
-                      Reject draft
+                      Reject action
                     </button>
                     <button className="btn btn-primary" onClick={() => decide("Approved")}>
                       <Check size={16} />
-                      Approve draft
+                      Approve once
                     </button>
                   </>
                 ) : (

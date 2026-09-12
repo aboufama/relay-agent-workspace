@@ -26,7 +26,8 @@ export async function POST(request: Request) {
   if (action.length > 200000) return fail('Action is too large.');
   const existing = await e.DB.prepare("SELECT * FROM approvals WHERE source='openclaw' AND external_id=?").bind(p.externalId).first<Record<string, unknown>>();
   if (existing) return existing.action === action ? ok({ approval: mapApproval(existing) }) : fail('An approval identity cannot change its action.', 409);
-  const run = await e.DB.prepare("SELECT * FROM runs WHERE json_extract(packet,'$.sessionKey')=? ORDER BY created_at DESC LIMIT 1").bind(p.sessionKey).first<Record<string, unknown>>();
+  // OpenClaw prefixes custom HTTP sessions with the selected agent and lowercases the key.
+  const run = await e.DB.prepare("SELECT * FROM runs WHERE ('agent:' || replace(model,'openclaw/','') || ':' || lower(json_extract(packet,'$.sessionKey')))=? ORDER BY created_at DESC LIMIT 1").bind(p.sessionKey.toLowerCase()).first<Record<string, unknown>>();
   if (p.runId && (!run || p.runId !== run.id)) return fail('Approval run does not match its session.', 409);
   const approvalId = id('apr'); const ts = now();
   await e.DB.prepare("INSERT INTO approvals(id,run_id,title,agent,body,action,status,level,created_at,source,external_id,session_key,expires_at,workflow) VALUES (?,?,?,?,?,?,'Pending','Internal',?,'openclaw',?,?,?,'Local command')")
