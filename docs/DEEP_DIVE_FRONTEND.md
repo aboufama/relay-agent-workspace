@@ -1,26 +1,8 @@
-# Shoal Deep Dive frontend handoff
+# Shoal Deep Dive frontend
 
-The five integration files are ready under this folder. No repository checkout, backend, runtime state, network adapter, or Sites configuration was changed.
+Deep Dive is a single clay ocean surface with an unscaled brief input and every current member. Live OpenClaw task snapshots add connected subagents and actual findings. Reduced motion is respected; the UI has no Tree or motion toolbar.
 
-## Files to integrate
-
-- `app/components/DeepDiveView.tsx` — replace the existing component.
-- `app/components/deep-dive.css` — replace the existing feature stylesheet.
-- `lib/deep-dive.ts` — add the versioned, validated frontend contract.
-- `public/deep-dive/clay-ocean.webp` — generated clay underwater environment, 70,834 bytes.
-- `public/deep-dive/clay-fish.png` — generated fish vessel, transparent alpha preserved, 204,980 bytes.
-
-Do not integrate this draft folder’s `tsconfig.json`, `globals.d.ts`, or `node_modules` symlink. They were used for isolated checking only. Root integration owner is handling browser QA.
-
-## Behavior
-
-Every current `useAgentMembers()` member is shown, including before a run. Their existing `AgentAvatar` receives `identityKey={member.id}` and the actual member’s character; the component never changes runtime/availability/activity state. Idle water motion is purely decorative and can be paused. Reduced motion disables it.
-
-The center form saves local briefs and sends all current member IDs. Existing drafts are read from `relay.deep-dive.requests.v1`; an unsent composer is preserved in `shoal.deep-dive.composer.v1`.
-
-Submitting shows **Waiting to start** until actual snapshots arrive. No demo tasks, fake subagents, timed progress, fabricated thoughts, or synthetic outputs are included.
-
-Every received agent ID is represented once. Known lead agents keep their workspace avatar. Children follow `parentId`; unknown parents remain visible as independent roots, and malformed cycles are flattened safely rather than hiding any nodes. Subagents without a known workspace identity use their real name’s initials in the generated fish vessel. The Tree view is an accessible nested list with selectable details and real findings/sources.
+Briefs are local drafts. Starting a dive dispatches the typed request below and waits for real updates; the parallel backend workstation owns orchestration and authenticated transport.
 
 ## Connection options
 

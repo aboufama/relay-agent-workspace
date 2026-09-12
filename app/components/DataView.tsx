@@ -222,19 +222,19 @@ const reefRegions: Record<Level, {
   Internal: {
     path: "M396 -10C387 107 208 105 218 249C227 393 451 328 414 610H1010V-10Z",
     mobilePath: "M-10 265C126 310 223 200 410 280V1010H-10Z",
-    label: [43, 10], mobileLabel: [8, 30],
+    label: [43, 10], mobileLabel: [8, 27],
     spots: [[40, 28], [36, 49], [49, 72]], mobileSpots: [[29, 39], [73, 40], [44, 49]],
   },
   Confidential: {
     path: "M737 -10C723 132 467 122 491 310C515 464 671 401 599 610H1010V-10Z",
     mobilePath: "M-10 543C113 484 268 603 410 529V1010H-10Z",
-    label: [68, 24], mobileLabel: [8, 58],
+    label: [68, 24], mobileLabel: [8, 55],
     spots: [[64, 41], [65, 62], [68, 80]], mobileSpots: [[29, 67], [73, 68], [44, 76]],
   },
   Restricted: {
     path: "M1010 210C849 182 762 250 776 367C791 465 771 536 826 610H1010Z",
     mobilePath: "M-10 811C126 886 237 762 410 835V1010H-10Z",
-    label: [84, 48], mobileLabel: [8, 84],
+    label: [84, 48], mobileLabel: [8, 81],
     spots: [[89, 65], [91, 84], [84, 96]], mobileSpots: [[28, 93], [73, 93], [48, 99]],
   },
 };
