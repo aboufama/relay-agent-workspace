@@ -83,7 +83,11 @@
 .reef-agent-dock { display:flex; justify-content:space-around; align-items:flex-start; gap:12px; flex-wrap:wrap; }
 .reef-agent { display:flex; flex-direction:column; align-items:center; width:calc((100% - 80px)/6); min-width:63px; max-width:105px; border:0; padding:4px 6px; border-radius:16px; background:transparent; color:#57796d; cursor:pointer; transition:opacity 160ms,background 160ms; }
 .reef-agent:disabled { cursor:default; }
-.reef-agent-bank.is-editing .reef-agent:disabled { opacity:.35; }
+.reef-agent-bank.is-editing:not(.is-previewing) .reef-agent:disabled { opacity:.35; }
+.reef-agent-bank.is-previewing .reef-agent-context { color:#4a7568; }
+.reef-agent-bank .reef-agent.is-preview-eligible { opacity:1; background:#dfede4; }
+.reef-agent-bank .reef-agent.is-preview-blocked { opacity:.3; }
+.reef-agent-portrait { transition:box-shadow 180ms ease; }
 .reef-agent:hover:not(:disabled) { background:#dfede4; }
 .reef-agent-portrait { position:relative; width:55px; height:58px; display:grid; place-items:center; border-radius:50%; }
 .reef-agent .agent-avatar { outline:1px solid #0000000c; outline-offset:-1px; }

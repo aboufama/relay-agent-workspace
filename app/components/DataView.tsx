@@ -452,6 +452,7 @@ export function DataView({ onNotify }: Props) {
   const connectedItem = items.find(item => item.id === connectedId);
   const canUse = (agent: (typeof directoryAgents)[number], level: Level) =>
     levels.indexOf(agent.accessLevel) >= levels.indexOf(level) && (!localOnly(level) || agent.runtime === "local");
+  const accessPreviewLevel = dragging || draggedId ? dropLevel : null;
   const dropInto = (event: DragEvent<Element>, level: Level) => {
     event.preventDefault();
     event.stopPropagation();
@@ -474,6 +475,7 @@ export function DataView({ onNotify }: Props) {
     event.stopPropagation();
     event.dataTransfer.dropEffect = event.dataTransfer.types.includes("application/x-relay-file") ? "move" : "copy";
     setDropLevel(level);
+    if (event.dataTransfer.types.includes("Files")) setDragging(true);
   };
   const reefFiles = levels.flatMap(level => {
     const matches = visible.filter(item => item.level === level);
@@ -508,7 +510,7 @@ export function DataView({ onNotify }: Props) {
         dragDepth.current = 0; setDragging(false); setDropLevel(null);
       }}
       onDrop={event => {
-        event.preventDefault(); dragDepth.current = 0; setDragging(false); setDropLevel(null);
+        event.preventDefault(); dragDepth.current = 0; setDragging(false); setDraggedId(null); setDropLevel(null);
         receiveFiles(event.dataTransfer.files);
       }}
     >
@@ -560,14 +562,17 @@ export function DataView({ onNotify }: Props) {
             {!visible.length && <div className="reef-no-results"><Search size={22}/><strong>{query || levelFilter !== "All classifications" ? "No matching files" : "Make this water yours"}</strong><button className="btn btn-secondary" onClick={() => { if(query || levelFilter !== "All classifications") { setQuery(""); setLevelFilter("All classifications"); } else startImport(); }}>{query || levelFilter !== "All classifications" ? "Clear filters" : "Add data"}</button></div>}
             {(dragging || draggedId) && <div className="reef-drop-instruction"><UploadCloud size={16}/>{dropLevel ? `Release into ${dropLevel}` : "Drop into a security depth"}</div>}
           </div>
-          <div className={`reef-agent-bank ${connectedItem ? "is-editing" : ""}`}>
-            <div className="reef-agent-context"><Link2 size={15}/>{connectedItem ? <><span>{connectedItem.name}</span><button className="reef-icon-button" aria-label="Close agent connections" onClick={() => setConnectedId(null)}><X size={15}/></button></> : <span>Choose a file’s <Link2 size={13}/> to connect its agents</span>}</div>
+          <div className={`reef-agent-bank ${connectedItem ? "is-editing" : ""} ${accessPreviewLevel ? "is-previewing" : ""}`} data-preview-level={accessPreviewLevel || undefined}>
+            <div className="reef-agent-context" aria-live="polite"><Link2 size={15}/>{accessPreviewLevel ? <span>Eligible at {accessPreviewLevel}</span> : connectedItem ? <><span>{connectedItem.name}</span><button className="reef-icon-button" aria-label="Close agent connections" onClick={() => setConnectedId(null)}><X size={15}/></button></> : <span>Choose a file’s <Link2 size={13}/> to connect its agents</span>}</div>
             <div className="reef-agent-dock">
               {directoryAgents.map(agent => {
                 const eligible = !!connectedItem && canUse(agent, connectedItem.level);
                 const assigned = !!connectedItem?.agents.some(value => resolveAgent(value)?.id === agent.id) && eligible;
-                return <button key={agent.id} className={`reef-agent ${assigned ? "is-assigned" : ""}`} disabled={!eligible} aria-pressed={assigned} onClick={() => toggleConnection(agent)} title={connectedItem ? eligible ? `${assigned ? "Remove" : "Allow"} ${agent.name} for ${connectedItem.name}` : `${agent.name}: insufficient clearance or cloud runtime` : `${agent.name} · ${agent.accessLevel} · ${agent.runtime}`}>
-                  <span className="reef-agent-portrait"><AgentAvatar identityKey={agent.id} character={agent.character} label={agent.name} size={52}/>{assigned ? <span className="reef-agent-check"><Check size={12}/></span> : connectedItem && !eligible ? <span className="reef-agent-lock"><LockKeyhole size={11}/></span> : null}</span><span>{agent.name}</span><small>{agent.runtime === "local" ? <HardDrive size={10}/> : <Cloud size={10}/>} {agent.runtime}</small>
+                const previewEligible = accessPreviewLevel ? canUse(agent, accessPreviewLevel) : null;
+                const highlighted = previewEligible ?? assigned;
+                const locked = previewEligible === false || (!accessPreviewLevel && !!connectedItem && !eligible);
+                return <button key={agent.id} className={`reef-agent ${highlighted ? "is-assigned" : ""} ${previewEligible === true ? "is-preview-eligible" : previewEligible === false ? "is-preview-blocked" : ""}`} disabled={!!accessPreviewLevel || !eligible} aria-pressed={assigned} onClick={() => toggleConnection(agent)} title={accessPreviewLevel ? `${agent.name}: ${previewEligible ? "eligible" : "not eligible"} at ${accessPreviewLevel}` : connectedItem ? eligible ? `${assigned ? "Remove" : "Allow"} ${agent.name} for ${connectedItem.name}` : `${agent.name}: insufficient clearance or cloud runtime` : `${agent.name} · ${agent.accessLevel} · ${agent.runtime}`}>
+                  <span className="reef-agent-portrait"><AgentAvatar identityKey={agent.id} character={agent.character} label={agent.name} size={52}/>{highlighted ? <span className="reef-agent-check"><Check size={12}/></span> : locked ? <span className="reef-agent-lock"><LockKeyhole size={11}/></span> : null}</span><span>{agent.name}</span><small>{agent.runtime === "local" ? <HardDrive size={10}/> : <Cloud size={10}/>} {agent.runtime}</small>
                 </button>;
               })}
               {!directoryAgents.length && <span className="reef-no-agents">Add members in Habitats to configure access.</span>}
